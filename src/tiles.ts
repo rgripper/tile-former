@@ -8,57 +8,46 @@ export type Tile = {
 type TileType = {
   id: number;
   name: string;
+  color: string;
   textureSection: { x: number; y: number };
 };
 
-// Tile type list with functions to generate bitmaps
-export const tileNames = [
-  "taiga forest",
-  "taiga wetland",
-  "taiga moss",
-  "temperate forest",
-  "temperate wetland",
-  "tropical forest",
-  "tropical flooded forest",
-  "grassland",
-  "shrubland",
+const tileNamesAndColors = [
+  { name: "taiga forest", color: "#808080" }, // Dark gray
+  { name: "taiga wetland", color: "#C0C0C0" }, // Light gray
+  { name: "taiga moss", color: "#A9A9A9" }, // Medium gray
+  { name: "temperate forest", color: "#BDB76B" }, // Light brown
+  { name: "temperate wetland", color: "#F2E8CF" }, // Light beige
+  { name: "tropical forest", color: "#C792EA" }, // Light pink
+  { name: "tropical flooded forest", color: "#D3D3D3" }, // Light gray
+  { name: "grassland", color: "#90EE90" }, // Light green
+  { name: "shrubland", color: "#404040" }, // Dark gray
   //
-  "riparian zone",
-  "stream", // no penalty to crossing, special abilities
-  "lake", // no flow
-  "river",
+  { name: "riparian zone", color: "#FFFFFF" }, // White
+  { name: "stream", color: "#C0C0C0" }, // Light gray
+  { name: "lake", color: "#00B7CC" }, // Light blue
+  { name: "river", color: "#477AC1" }, // Medium blue
   //
-  "rocky", // quarries? mines? special between different biomes?
+  { name: "rocky", color: "#A9A9A9" }, // Medium gray
   //
-  "sand",
-  "sand dune", // same as sand but with (more) movement penalties
-  "dry salt flat",
-] as const; // Mark tiles as readonly constant tuple
+  { name: "sand", color: "#E0C099" }, // Light yellow
+  { name: "sand dune", color: "#D2B48C" }, // Tan
+  { name: "dry salt flat", color: "#F2E8CF" }, // Light beige
+] as const;
 
 export const createTileTypes = (size: number) =>
-  tileNames.map((name, i) => ({
+  tileNamesAndColors.map(({ name, color }, i) => ({
     id: i,
     name,
+    color,
     textureSection: { x: 0, y: i * size },
   }));
 
-const colors = [
-  "#F08080",
-  "#ADD8E6",
-  "#D2B48C",
-  "#9ACD32",
-  "#FFD700",
-  "#FF00FF",
-  "#800080",
-  "#00FFFF",
-  "#000000",
-  "#FFFFFF",
-];
 // Function to get the bitmap for a tile type
 export function createTextureAtlas(
   tileTypes: TileType[],
   tileSize: number
-): ImageBitmap {
+): OffscreenCanvas {
   const offscreenCanvas = new OffscreenCanvas(
     tileSize,
     tileTypes.length * tileSize
@@ -68,8 +57,17 @@ export function createTextureAtlas(
   ) as OffscreenCanvasRenderingContext2D;
 
   tileTypes.forEach((tileType, i) => {
-    ctx.fillStyle = colors[i];
+    ctx.fillStyle = tileType.color;
     ctx.fillRect(
+      tileType.textureSection.x,
+      tileType.textureSection.y,
+      tileSize,
+      tileSize
+    );
+
+    ctx.strokeStyle = "gray";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
       tileType.textureSection.x,
       tileType.textureSection.y,
       tileSize,
@@ -77,29 +75,30 @@ export function createTextureAtlas(
     );
   });
 
-  return offscreenCanvas.transferToImageBitmap();
+  return offscreenCanvas;
 }
 
 // Function to render the entire grid
 export function drawGrid({
   ctx,
   textureAtlas,
+  gridSize,
   grid,
   tileSize,
   tileTypes,
 }: {
   ctx: CanvasRenderingContext2D;
-  textureAtlas: ImageBitmap;
+  textureAtlas: OffscreenCanvas;
+  gridSize: { width: number; height: number };
   grid: Tile[][];
   tileSize: number;
   tileTypes: TileType[];
 }) {
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
-  const numCols = grid[0].length;
-  const numRows = grid.length;
-  for (let y = 0; y < numRows; y++) {
-    for (let x = 0; x < numCols; x++) {
-      const tile = grid[y][x];
+
+  for (let x = 0; x < gridSize.width; x++) {
+    for (let y = 0; y < gridSize.height; y++) {
+      const tile = grid[x][y];
       const tileType = tileTypes[tile.tileTypeId];
       ctx.drawImage(
         textureAtlas,
@@ -137,21 +136,12 @@ export function drawGrid({
 
 export function drawBorders(
   ctx: CanvasRenderingContext2D,
-  gridSize: { width: number; height: number },
   tileSize: number,
   selectedTileIndex: { x: number; y: number } | undefined
 ) {
-  for (let y = 0; y < gridSize.height; y++) {
-    for (let x = 0; x < gridSize.width; x++) {
-      ctx.strokeStyle = "lightgray";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
-    }
-  }
-
   if (selectedTileIndex) {
     ctx.strokeStyle = "red";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.strokeRect(
       selectedTileIndex.x * tileSize,
       selectedTileIndex.y * tileSize,

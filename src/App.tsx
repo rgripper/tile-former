@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
 import "./App.css";
+import { useEffect, useState } from "react";
 import { createNoise2D } from "simplex-noise";
 import Rand from "rand-seed";
 import {
   Tile,
   createTextureAtlas,
   drawGrid,
-  tileNames,
   createTileTypes,
   drawBorders,
 } from "./tiles";
@@ -37,14 +36,17 @@ export default App;
 function generateInitialParameterMap(width: number, height: number): Tile[][] {
   const noise2D = createNoise2D(() => rand.next());
 
-  return new Array(height).fill(0).map((_, x) =>
+  const result = new Array(height).fill(0).map((_, x) =>
     new Array(width).fill(0).map((_, y) => ({
-      tileTypeId: 1,
+      tileTypeId: Math.floor(
+        ((noise2D(x / 40, y / 40) + 1) / 2) * tileTypes.length
+      ),
       x,
       y,
       value: (noise2D(x / 40, y / 40) + 1) / 2,
     }))
   );
+  return result;
 }
 
 function TileMapView({ data }: { data: Tile[][] }) {
@@ -67,6 +69,7 @@ function TileMapView({ data }: { data: Tile[][] }) {
         ctx,
         textureAtlas,
         grid: data,
+        gridSize,
         tileSize,
         tileTypes,
       });
@@ -76,7 +79,7 @@ function TileMapView({ data }: { data: Tile[][] }) {
   useEffect(() => {
     if (canvas) {
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-      drawBorders(ctx, gridSize, tileSize, hoveredTileIndex);
+      drawBorders(ctx, tileSize, hoveredTileIndex);
     }
   }, [canvas, data, hoveredTileIndex]);
 
@@ -124,7 +127,7 @@ function TileInfo({ tile }: { tile: Tile | undefined }) {
     <div style={{ height: "5rem" }}>
       {tile && (
         <>
-          ({tile.x},{tile.y}) {tileNames[tile.tileTypeId]}
+          ({tile.x},{tile.y}) {tileTypes[tile.tileTypeId].name}
         </>
       )}
     </div>
