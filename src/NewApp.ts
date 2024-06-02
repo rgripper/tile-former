@@ -47,3 +47,6 @@ export type Effect = {
 
 type EffectId = number; //
 type EffectType = number;
+
+
+// Environmental Stats

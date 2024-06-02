@@ -1,12 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
-import { Effect, createQuadTree } from "./NewApp";
+import { createNoise2D } from "simplex-noise";
+import Rand from "rand-seed";
+import {
+  Tile,
+  createTextureAtlas,
+  drawGrid,
+  tileNames,
+  createTileTypes,
+  drawBorders,
+} from "./tiles";
 
-const initialTileMap = generateInitialMap(60, 60);
-const tree = createQuadTree<Effect>(128, { width: 800, height: 800 });
+const rand = new Rand("1234");
+
+const tileSize = 32;
+const tileTypes = createTileTypes(32);
+
+const gridSize = { width: 64, height: 64 };
+const textureAtlas = createTextureAtlas(tileTypes, tileSize);
+const initialTileMap = generateInitialParameterMap(
+  gridSize.width,
+  gridSize.height
+); // tile size is 12x12
 
 function App() {
-  const [tileMap, setTileMap] = useState(initialTileMap);
+  const [tileMap] = useState(initialTileMap);
 
   return (
     <>
@@ -15,52 +33,100 @@ function App() {
   );
 }
 
-// TODO:
-/*
-  1. We create an effect in a radius (and we need to correct the Effect type with settings below)
-  2. We specify the strength
-  3. We specify the radial gradient
-  4. We specify the duration
-  5. We specify the fadeOut function: fade(strength, totalDuration, remainingDuration) => centralValue
-  6. We specify the effect speed (if any)
-
-  A. We need to render the effect on the tile map
-  B. We need to move the effect along the tile map
-  C. We need to calculate the cumulative value of the Parameter on each tile of the map
-  D. We need to remove the effect after the duration elapsed
-
-  Side questions:
-
-  Should we add decay to the Parameter values accumulated over the tiles? (otherwise the values can accumulate indefinitely)
-*/
-
 export default App;
-function generateInitialMap(x: number, y: number): TileParameter[][] {
-  return new Array(y)
-    .fill(0)
-    .map(() => new Array(x).fill(0).map(() => ({ value: 0 })));
+function generateInitialParameterMap(width: number, height: number): Tile[][] {
+  const noise2D = createNoise2D(() => rand.next());
+
+  return new Array(height).fill(0).map((_, x) =>
+    new Array(width).fill(0).map((_, y) => ({
+      tileTypeId: 1,
+      x,
+      y,
+      value: (noise2D(x / 40, y / 40) + 1) / 2,
+    }))
+  );
 }
 
-type TileParameter = {
-  value: number;
-};
+function TileMapView({ data }: { data: Tile[][] }) {
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [hoveredTileIndex, setHoveredTileIndex] = useState<{
+    x: number;
+    y: number;
+  }>();
+  useEffect(() => {
+    if (canvas) {
+      canvas.width = gridSize.width * tileSize;
+      canvas.height = gridSize.height * tileSize;
+    }
+  }, [canvas]);
 
-function TileMapView({ data }: { data: TileParameter[][] }) {
+  useEffect(() => {
+    if (canvas) {
+      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+      drawGrid({
+        ctx,
+        textureAtlas,
+        grid: data,
+        tileSize,
+        tileTypes,
+      });
+    }
+  }, [canvas, data, hoveredTileIndex]);
+
+  useEffect(() => {
+    if (canvas) {
+      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+      drawBorders(ctx, gridSize, tileSize, hoveredTileIndex);
+    }
+  }, [canvas, data, hoveredTileIndex]);
+
+  useEffect(() => {
+    if (canvas) {
+      const trackTile = (event: MouseEvent) => {
+        const x = Math.floor(event.offsetX / tileSize);
+        const y = Math.floor(event.offsetY / tileSize);
+        setHoveredTileIndex((v) =>
+          (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        );
+      };
+
+      const untrackTile = () => {
+        setHoveredTileIndex(undefined);
+      };
+      canvas.addEventListener("mousemove", trackTile);
+      canvas.addEventListener("mouseleave", untrackTile);
+
+      return () => {
+        canvas.removeEventListener("mousemove", trackTile);
+        canvas.removeEventListener("mouseleave", untrackTile);
+      };
+    }
+  }, [canvas, hoveredTileIndex]);
+
   return (
     <div className="tile-map">
-      {data.map((row, y) => (
-        <div key={y} className="tile-row">
-          {row.map((tileParameter, x) => (
-            <TileOverlay key={x} tileParameter={tileParameter} />
-          ))}
-        </div>
-      ))}
+      <TileInfo
+        tile={hoveredTileIndex && data[hoveredTileIndex.x][hoveredTileIndex.y]}
+      />
+      <canvas
+        style={{
+          width: tileSize * gridSize.width,
+          height: tileSize * gridSize.height,
+        }}
+        ref={setCanvas}
+      ></canvas>
     </div>
   );
 }
 
-function TileOverlay({ tileParameter }: { tileParameter: TileParameter }) {
-  return <div className="tile">{tileParameter.value}</div>;
+function TileInfo({ tile }: { tile: Tile | undefined }) {
+  return (
+    <div style={{ height: "5rem" }}>
+      {tile && (
+        <>
+          ({tile.x},{tile.y}) {tileNames[tile.tileTypeId]}
+        </>
+      )}
+    </div>
+  );
 }
-
-type TileIndex = [number, number];

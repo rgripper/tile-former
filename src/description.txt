@@ -1,0 +1,29 @@
+// TODO:
+/*
+  1. We create an effect in a radius (and we need to correct the Effect type with settings below)
+  2. We specify the strength
+  3. We specify the radial gradient
+  4. We specify the duration
+  5. We specify the fadeOut function: fade(strength, totalDuration, remainingDuration) => centralValue
+  6. We specify the effect speed (if any)
+
+  A. We need to render the effect on the tile map
+  B. We need to move the effect along the tile map
+  C. We need to calculate the cumulative value of the Parameter on each tile of the map
+  D. We need to remove the effect after the duration elapsed
+
+  Side questions:
+
+  Should we add decay to the Parameter values accumulated over the tiles? (otherwise the values can accumulate indefinitely)
+*/
+
+const tree = createQuadTree<Effect>(128, { width: 800, height: 800 });
+const effect: Effect = {
+  x: 400,
+  y: 400,
+  radius: 100,
+  strength: 1,
+  duration: 1000,
+  fadeOut: (strength, totalDuration, remainingDuration) =>
+    strength * (remainingDuration / totalDuration),
+};

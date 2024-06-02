@@ -1,0 +1,166 @@
+I'm creating a 2d game with biomes. list 10 biomes. list 3-5 soil types for each biome and specify approximate ratios of sand, silt and clay for each. Use json format
+please use a type like this 
+
+type Soil = { name: string; description: string; contents: {
+    "sand": number,
+    "silt": number,
+    "clay": number,
+    "organic": number
+  }
+}
+type Biome = { name: string; soils: SoilType[]
+}
+
+Here are terrain feature soils
+[
+  {
+    "category": "Vegetated Surfaces",
+    "descriptions": [
+      {
+        "surface": "Forest Floor",
+        "description": "Deep organic layer with some mineral soil mix (loamy or high organic content)"
+      },
+      {
+        "surface": "Grassland",
+        "description": "Primarily mineral soil, suitable for grasses (often mollisols)"
+      },
+      {
+        "surface": "Chaparral Shrubland",
+        "description": "Sandy or rocky soil adapted to drier climates with some organic matter"
+      }
+    ]
+  },
+  {
+    "category": "Bare or Sparsely Vegetated Surfaces",
+    "descriptions": [
+      {
+        "surface": "Rocky Outcrops",
+        "description": "Little to no soil, with exposed rock"
+      },
+      {
+        "surface": "Coastal Cliffs",
+        "description": "Similar to rocky outcrops, may have some pockets of sandy or saline soil"
+      },
+      {
+        "surface": "Sand Dunes",
+        "description": "Primarily sand, loose and shifting (low organic content)"
+      },
+      {
+        "surface": "Dry Salt Flats",
+        "description": "Sandy soil with high salt content (saline soil)"
+      }
+    ]
+  },
+  {
+    "category": "Wetland Surfaces",
+    "descriptions": [
+      {
+        "surface": "Wetland Flat",
+        "description": "Can vary depending on biome (hydric soil in rainforests, vertisol in savannas, taiga muskeg with organic matter)"
+      },
+      {
+        "surface": "Seasonal Ponds/Tundra Ponds",
+        "description": "May have clay or loam soil depending on the biome and water retention"
+      },
+      {
+        "surface": "Riparian Zone (Streambank)",
+        "description": "Alluvial soil with varying composition depending on the source material carried by the stream"
+      }
+    ]
+  },
+  {
+    "category": "Water Bodies",
+    "descriptions": [
+      {
+        "surface": "Waterbed",
+        "description": "No soil, submerged underwater"
+      },
+      {
+        "surface": "Streams and Rivers",
+        "description": "May have some rocky or cobble substrate along the bottom, with alluvial soil deposition on the banks (riparian zone)"
+      },
+      {
+        "surface": "Frozen Lakes (Winter)",
+        "description": "Ice cover, potentially with underlying soil depending on the biome (tundra lakes may have permafrost below)"
+      },
+      {
+        "surface": "Water Bank",
+        "description": "The area at the edge of a water body that may be occasionally submerged or exposed depending on water level fluctuations. Soil composition can vary depending on the biome and water source (could be sandy loam near a riverbank, for example)"
+      }
+    ]
+  }
+]
+// const tiles = 
+[
+  "taiga forest",
+  "taiga wetland",
+  "taiga moss",
+  "temperate forest",
+  "temperate wetland",
+  "tropical forest",
+  "tropical flooded forest",
+  "grassland",
+  "shrubland",
+  //
+  "riparian zone",
+  "stream" // no penalty to crossing, special abilities
+  "lake", // no flow
+  "river",
+  //
+  "rocky", // quarries? mines? special between different biomes?
+  //
+  "sand",
+  "sand dune", // same as sand but with (more) movement penalties
+  "dry salt flat",
+]
+  
+  Temperate Forest
+
+  [
+  "Forest Floor",
+  "Grassland",
+  "Rocky",
+  "Riparian Zone (Streambank)",
+  "Seasonal Ponds",
+  "Streams and Rivers"
+]
+
+  Desert
+
+  [
+  "Rocky",
+  "Sand Dunes",
+  "Dry Salt Flats",
+  "Waterbed" // Can potentially have small desert oases
+]
+
+
+  Mediterranean Climate
+
+  [
+  "Chaparral Shrubland",
+  "Grassland",
+  "Rocky",
+  "Lake",
+  // "Coastal Cliffs" - maybe is a higher probability for generating rocky tiles and supporting special wildlife
+  "River" // "Seasonal Rivers" - they come and go, leaving mud?
+  "Water Bank" // Can occur along seasonal rivers and the coast
+]
+
+  Tropical Rainforest
+  [
+  "Forest Floor",
+  "Water Bank",
+  "Lake",
+  "River",
+  "Flooded Forest Floor",
+]
+
+  Taiga
+
+  [
+  "Forest Floor", // Coniferous 
+  "Taiga Muskeg (Wetland)",
+  "Stony Riverbeds",
+  "Moss Area" // Open Sphagnum Moss Areas
+]
