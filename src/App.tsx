@@ -12,11 +12,12 @@ import {
 
 const rand = new Rand("1234");
 
-const tileSize = 32;
+const tileHeight = 32;
+const tileWidth = tileHeight * 2;
 const tileTypes = createTileTypes(32);
 
-const gridSize = { width: 64, height: 64 };
-const textureAtlas = createTextureAtlas(tileTypes, tileSize);
+const gridSize = { width: 128, height: 128 };
+const textureAtlas = createTextureAtlas(tileTypes, tileHeight);
 const initialTileMap = generateInitialParameterMap(
   gridSize.width,
   gridSize.height
@@ -57,8 +58,8 @@ function TileMapView({ data }: { data: Tile[][] }) {
   }>();
   useEffect(() => {
     if (canvas) {
-      canvas.width = gridSize.width * tileSize;
-      canvas.height = gridSize.height * tileSize;
+      canvas.width = gridSize.width * tileWidth;
+      canvas.height = gridSize.height * tileHeight;
     }
   }, [canvas]);
 
@@ -70,7 +71,7 @@ function TileMapView({ data }: { data: Tile[][] }) {
         textureAtlas,
         grid: data,
         gridSize,
-        tileSize,
+        tileHeight,
         tileTypes,
       });
     }
@@ -79,15 +80,15 @@ function TileMapView({ data }: { data: Tile[][] }) {
   useEffect(() => {
     if (canvas) {
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-      drawBorders(ctx, tileSize, hoveredTileIndex);
+      drawBorders(ctx, tileHeight, hoveredTileIndex);
     }
   }, [canvas, data, hoveredTileIndex]);
 
   useEffect(() => {
     if (canvas) {
       const trackTile = (event: MouseEvent) => {
-        const x = Math.floor(event.offsetX / tileSize);
-        const y = Math.floor(event.offsetY / tileSize);
+        const x = Math.floor(event.offsetX / tileWidth);
+        const y = Math.floor(event.offsetY / tileHeight);
         setHoveredTileIndex((v) =>
           (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
         );
@@ -113,8 +114,10 @@ function TileMapView({ data }: { data: Tile[][] }) {
       />
       <canvas
         style={{
-          width: tileSize * gridSize.width,
-          height: tileSize * gridSize.height,
+          transform: `scale(0.2)`,
+          transformOrigin: "top left",
+          width: tileWidth * gridSize.width,
+          height: tileHeight * gridSize.height,
         }}
         ref={setCanvas}
       ></canvas>

@@ -57,22 +57,17 @@ export function createTextureAtlas(
   ) as OffscreenCanvasRenderingContext2D;
 
   tileTypes.forEach((tileType, i) => {
-    ctx.fillStyle = tileType.color;
-    ctx.fillRect(
-      tileType.textureSection.x,
-      tileType.textureSection.y,
-      tileSize,
-      tileSize
-    );
+    // ctx.fillStyle = tileType.color;
+    // ctx.fillRect(
+    //   tileType.textureSection.x,
+    //   tileType.textureSection.y,
+    //   tileSize,
+    //   tileSize
+    // );
 
     ctx.strokeStyle = "gray";
     ctx.lineWidth = 1;
-    ctx.strokeRect(
-      tileType.textureSection.x,
-      tileType.textureSection.y,
-      tileSize,
-      tileSize
-    );
+    drawDiamond(ctx, tileSize, tileSize / 2, tileSize);
   });
 
   return offscreenCanvas;
@@ -84,14 +79,14 @@ export function drawGrid({
   textureAtlas,
   gridSize,
   grid,
-  tileSize,
+  tileHeight,
   tileTypes,
 }: {
   ctx: CanvasRenderingContext2D;
   textureAtlas: OffscreenCanvas;
   gridSize: { width: number; height: number };
   grid: Tile[][];
-  tileSize: number;
+  tileHeight: number;
   tileTypes: TileType[];
 }) {
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
@@ -104,12 +99,12 @@ export function drawGrid({
         textureAtlas,
         tileType.textureSection.x,
         tileType.textureSection.y,
-        tileSize,
-        tileSize,
-        x * tileSize,
-        y * tileSize,
-        tileSize,
-        tileSize
+        tileHeight,
+        tileHeight,
+        x * tileHeight,
+        y * tileHeight,
+        tileHeight,
+        tileHeight
       );
 
       // ctx.strokeStyle = "lightgray";
@@ -134,19 +129,43 @@ export function drawGrid({
   //ctx.save();
 }
 
+function drawDiamond(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  height: number
+) {
+  const width = height * 2; // Width is twice the height
+
+  ctx.beginPath();
+  ctx.moveTo(centerX - width, centerY); // Top left corner
+  ctx.lineTo(centerX, centerY + height); // Bottom center
+  ctx.lineTo(centerX + width, centerY); // Top right corner
+  ctx.lineTo(centerX, centerY - height); // Bottom center
+  ctx.closePath();
+
+  // You can choose to fill or stroke the path here
+  // ctx.fillStyle = "#ff0000"; // Set fill color (optional)
+  // ctx.fill();
+
+  ctx.stroke();
+}
+
 export function drawBorders(
   ctx: CanvasRenderingContext2D,
   tileSize: number,
   selectedTileIndex: { x: number; y: number } | undefined
 ) {
+  const width = tileSize * 2;
+  const height = tileSize;
   if (selectedTileIndex) {
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
-    ctx.strokeRect(
-      selectedTileIndex.x * tileSize,
-      selectedTileIndex.y * tileSize,
-      tileSize,
-      tileSize
+    drawDiamond(
+      ctx,
+      (selectedTileIndex.x + 0.5) * width,
+      (selectedTileIndex.y + 0.5) * height,
+      tileSize / 2
     );
   }
 }
