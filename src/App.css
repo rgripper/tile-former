@@ -1,14 +1,21 @@
 .tile-map {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.tile-map > div {
-  display: flex;
+.tile-map > * {
+  flex: 1;
+}
+
+.tile-map > canvas {
+  flex: 1;
 }
 
 .tile-map > div > * {
-  display: flex;
+  flex: 1;
   width: 12px;
   height: 12px;
   border: 1px solid #000;
