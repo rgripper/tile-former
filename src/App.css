@@ -6,10 +6,6 @@
   justify-content: center;
 }
 
-.tile-map > * {
-  flex: 1;
-}
-
 .tile-map > canvas {
   flex: 1;
 }

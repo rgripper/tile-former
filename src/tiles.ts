@@ -1,3 +1,12 @@
+import {
+  applyToPoint,
+  compose,
+  rotate,
+  shear,
+  skew,
+  translate,
+} from "transformation-matrix";
+
 // Tile definition
 export type Tile = {
   tileTypeId: number;
@@ -15,16 +24,55 @@ type TileType = {
 
 type Point = { x: number; y: number };
 
-export function isometric({ x, y }: Point, width: number): Point {
-  // Isometric transformation constants
-  const isometricXScale = 0.5;
-  const isometricYScale = 0.5;
-
+export function normalToIsometric({ x, y }: Point, width: number): Point {
   // Isometric transformation formula
-  const isometricX = width / 2 + (x * isometricXScale - y * isometricXScale);
-  const isometricY = 0.5 + (x + y) * isometricYScale;
+  const isometricX = 0.5 * (width + x - y);
+  const isometricY = 0.5 * (1 + x + y);
 
   return { x: isometricX, y: isometricY };
+}
+// 2 * isometricX = width + x - y
+// 2 * isometricX  + y - width = x
+
+// 2 * isometricY = 1 + x + y
+// 2 * isometricY - 1 = x + y
+// 2 * isometricY - 1 - x = y
+
+// 2 * isometricX = width + x - 2 * isometricY + 1 + x
+// 2 * isometricX + 2 * isometricY - 1 - width = 2 * x
+// isometricX + isometricY - 0.5 * (1 - width) = x
+// x = isometricX + isometricY - 0.5 * (1 - width)
+
+// y = 2 * isometricY - 1 - (isometricX + isometricY - 0.5 * (1 - width))
+// y = 2 * isometricY - 1 - isometricX - isometricY + 0.5 * (1 - width)
+// y = isometricY - 1-  isometricX + 0.5 * (1 - width)
+
+export function isometricToNormal2(
+  { x: isometricX, y: isometricY }: Point,
+  width: number
+): Point {
+  const x = isometricY + isometricX - 0.5 * (1 - width);
+  const y = isometricY - isometricX + 0.5 * (width - 1);
+
+  return {
+    x: Math.abs(Math.round(x)),
+    y: Math.abs(Math.round(y)),
+  };
+}
+
+const matrix = compose(rotate(-Math.PI / 4), skew(0.5, 0.5), translate(-5, 0));
+
+export function isometricToNormal(
+  { x: isometricX, y: isometricY }: Point,
+  width: number
+): Point {
+  const point = applyToPoint(matrix, {
+    x: isometricX,
+    y: isometricY,
+  });
+
+  console.log({ x: isometricX, y: isometricY }, point);
+  return { x: Math.round(point.x), y: Math.round(point.y) };
 }
 
 const tileNamesAndColors = [
@@ -55,7 +103,7 @@ export const createTileTypes = (tileWidth: number, tileHeight: number) =>
     id: i,
     name,
     color,
-    textureCenter: { x: tileWidth / 2, y: (i + 0.5) * tileHeight },
+    textureCenter: { x: 0.5 * tileWidth, y: (i + 0.5) * tileHeight },
   }));
 
 // Function to get the bitmap for a tile type

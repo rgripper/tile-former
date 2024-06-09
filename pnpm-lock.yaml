@@ -20,6 +20,9 @@ dependencies:
   simplex-noise:
     specifier: ^4.0.1
     version: 4.0.1
+  transformation-matrix:
+    specifier: ^2.16.1
+    version: 2.16.1
 
 devDependencies:
   '@types/react':
@@ -1837,6 +1840,10 @@ packages:
     dependencies:
       is-number: 7.0.0
     dev: true
+
+  /transformation-matrix@2.16.1:
+    resolution: {integrity: sha512-tdtC3wxVEuzU7X/ydL131Q3JU5cPMEn37oqVLITjRDSDsnSHVFzW2JiCLfZLIQEgWzZHdSy3J6bZzvKEN24jGA==}
+    dev: false
 
   /ts-api-utils@1.2.1(typescript@5.2.2):
     resolution: {integrity: sha512-RIYA36cJn2WiH9Hy77hdF9r7oEwxAtB/TS9/S4Qd90Ap4z5FSiin5zEiTL44OII1Y3IIlEvxwxFUVgrHSZ/UpA==}

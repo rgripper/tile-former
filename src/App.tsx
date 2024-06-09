@@ -8,8 +8,18 @@ import {
   drawGrid,
   createTileTypes,
   drawBorders,
-  isometric,
+  normalToIsometric,
+  isometricToNormal,
 } from "./tiles";
+import {
+  applyToPoint,
+  applyToPoints,
+  compose,
+  rotate,
+  shear,
+  skew,
+  translate,
+} from "transformation-matrix";
 
 const rand = new Rand("1234");
 
@@ -41,7 +51,7 @@ function generateInitialParameterMap(width: number, height: number): Tile[][] {
 
   const result = new Array(height).fill(0).map((_, x) =>
     new Array(width).fill(0).map((_, y) => {
-      const tempCenter = isometric(
+      const tempCenter = normalToIsometric(
         {
           x,
           y,
@@ -67,6 +77,8 @@ function generateInitialParameterMap(width: number, height: number): Tile[][] {
 
 function TileMapView({ data }: { data: Tile[][] }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
+
   const [hoveredTileIndex, setHoveredTileIndex] = useState<{
     x: number;
     y: number;
@@ -77,6 +89,56 @@ function TileMapView({ data }: { data: Tile[][] }) {
       canvas.height = gridSize.height * tileHeight;
     }
   }, [canvas]);
+
+  useEffect(() => {
+    if (testCanvas) {
+      testCanvas.width = 500;
+      testCanvas.height = 500;
+
+      const context = testCanvas.getContext("2d")!;
+
+      const gridSize = 100;
+
+      context.beginPath();
+      const matrix = compose(
+        translate(testCanvas.width / 2, testCanvas.height / 2),
+        rotate(Math.PI / 4),
+        skew(-0.5, -0.5)
+      );
+      const rhombusPoints = applyToPoints(matrix, [
+        { x: 0, y: 0 },
+        { x: gridSize, y: 0 },
+        { x: gridSize, y: gridSize },
+        { x: 0, y: gridSize },
+      ]);
+
+      context.beginPath();
+      context.moveTo(rhombusPoints[0].x, rhombusPoints[0].y);
+      context.lineTo(rhombusPoints[1].x, rhombusPoints[1].y);
+      context.strokeStyle = "red";
+      context.stroke();
+
+      context.beginPath();
+      context.moveTo(rhombusPoints[1].x, rhombusPoints[1].y);
+      context.lineTo(rhombusPoints[2].x, rhombusPoints[2].y);
+      context.strokeStyle = "yellow";
+      context.stroke();
+
+      context.beginPath();
+      context.moveTo(rhombusPoints[2].x, rhombusPoints[2].y);
+      context.lineTo(rhombusPoints[3].x, rhombusPoints[3].y);
+      context.strokeStyle = "green";
+      context.stroke();
+
+      context.beginPath();
+      context.moveTo(rhombusPoints[3].x, rhombusPoints[3].y);
+      context.lineTo(rhombusPoints[0].x, rhombusPoints[0].y);
+      context.strokeStyle = "grey";
+      context.stroke();
+
+      context.strokeRect(0, 180, 425, 140);
+    }
+  }, [testCanvas]);
 
   useEffect(() => {
     if (canvas) {
@@ -107,15 +169,16 @@ function TileMapView({ data }: { data: Tile[][] }) {
   useEffect(() => {
     if (canvas) {
       const trackTile = (event: MouseEvent) => {
-        // const { col: x, row: y } = getTileIndex(
-        //   event.offsetX,
-        //   event.offsetY,
-        //   tileWidth,
-        //   tileHeight
-        // );
-        // setHoveredTileIndex((v) =>
-        //   (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
-        // );
+        const notBounded = isometricToNormal(
+          { x: event.offsetX / tileWidth, y: event.offsetY / tileHeight },
+          data[0].length
+        );
+        const x = Math.max(Math.min(notBounded.x, data[0].length - 1), 0);
+        const y = Math.max(Math.min(notBounded.y, data.length - 1), 0);
+
+        setHoveredTileIndex((v) =>
+          (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        );
         // console.log(x, y);
       };
       const untrackTile = () => {
@@ -146,10 +209,13 @@ function TileMapView({ data }: { data: Tile[][] }) {
             hoveredTileIndex && data[hoveredTileIndex.x][hoveredTileIndex.y]
           }
         />
-
+        <canvas
+          ref={setTestCanvas}
+          style={{ width: 500, height: 500, border: "1px solid black" }}
+        ></canvas>
         <canvas
           style={{
-            //transform: `scale(0.2)`,
+            transform: `scale(0.2)`,
             transformOrigin: "top center",
             width: tileWidth * gridSize.width,
             height: tileHeight * gridSize.height,
@@ -172,4 +238,12 @@ function TileInfo({ tile }: { tile: Tile | undefined }) {
       )}
     </div>
   );
+}
+function getTileIndex(
+  offsetX: number,
+  offsetY: number,
+  tileWidth: number,
+  tileHeight: number
+): { col: any; row: any } {
+  throw new Error("Function not implemented.");
 }
