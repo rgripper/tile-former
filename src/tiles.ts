@@ -2,7 +2,6 @@ import {
   applyToPoint,
   compose,
   rotate,
-  shear,
   skew,
   translate,
 } from "transformation-matrix";
@@ -15,7 +14,7 @@ export type Tile = {
   center: { x: number; y: number };
 };
 
-type TileType = {
+export type TileType = {
   id: number;
   name: string;
   color: string;
@@ -62,10 +61,10 @@ export function isometricToNormal2(
 
 const matrix = compose(rotate(-Math.PI / 4), skew(0.5, 0.5), translate(-5, 0));
 
-export function isometricToNormal(
-  { x: isometricX, y: isometricY }: Point,
-  width: number
-): Point {
+export function isometricToNormal({
+  x: isometricX,
+  y: isometricY,
+}: Point): Point {
   const point = applyToPoint(matrix, {
     x: isometricX,
     y: isometricY,
@@ -98,7 +97,10 @@ const tileNamesAndColors = [
   { name: "dry salt flat", color: "#F2E8CF" }, // Light beige
 ] as const;
 
-export const createTileTypes = (tileWidth: number, tileHeight: number) =>
+export const createTileTypes = (
+  tileWidth: number,
+  tileHeight: number
+): TileType[] =>
   tileNamesAndColors.map(({ name, color }, i) => ({
     id: i,
     name,
@@ -160,16 +162,14 @@ export function drawGrid({
   textureAtlas,
   gridSize,
   grid,
-  tileHeight,
-  tileWidth,
+  tileSize: { width: tileWidth, height: tileHeight },
   tileTypes,
 }: {
   ctx: CanvasRenderingContext2D;
   textureAtlas: OffscreenCanvas;
   gridSize: { width: number; height: number };
   grid: Tile[][];
-  tileHeight: number;
-  tileWidth: number;
+  tileSize: { width: number; height: number };
   tileTypes: TileType[];
 }) {
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
