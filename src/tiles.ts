@@ -7,11 +7,11 @@ import {
 } from "transformation-matrix";
 
 // Tile definition
-export type Tile = {
+export type IsometricTile = {
   tileTypeId: number;
-  x: number;
-  y: number;
-  center: { x: number; y: number };
+  center: Point;
+  index: Point;
+  topLeft: Point;
 };
 
 export type TileType = {
@@ -21,7 +21,7 @@ export type TileType = {
   textureCenter: { x: number; y: number };
 };
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 
 export function normalToIsometric({ x, y }: Point, width: number): Point {
   // Isometric transformation formula
@@ -160,40 +160,50 @@ export function createTextureAtlas(
 export function drawGrid({
   ctx,
   textureAtlas,
+  atlasTileSize,
   gridSize,
+  canvasSize,
   grid,
-  tileSize: { width: tileWidth, height: tileHeight },
+  isoTileSize,
   tileTypes,
 }: {
   ctx: CanvasRenderingContext2D;
   textureAtlas: OffscreenCanvas;
+  atlasTileSize: Point;
   gridSize: { width: number; height: number };
-  grid: Tile[][];
-  tileSize: { width: number; height: number };
+  canvasSize: { width: number; height: number };
+  grid: IsometricTile[][];
+  isoTileSize: Point;
   tileTypes: TileType[];
 }) {
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
 
+  const gridCenter = {
+    x: canvasSize.width / 2,
+    y: -(isoTileSize.y * gridSize.height) / 2 + canvasSize.height / 2,
+  };
   for (let x = 0; x < gridSize.width; x++) {
     for (let y = 0; y < gridSize.height; y++) {
       const tile = grid[x][y];
       const tileType = tileTypes[tile.tileTypeId];
-
+      if (x === 0 && y === 0) {
+        console.log({ tile, tileType });
+      }
       ctx.drawImage(
         textureAtlas,
-        tileType.textureCenter.x - tileWidth / 2,
-        tileType.textureCenter.y - tileHeight / 2,
-        tileWidth,
-        tileHeight,
-        tile.center.x - tileWidth / 2,
-        tile.center.y - tileHeight / 2,
-        tileWidth,
-        tileHeight
+        tileType.textureCenter.x - atlasTileSize.x / 2,
+        tileType.textureCenter.y - atlasTileSize.y / 2,
+        atlasTileSize.x,
+        atlasTileSize.y,
+        tile.topLeft.x - isoTileSize.x / 2 + gridCenter.x,
+        tile.topLeft.y - isoTileSize.y / 2 + gridCenter.y,
+        isoTileSize.x,
+        isoTileSize.y
       );
       ctx.fillText(
         `x:${x} y:${y}`,
-        tile.center.x - tileWidth / 4,
-        tile.center.y
+        tile.topLeft.x - isoTileSize.x / 3 + gridCenter.x,
+        tile.topLeft.y + isoTileSize.y / 5 + gridCenter.y
       );
 
       // ctx.strokeStyle = "lightgray";

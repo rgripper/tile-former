@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
-import {
-  Tile,
-  drawGrid,
-  drawBorders,
-  isometricToNormal,
-  TileType,
-} from "./tiles";
-import { applyToPoints } from "transformation-matrix";
-import { createMatrix } from "./createMatrix";
+import { IsometricTile, drawGrid, drawBorders, TileType } from "./tiles";
+import { applyToPoint, applyToPoints } from "transformation-matrix";
+import { createIsoAndCenterMatrix } from "./createMatrix";
+import { deisoIndexMatrix, isoTileSize } from "./App";
 
-const isometrifyingMatrix = createMatrix({
+const isoAndCenterMatrix = createIsoAndCenterMatrix({
   size: { x: 100, y: 100 },
-  containerSize: { x: 500, y: 500 },
 });
 
 export function TileMapView({
@@ -19,13 +13,13 @@ export function TileMapView({
   tileTypes,
   textureAtlas,
   gridSize,
-  tileSize,
+  canvasSize,
 }: {
-  data: Tile[][];
+  data: IsometricTile[][];
   tileTypes: TileType[];
   textureAtlas: OffscreenCanvas;
   gridSize: { width: number; height: number };
-  tileSize: { width: number; height: number };
+  canvasSize: { width: number; height: number };
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -36,10 +30,10 @@ export function TileMapView({
   }>();
   useEffect(() => {
     if (canvas) {
-      canvas.width = gridSize.width * tileSize.width;
-      canvas.height = gridSize.height * tileSize.height;
+      canvas.width = canvasSize.width;
+      canvas.height = canvasSize.height;
     }
-  }, [canvas, gridSize, tileSize]);
+  }, [canvas, canvasSize]);
 
   useEffect(() => {
     if (testCanvas) {
@@ -52,7 +46,7 @@ export function TileMapView({
 
       context.beginPath();
 
-      const rhombusPoints = applyToPoints(isometrifyingMatrix, [
+      const rhombusPoints = applyToPoints(isoAndCenterMatrix, [
         { x: 0, y: 0 },
         { x: gridSize, y: 0 },
         { x: gridSize, y: gridSize },
@@ -91,49 +85,45 @@ export function TileMapView({
     if (canvas) {
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
       //ctx.drawImage(textureAtlas, 0, 0);
+
       drawGrid({
         ctx,
         textureAtlas,
         grid: data,
         gridSize,
-        tileSize,
+        canvasSize: canvasSize,
+        atlasTileSize: { x: 64, y: 32 },
+        isoTileSize: isoTileSize,
         tileTypes,
       });
     }
-  }, [
-    canvas,
-    data,
-    hoveredTileIndex,
-    tileTypes,
-    textureAtlas,
-    gridSize,
-    tileSize,
-  ]);
+  }, [canvas, data, hoveredTileIndex, tileTypes, textureAtlas, gridSize]);
 
   useEffect(() => {
     if (canvas) {
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
       if (hoveredTileIndex) {
-        const tile = data[hoveredTileIndex.x][hoveredTileIndex.y];
-        drawBorders(ctx, tileSize.width, tileSize.height, tile.center);
+        const isoTile = data[hoveredTileIndex.x][hoveredTileIndex.y];
+        drawBorders(ctx, isoTileSize.x, isoTileSize.y, isoTile.center);
       }
     }
-  }, [canvas, data, hoveredTileIndex, tileSize.height, tileSize.width]);
+  }, [canvas, data, hoveredTileIndex]);
 
   useEffect(() => {
     if (canvas) {
       const trackTile = (event: MouseEvent) => {
-        const notBounded = isometricToNormal({
-          x: event.offsetX / tileSize.width,
-          y: event.offsetY / tileSize.height,
+        const index = applyToPoint(deisoIndexMatrix, {
+          x: event.offsetX,
+          y: event.offsetY,
         });
-        const x = Math.max(Math.min(notBounded.x, data[0].length - 1), 0);
-        const y = Math.max(Math.min(notBounded.y, data.length - 1), 0);
 
-        setHoveredTileIndex((v) =>
-          (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
-        );
-        // console.log(x, y);
+        const x = Math.round(index.x);
+        const y = Math.round(index.y);
+
+        // setHoveredTileIndex((v) =>
+        //   (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        // );
+        //console.log(x, y);
       };
       const untrackTile = () => {
         setHoveredTileIndex(undefined);
@@ -146,7 +136,7 @@ export function TileMapView({
         canvas.removeEventListener("mouseleave", untrackTile);
       };
     }
-  }, [canvas, hoveredTileIndex, data, tileSize.width, tileSize.height]);
+  }, [canvas, hoveredTileIndex, data]);
 
   return (
     <div
@@ -164,16 +154,16 @@ export function TileMapView({
           }
           tileTypes={tileTypes}
         />
-        <canvas
+        {/* <canvas
           ref={setTestCanvas}
           style={{ width: 500, height: 500, border: "1px solid black" }}
-        ></canvas>
+        ></canvas> */}
         <canvas
           style={{
-            transform: `scale(0.2)`,
+            transform: `scale(0.8)`,
             transformOrigin: "top center",
-            width: tileSize.width * gridSize.width,
-            height: tileSize.height * gridSize.height,
+            width: canvasSize.width,
+            height: canvasSize.height,
             border: "1px solid black",
           }}
           ref={setCanvas}
@@ -187,14 +177,14 @@ function TileInfo({
   tile,
   tileTypes,
 }: {
-  tile: Tile | undefined;
+  tile: IsometricTile | undefined;
   tileTypes: TileType[];
 }) {
   return (
     <div style={{ height: "5rem" }}>
       {tile && (
         <>
-          ({tile.x},{tile.y}) {tileTypes[tile.tileTypeId].name}
+          ({tile.index.x},{tile.index.y}) {tileTypes[tile.tileTypeId].name}
         </>
       )}
     </div>
