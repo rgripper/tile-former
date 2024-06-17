@@ -12,7 +12,6 @@ export function createIsoAndCenterMatrix({ size }: { size: Point }) {
 
 export function createIsoMatrix({ size }: { size: Point }) {
   return compose(
-    translate(size.x / 2, size.y / 2),
     // NOTE: transformations are applied in reverse order
     scale(1, 0.5), // stretch horizontally
     rotateDEG(45), // rotate 45 degrees

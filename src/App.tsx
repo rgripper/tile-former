@@ -10,32 +10,39 @@ import {
   createIsoMatrix,
 } from "./createMatrix";
 import { generateInitialParameterMap } from "./generateInitialParameterMap";
+import {
+  tileWidth,
+  tileHeight,
+  tileSide,
+  gridSize,
+  canvasSize,
+} from "./config";
 
 export const rand = new Rand("1234");
 
-export const tileSide = 32;
-const tileHeight = tileSide;
-const tileWidth = tileHeight * 2;
-const gridSize = { width: 10, height: 10 };
-const canvasSize = { width: 800, height: 800 };
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 
 export const isometrifyingMatrix = createIsoAndCenterMatrix({
   size: { x: tileSide, y: tileSide },
-  containerSize: {
-    x: canvasSize.width,
-    y: canvasSize.height,
-  },
 });
 
 const isoMatrix = createIsoMatrix({
   size: { x: tileSide, y: tileSide },
 });
 
-export const isoTileSize = applyToPoint(isoMatrix, {
+const right = applyToPoint(isoMatrix, {
   x: tileSide,
   y: 0,
 });
+
+const bottom = applyToPoint(isoMatrix, {
+  x: tileSide,
+  y: tileSide,
+});
+
+export const isoTileSize = { x: right.x * 2, y: bottom.y * 2 };
+
+console.log("isoTileSize", { x: tileSide, y: tileSide }, isoTileSize);
 
 export const deisoIndexMatrix = createDeisoIndexMatrix({
   size: isoTileSize,
@@ -48,6 +55,11 @@ const initialTileMap = generateInitialParameterMap(
   gridSize.height
 ); // tile size is 12x12
 
+const gridCenter = {
+  x: canvasSize.width / 2,
+  y: -(isoTileSize.y * gridSize.height) / 2 + canvasSize.height / 2,
+};
+
 function App() {
   const [tileMap] = useState(initialTileMap);
 
@@ -59,6 +71,7 @@ function App() {
         tileTypes={tileTypes}
         gridSize={gridSize}
         canvasSize={canvasSize}
+        gridCenter={gridCenter}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { IsometricTile, drawGrid, drawBorders, TileType } from "./tiles";
+import { IsometricTile, TileType } from "./tiles";
+import { drawGrid, drawBorders } from "./drawing";
 import { applyToPoint, applyToPoints } from "transformation-matrix";
 import { createIsoAndCenterMatrix } from "./createMatrix";
 import { deisoIndexMatrix, isoTileSize } from "./App";
@@ -14,12 +15,14 @@ export function TileMapView({
   textureAtlas,
   gridSize,
   canvasSize,
+  gridCenter,
 }: {
   data: IsometricTile[][];
   tileTypes: TileType[];
   textureAtlas: OffscreenCanvas;
   gridSize: { width: number; height: number };
   canvasSize: { width: number; height: number };
+  gridCenter: { x: number; y: number };
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -37,54 +40,18 @@ export function TileMapView({
 
   useEffect(() => {
     if (testCanvas) {
-      testCanvas.width = 500;
-      testCanvas.height = 500;
+      testCanvas.width = 160;
+      testCanvas.height = 1000;
 
       const context = testCanvas.getContext("2d")!;
 
-      const gridSize = 100;
-
-      context.beginPath();
-
-      const rhombusPoints = applyToPoints(isoAndCenterMatrix, [
-        { x: 0, y: 0 },
-        { x: gridSize, y: 0 },
-        { x: gridSize, y: gridSize },
-        { x: 0, y: gridSize },
-      ]);
-
-      context.beginPath();
-      context.moveTo(rhombusPoints[0].x, rhombusPoints[0].y);
-      context.lineTo(rhombusPoints[1].x, rhombusPoints[1].y);
-      context.strokeStyle = "red";
-      context.stroke();
-
-      context.beginPath();
-      context.moveTo(rhombusPoints[1].x, rhombusPoints[1].y);
-      context.lineTo(rhombusPoints[2].x, rhombusPoints[2].y);
-      context.strokeStyle = "yellow";
-      context.stroke();
-
-      context.beginPath();
-      context.moveTo(rhombusPoints[2].x, rhombusPoints[2].y);
-      context.lineTo(rhombusPoints[3].x, rhombusPoints[3].y);
-      context.strokeStyle = "green";
-      context.stroke();
-
-      context.beginPath();
-      context.moveTo(rhombusPoints[3].x, rhombusPoints[3].y);
-      context.lineTo(rhombusPoints[0].x, rhombusPoints[0].y);
-      context.strokeStyle = "grey";
-      context.stroke();
-
-      //context.strokeRect(0, 180, 425, 140);
+      context.drawImage(textureAtlas, 0, 0);
     }
   }, [testCanvas]);
 
   useEffect(() => {
     if (canvas) {
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-      //ctx.drawImage(textureAtlas, 0, 0);
 
       drawGrid({
         ctx,
@@ -97,7 +64,15 @@ export function TileMapView({
         tileTypes,
       });
     }
-  }, [canvas, data, hoveredTileIndex, tileTypes, textureAtlas, gridSize]);
+  }, [
+    canvas,
+    data,
+    hoveredTileIndex,
+    tileTypes,
+    textureAtlas,
+    gridSize,
+    canvasSize,
+  ]);
 
   useEffect(() => {
     if (canvas) {
@@ -113,8 +88,8 @@ export function TileMapView({
     if (canvas) {
       const trackTile = (event: MouseEvent) => {
         const index = applyToPoint(deisoIndexMatrix, {
-          x: event.offsetX,
-          y: event.offsetY,
+          x: event.offsetX - gridCenter.x,
+          y: (event.offsetY - gridCenter.y) / 2,
         });
 
         const x = Math.round(index.x);
@@ -154,20 +129,36 @@ export function TileMapView({
           }
           tileTypes={tileTypes}
         />
-        {/* <canvas
-          ref={setTestCanvas}
-          style={{ width: 500, height: 500, border: "1px solid black" }}
-        ></canvas> */}
-        <canvas
+        <div
           style={{
-            transform: `scale(0.8)`,
-            transformOrigin: "top center",
-            width: canvasSize.width,
-            height: canvasSize.height,
-            border: "1px solid black",
+            display: "flex",
+            height: "100vh",
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
           }}
-          ref={setCanvas}
-        ></canvas>
+        >
+          <canvas
+            ref={setTestCanvas}
+            style={{
+              width: 160,
+              height: 1000,
+              border: "1px solid black",
+              transform: `scale(0.4)`,
+              transformOrigin: "top center",
+            }}
+          ></canvas>
+          <canvas
+            style={{
+              transform: `scale(0.8)`,
+              transformOrigin: "top center",
+              width: canvasSize.width,
+              height: canvasSize.height,
+              border: "1px solid black",
+            }}
+            ref={setCanvas}
+          ></canvas>
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,5 @@
-import {
-  applyToPoint,
-  compose,
-  rotate,
-  skew,
-  translate,
-} from "transformation-matrix";
+import { drawDiamondPath } from "./drawing";
 
-// Tile definition
 export type IsometricTile = {
   tileTypeId: number;
   center: Point;
@@ -18,61 +11,11 @@ export type TileType = {
   id: number;
   name: string;
   color: string;
-  textureCenter: { x: number; y: number };
+  center: Point;
+  topLeft: Point;
 };
 
 export type Point = { x: number; y: number };
-
-export function normalToIsometric({ x, y }: Point, width: number): Point {
-  // Isometric transformation formula
-  const isometricX = 0.5 * (width + x - y);
-  const isometricY = 0.5 * (1 + x + y);
-
-  return { x: isometricX, y: isometricY };
-}
-// 2 * isometricX = width + x - y
-// 2 * isometricX  + y - width = x
-
-// 2 * isometricY = 1 + x + y
-// 2 * isometricY - 1 = x + y
-// 2 * isometricY - 1 - x = y
-
-// 2 * isometricX = width + x - 2 * isometricY + 1 + x
-// 2 * isometricX + 2 * isometricY - 1 - width = 2 * x
-// isometricX + isometricY - 0.5 * (1 - width) = x
-// x = isometricX + isometricY - 0.5 * (1 - width)
-
-// y = 2 * isometricY - 1 - (isometricX + isometricY - 0.5 * (1 - width))
-// y = 2 * isometricY - 1 - isometricX - isometricY + 0.5 * (1 - width)
-// y = isometricY - 1-  isometricX + 0.5 * (1 - width)
-
-export function isometricToNormal2(
-  { x: isometricX, y: isometricY }: Point,
-  width: number
-): Point {
-  const x = isometricY + isometricX - 0.5 * (1 - width);
-  const y = isometricY - isometricX + 0.5 * (width - 1);
-
-  return {
-    x: Math.abs(Math.round(x)),
-    y: Math.abs(Math.round(y)),
-  };
-}
-
-const matrix = compose(rotate(-Math.PI / 4), skew(0.5, 0.5), translate(-5, 0));
-
-export function isometricToNormal({
-  x: isometricX,
-  y: isometricY,
-}: Point): Point {
-  const point = applyToPoint(matrix, {
-    x: isometricX,
-    y: isometricY,
-  });
-
-  console.log({ x: isometricX, y: isometricY }, point);
-  return { x: Math.round(point.x), y: Math.round(point.y) };
-}
 
 const tileNamesAndColors = [
   { name: "taiga forest", color: "#808080" }, // Dark gray
@@ -105,7 +48,8 @@ export const createTileTypes = (
     id: i,
     name,
     color,
-    textureCenter: { x: 0.5 * tileWidth, y: (i + 0.5) * tileHeight },
+    center: { x: 0.5 * tileWidth, y: (i + 0.5) * tileHeight },
+    topLeft: { x: 0, y: i * tileHeight },
   }));
 
 // Function to get the bitmap for a tile type
@@ -123,29 +67,14 @@ export function createTextureAtlas(
   ) as OffscreenCanvasRenderingContext2D;
 
   tileTypes.forEach((tileType) => {
-    // ctx.fillStyle = tileType.color;
-    // ctx.fillRect(
-    //   tileType.textureCenter.x,
-    //   tileType.textureCenter.y,
-    //   tileSize,
-    //   tileSize
-    // );
-    // ctx.fillStyle = "transparent";
-    // ctx.fillRect(
-    //   tileType.textureCenter.x - tileWidth / 2,
-    //   tileType.textureCenter.y - tileHeight / 2,
-    //   tileWidth,
-    //   tileHeight
-    // );
-
     ctx.strokeStyle = "gray";
     ctx.lineWidth = 1;
     ctx.fillStyle = tileType.color;
 
     drawDiamondPath({
       ctx,
-      centerX: tileType.textureCenter.x,
-      centerY: tileType.textureCenter.y,
+      centerX: tileType.center.x,
+      centerY: tileType.center.y,
       height: tileHeight,
       width: tileWidth,
     });
@@ -154,119 +83,4 @@ export function createTextureAtlas(
   });
 
   return offscreenCanvas;
-}
-
-// Function to render the entire grid
-export function drawGrid({
-  ctx,
-  textureAtlas,
-  atlasTileSize,
-  gridSize,
-  canvasSize,
-  grid,
-  isoTileSize,
-  tileTypes,
-}: {
-  ctx: CanvasRenderingContext2D;
-  textureAtlas: OffscreenCanvas;
-  atlasTileSize: Point;
-  gridSize: { width: number; height: number };
-  canvasSize: { width: number; height: number };
-  grid: IsometricTile[][];
-  isoTileSize: Point;
-  tileTypes: TileType[];
-}) {
-  //ctx.clearRect(0, 0, grid.length, grid[0].length);
-
-  const gridCenter = {
-    x: canvasSize.width / 2,
-    y: -(isoTileSize.y * gridSize.height) / 2 + canvasSize.height / 2,
-  };
-  for (let x = 0; x < gridSize.width; x++) {
-    for (let y = 0; y < gridSize.height; y++) {
-      const tile = grid[x][y];
-      const tileType = tileTypes[tile.tileTypeId];
-      if (x === 0 && y === 0) {
-        console.log({ tile, tileType });
-      }
-      ctx.drawImage(
-        textureAtlas,
-        tileType.textureCenter.x - atlasTileSize.x / 2,
-        tileType.textureCenter.y - atlasTileSize.y / 2,
-        atlasTileSize.x,
-        atlasTileSize.y,
-        tile.topLeft.x - isoTileSize.x / 2 + gridCenter.x,
-        tile.topLeft.y - isoTileSize.y / 2 + gridCenter.y,
-        isoTileSize.x,
-        isoTileSize.y
-      );
-      ctx.fillText(
-        `x:${x} y:${y}`,
-        tile.topLeft.x - isoTileSize.x / 3 + gridCenter.x,
-        tile.topLeft.y + isoTileSize.y / 5 + gridCenter.y
-      );
-
-      // ctx.strokeStyle = "lightgray";
-      // ctx.lineWidth = 1;
-      // ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
-    }
-  }
-
-  // if (selectedTileIndex) {
-  //   ctx.strokeStyle = "red";
-  //   ctx.lineWidth = 1;
-  //   ctx.fillStyle = "blue";
-
-  //   ctx.strokeRect(
-  //     selectedTileIndex.x * tileSize,
-  //     selectedTileIndex.y * tileSize,
-  //     tileSize,
-  //     tileSize
-  //   );
-  // }
-
-  //ctx.save();
-}
-
-function drawDiamondPath({
-  ctx,
-  centerX,
-  centerY,
-  height,
-  width,
-}: {
-  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-  centerX: number;
-  centerY: number;
-  height: number;
-  width: number;
-}) {
-  ctx.beginPath();
-  ctx.moveTo(centerX - width / 2, centerY); // Top left corner
-  ctx.lineTo(centerX, centerY + height / 2); // Bottom center
-  ctx.lineTo(centerX + width / 2, centerY); // Top right corner
-  ctx.lineTo(centerX, centerY - height / 2); // Top center
-  ctx.closePath();
-
-  // You can choose to fill or stroke the path here
-  // ctx.fillStyle = "#ff0000"; // Set fill color (optional)
-  // ctx.fill();
-}
-
-export function drawBorders(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  tileCenter: { x: number; y: number }
-) {
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 2;
-  drawDiamondPath({
-    ctx,
-    centerX: tileCenter.x,
-    centerY: tileCenter.y,
-    height,
-    width,
-  });
-  ctx.stroke();
 }

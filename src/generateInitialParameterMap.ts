@@ -1,7 +1,8 @@
 import { createNoise2D } from "simplex-noise";
 import { Point, IsometricTile } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
-import { rand, tileSide, tileTypes, isometrifyingMatrix } from "./App";
+import { rand, tileTypes, isometrifyingMatrix } from "./App";
+import { tileSide } from "./config";
 
 export function generateInitialParameterMap(
   width: number,
