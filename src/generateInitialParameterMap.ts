@@ -13,6 +13,7 @@ export function generateInitialParameterMap(
   return getTileCentersInGrid({ x: width, y: height }, tileSide).map((row) =>
     row.map(({ center, topLeft, index }) => {
       const value = (noise2D(index.x / 40, index.y / 40) + 1) / 2;
+
       return {
         tileTypeId: Math.floor(value * tileTypes.length),
         index,
@@ -36,7 +37,6 @@ function getTileCentersInGrid(gridSize: Point, tileSide: number): RawTile[][] {
         x: tileSide * (x + 0.5),
         y: tileSide * (y + 0.5),
       },
-
       topLeft: {
         x: tileSide * x,
         y: tileSide * y,

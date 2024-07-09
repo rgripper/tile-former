@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { IsometricTile, TileType } from "./tiles";
 import { drawGrid, drawBorders } from "./drawing";
-import { applyToPoint, applyToPoints } from "transformation-matrix";
-import { createIsoAndCenterMatrix } from "./createMatrix";
+import { applyToPoint } from "transformation-matrix";
 import { deisoIndexMatrix, isoTileSize } from "./App";
-
-const isoAndCenterMatrix = createIsoAndCenterMatrix({
-  size: { x: 100, y: 100 },
-});
 
 export function TileMapView({
   data,
@@ -44,10 +39,9 @@ export function TileMapView({
       testCanvas.height = 1000;
 
       const context = testCanvas.getContext("2d")!;
-
       context.drawImage(textureAtlas, 0, 0);
     }
-  }, [testCanvas]);
+  }, [testCanvas, textureAtlas]);
 
   useEffect(() => {
     if (canvas) {
@@ -111,7 +105,7 @@ export function TileMapView({
         canvas.removeEventListener("mouseleave", untrackTile);
       };
     }
-  }, [canvas, hoveredTileIndex, data]);
+  }, [canvas, hoveredTileIndex, data, gridCenter.x, gridCenter.y]);
 
   return (
     <div
@@ -135,7 +129,6 @@ export function TileMapView({
             height: "100vh",
             flexDirection: "row",
             justifyContent: "center",
-            alignItems: "center",
           }}
         >
           <canvas

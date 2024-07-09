@@ -1,12 +1,11 @@
 import { compose, rotateDEG, scale, translate } from "transformation-matrix";
 import { Point } from "./tiles";
 
-export function createIsoAndCenterMatrix({ size }: { size: Point }) {
+export function createNormalIsoMatrix() {
   return compose(
     // NOTE: transformations are applied in reverse order
     scale(1, 0.5), // stretch horizontally
-    rotateDEG(45), // rotate 45 degrees
-    translate(-size.x / 2, -size.y / 2) // center the square relative to its size
+    rotateDEG(45) // rotate 45 degrees
   );
 }
 

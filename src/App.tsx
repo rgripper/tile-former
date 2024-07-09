@@ -5,7 +5,7 @@ import { createTextureAtlas, createTileTypes } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
 import { TileMapView } from "./TileMapView";
 import {
-  createIsoAndCenterMatrix,
+  createNormalIsoMatrix,
   createDeisoIndexMatrix,
   createIsoMatrix,
 } from "./createMatrix";
@@ -22,9 +22,7 @@ export const rand = new Rand("1234");
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 
-export const isometrifyingMatrix = createIsoAndCenterMatrix({
-  size: { x: tileSide, y: tileSide },
-});
+export const isometrifyingMatrix = createNormalIsoMatrix();
 
 const isoMatrix = createIsoMatrix({
   size: { x: tileSide, y: tileSide },

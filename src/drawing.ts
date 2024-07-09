@@ -22,32 +22,64 @@ export function drawGrid({
   tileTypes: TileType[];
 }) {
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
-  const gridCenter = {
-    x: canvasSize.width / 2,
-    y: -(isoTileSize.y * gridSize.height) / 2 + canvasSize.height / 2,
+
+  const maxTilesInSide = Math.max(gridSize.height, gridSize.width);
+  const sizeFactor = maxTilesInSide - 1;
+
+  const gridTopLeft = {
+    x: grid[0][grid[0].length - 1].topLeft.x,
+    y: grid[0][0].topLeft.y,
   };
+
+  console.log("grid[0][0].topLeft", grid[0][0].topLeft);
+  console.log("gridTopLeft", gridTopLeft);
+  const gridBoxSize = {
+    width: sizeFactor * isoTileSize.x,
+    height: sizeFactor * isoTileSize.y,
+  };
+
+  const gridOffset = {
+    x: canvasSize.width / 2 - gridBoxSize.width / 2 - gridTopLeft.x,
+    y: canvasSize.height / 2 - gridBoxSize.height / 2 - gridTopLeft.y,
+  };
+
+  // N - (N - 1) * 0.5 = x
+  // x =
+  // 2x = 1.5 // 2 - 0.5 = 1.5
+  // 3x = 2 // 3 - 1 = 2
+  // 4x = 2.5 // 4 - 1.5 = 2.5
+  // 5x = 3 // 5 - 2 = 3
+
+  console.log("gridBoxSize", gridBoxSize);
+
+  console.log("canvasSize", canvasSize);
+  console.log("gridOffset", gridOffset);
+
+  //console.log("isoTileSize", isoTileSize);
   for (let x = 0; x < gridSize.width; x++) {
     for (let y = 0; y < gridSize.height; y++) {
       const tile = grid[x][y];
       const tileType = tileTypes[tile.tileTypeId];
-      //if (x === 0 && y === 0) {
-      console.log(tile);
-      //}
+
+      const offsetCenter = {
+        x: tile.center.x + gridOffset.x,
+        y: tile.center.y + gridOffset.y,
+      };
+
+      if (x === 0 && y === 0) {
+        console.log(offsetCenter, tile.center);
+      }
       ctx.drawImage(
         textureAtlas,
         tileType.topLeft.x,
         tileType.topLeft.y,
         atlasTileSize.x,
         atlasTileSize.y,
-        tile.topLeft.x - isoTileSize.x / 2 + gridCenter.x,
-        tile.topLeft.y - isoTileSize.y / 2 + gridCenter.y,
+        offsetCenter.x,
+        offsetCenter.y,
         isoTileSize.x,
         isoTileSize.y
       );
-      const offsetCenter = {
-        x: tile.center.x + gridCenter.x,
-        y: tile.center.y + gridCenter.y,
-      };
 
       ctx.beginPath();
       ctx.moveTo(offsetCenter.x, offsetCenter.y - isoTileSize.y / 2);
@@ -61,8 +93,8 @@ export function drawGrid({
 
       ctx.fillText(
         `x:${x} y:${y}`,
-        tile.topLeft.x - isoTileSize.x / 3 + gridCenter.x,
-        tile.topLeft.y + isoTileSize.y / 5 + gridCenter.y
+        tile.topLeft.x + isoTileSize.x / 3 + gridOffset.x,
+        tile.topLeft.y + isoTileSize.y / 10 + gridOffset.y
       );
 
       // ctx.strokeStyle = "lightgray";
