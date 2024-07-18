@@ -3,6 +3,7 @@ import { IsometricTile, TileType } from "./tiles";
 import { drawGrid, drawBorders } from "./drawing";
 import { applyToPoint } from "transformation-matrix";
 import { deisoIndexMatrix, isoTileSize } from "./App";
+import { tileHeight, tileWidth } from "./config";
 
 export function TileMapView({
   data,
@@ -53,7 +54,7 @@ export function TileMapView({
         grid: data,
         gridSize,
         canvasSize: canvasSize,
-        atlasTileSize: { x: 64, y: 32 },
+        atlasTileSize: { x: tileWidth, y: tileHeight },
         isoTileSize: isoTileSize,
         tileTypes,
       });
@@ -89,10 +90,10 @@ export function TileMapView({
         const x = Math.round(index.x);
         const y = Math.round(index.y);
 
-        // setHoveredTileIndex((v) =>
-        //   (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
-        // );
-        //console.log(x, y);
+        setHoveredTileIndex((v) =>
+          (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        );
+        console.log(x, y);
       };
       const untrackTile = () => {
         setHoveredTileIndex(undefined);

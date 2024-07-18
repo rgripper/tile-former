@@ -24,7 +24,7 @@ export function drawGrid({
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
 
   const maxTilesInSide = Math.max(gridSize.height, gridSize.width);
-  const sizeFactor = maxTilesInSide - 1;
+  const sizeFactor = maxTilesInSide;
 
   const gridTopLeft = {
     x: grid[0][grid[0].length - 1].topLeft.x,
@@ -66,17 +66,24 @@ export function drawGrid({
         y: tile.center.y + gridOffset.y,
       };
 
+      const offsetTopLeft = {
+        x: tile.topLeft.x + gridOffset.x,
+        y: tile.topLeft.y + gridOffset.y,
+      };
+
       if (x === 0 && y === 0) {
-        console.log(offsetCenter, tile.center);
+        console.log("offsetTopLeft", tile.topLeft, offsetTopLeft, offsetCenter);
+        console.log("tileType", tileType.topLeft, atlasTileSize);
       }
+
       ctx.drawImage(
         textureAtlas,
         tileType.topLeft.x,
         tileType.topLeft.y,
         atlasTileSize.x,
         atlasTileSize.y,
-        offsetCenter.x,
-        offsetCenter.y,
+        offsetTopLeft.x,
+        offsetTopLeft.y,
         isoTileSize.x,
         isoTileSize.y
       );
@@ -93,8 +100,8 @@ export function drawGrid({
 
       ctx.fillText(
         `x:${x} y:${y}`,
-        tile.topLeft.x + isoTileSize.x / 3 + gridOffset.x,
-        tile.topLeft.y + isoTileSize.y / 10 + gridOffset.y
+        offsetTopLeft.x + isoTileSize.x / 3,
+        offsetTopLeft.y + isoTileSize.y / 1.8
       );
 
       // ctx.strokeStyle = "lightgray";
