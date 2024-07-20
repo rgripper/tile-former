@@ -53,11 +53,6 @@ const initialTileMap = generateInitialParameterMap(
   gridSize.height
 ); // tile size is 12x12
 
-const gridCenter = {
-  x: canvasSize.width / 2,
-  y: -(isoTileSize.y * gridSize.height) / 2 + canvasSize.height / 2,
-};
-
 function App() {
   const [tileMap] = useState(initialTileMap);
 
@@ -69,7 +64,6 @@ function App() {
         tileTypes={tileTypes}
         gridSize={gridSize}
         canvasSize={canvasSize}
-        gridCenter={gridCenter}
       />
     </>
   );

@@ -15,6 +15,25 @@ export type TileType = {
   topLeft: Point;
 };
 
+export type SpritesheetFrame = {
+  frame: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+  sourceSize: {
+    w: number;
+    h: number;
+  };
+  spriteSourceSize: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+};
+
 export type Point = { x: number; y: number };
 
 const tileNamesAndColors = [
@@ -52,12 +71,17 @@ export const createTileTypes = (
     topLeft: { x: 0, y: i * tileHeight },
   }));
 
+export type Atlas = {
+  canvas: OffscreenCanvas;
+  spriteItemData: Record<string, SpritesheetFrame>;
+};
+
 // Function to get the bitmap for a tile type
 export function createTextureAtlas(
   tileTypes: TileType[],
   tileWidth: number,
   tileHeight: number
-): OffscreenCanvas {
+): Atlas {
   const offscreenCanvas = new OffscreenCanvas(
     tileWidth,
     tileTypes.length * tileHeight
@@ -66,7 +90,9 @@ export function createTextureAtlas(
     "2d"
   ) as OffscreenCanvasRenderingContext2D;
 
-  tileTypes.forEach((tileType) => {
+  const spriteItemData: Record<string, SpritesheetFrame> = {};
+
+  tileTypes.forEach((tileType, i) => {
     ctx.strokeStyle = "gray";
     ctx.lineWidth = 1;
     ctx.fillStyle = tileType.color;
@@ -80,7 +106,29 @@ export function createTextureAtlas(
     });
     ctx.fill();
     ctx.stroke();
+
+    spriteItemData[tileType.name] = {
+      frame: {
+        x: 0,
+        y: i * tileHeight,
+        w: tileWidth,
+        h: tileHeight,
+      },
+      sourceSize: {
+        w: tileWidth,
+        h: tileHeight,
+      },
+      spriteSourceSize: {
+        x: 0,
+        y: 0,
+        w: tileWidth,
+        h: tileHeight,
+      },
+    };
   });
 
-  return offscreenCanvas;
+  return {
+    canvas: offscreenCanvas,
+    spriteItemData,
+  };
 }

@@ -24,18 +24,15 @@ export function drawGrid({
   //ctx.clearRect(0, 0, grid.length, grid[0].length);
 
   const maxTilesInSide = Math.max(gridSize.height, gridSize.width);
-  const sizeFactor = maxTilesInSide;
 
   const gridTopLeft = {
     x: grid[0][grid[0].length - 1].topLeft.x,
     y: grid[0][0].topLeft.y,
   };
 
-  console.log("grid[0][0].topLeft", grid[0][0].topLeft);
-  console.log("gridTopLeft", gridTopLeft);
   const gridBoxSize = {
-    width: sizeFactor * isoTileSize.x,
-    height: sizeFactor * isoTileSize.y,
+    width: maxTilesInSide * isoTileSize.x,
+    height: maxTilesInSide * isoTileSize.y,
   };
 
   const gridOffset = {
@@ -43,19 +40,6 @@ export function drawGrid({
     y: canvasSize.height / 2 - gridBoxSize.height / 2 - gridTopLeft.y,
   };
 
-  // N - (N - 1) * 0.5 = x
-  // x =
-  // 2x = 1.5 // 2 - 0.5 = 1.5
-  // 3x = 2 // 3 - 1 = 2
-  // 4x = 2.5 // 4 - 1.5 = 2.5
-  // 5x = 3 // 5 - 2 = 3
-
-  console.log("gridBoxSize", gridBoxSize);
-
-  console.log("canvasSize", canvasSize);
-  console.log("gridOffset", gridOffset);
-
-  //console.log("isoTileSize", isoTileSize);
   for (let x = 0; x < gridSize.width; x++) {
     for (let y = 0; y < gridSize.height; y++) {
       const tile = grid[x][y];
@@ -70,11 +54,6 @@ export function drawGrid({
         x: tile.topLeft.x + gridOffset.x,
         y: tile.topLeft.y + gridOffset.y,
       };
-
-      if (x === 0 && y === 0) {
-        console.log("offsetTopLeft", tile.topLeft, offsetTopLeft, offsetCenter);
-        console.log("tileType", tileType.topLeft, atlasTileSize);
-      }
 
       ctx.drawImage(
         textureAtlas,

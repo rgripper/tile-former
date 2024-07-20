@@ -4,6 +4,7 @@ import { drawGrid, drawBorders } from "./drawing";
 import { applyToPoint } from "transformation-matrix";
 import { deisoIndexMatrix, isoTileSize } from "./App";
 import { tileHeight, tileWidth } from "./config";
+import { AppPixi } from "./App2";
 
 export function TileMapView({
   data,
@@ -11,14 +12,12 @@ export function TileMapView({
   textureAtlas,
   gridSize,
   canvasSize,
-  gridCenter,
 }: {
   data: IsometricTile[][];
   tileTypes: TileType[];
   textureAtlas: OffscreenCanvas;
   gridSize: { width: number; height: number };
   canvasSize: { width: number; height: number };
-  gridCenter: { x: number; y: number };
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -81,18 +80,56 @@ export function TileMapView({
 
   useEffect(() => {
     if (canvas) {
+      const maxTilesInSide = Math.max(gridSize.height, gridSize.width);
+
+      const gridTopLeft = {
+        x: data[0][data[0].length - 1].topLeft.x,
+        y: data[0][0].topLeft.y,
+      };
+
+      const gridBoxSize = {
+        width: maxTilesInSide * isoTileSize.x,
+        height: maxTilesInSide * isoTileSize.y,
+      };
+
+      const gridOffset = {
+        x: canvasSize.width / 2 - gridBoxSize.width / 2 - gridTopLeft.x,
+        y: canvasSize.height / 2 - gridBoxSize.height / 2 - gridTopLeft.y,
+      };
+
       const trackTile = (event: MouseEvent) => {
+        const center = {
+          x:
+            Math.floor(event.offsetX / isoTileSize.x) * isoTileSize.x +
+            isoTileSize.x,
+          y:
+            Math.floor(event.offsetY / isoTileSize.y) * isoTileSize.y +
+            isoTileSize.y,
+        };
+        console.log({ x: event.offsetX, y: event.offsetY }, center);
+        const offsetCenter = {
+          x: center.x - gridOffset.x,
+          y: center.y - gridOffset.y,
+        };
+        console.log(offsetCenter);
+
         const index = applyToPoint(deisoIndexMatrix, {
-          x: event.offsetX - gridCenter.x,
-          y: (event.offsetY - gridCenter.y) / 2,
+          x: offsetCenter.x,
+          y: offsetCenter.y,
         });
 
-        const x = Math.round(index.x);
-        const y = Math.round(index.y);
-
-        setHoveredTileIndex((v) =>
-          (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        const x = Math.min(
+          Math.max(Math.round(index.x), 0),
+          gridSize.width - 1
         );
+        const y = Math.min(
+          Math.max(Math.round(index.y), 0),
+          gridSize.width - 1
+        );
+
+        // setHoveredTileIndex((v) =>
+        //   (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
+        // );
         console.log(x, y);
       };
       const untrackTile = () => {
@@ -106,7 +143,15 @@ export function TileMapView({
         canvas.removeEventListener("mouseleave", untrackTile);
       };
     }
-  }, [canvas, hoveredTileIndex, data, gridCenter.x, gridCenter.y]);
+  }, [
+    canvas,
+    hoveredTileIndex,
+    data,
+    gridSize.height,
+    gridSize.width,
+    canvasSize.width,
+    canvasSize.height,
+  ]);
 
   return (
     <div
@@ -124,7 +169,10 @@ export function TileMapView({
           }
           tileTypes={tileTypes}
         />
-        <div
+        <div style={{ width: 800, height: 800 }}>
+          <AppPixi textureAtlas={textureAtlas} tileGridData={data} />
+        </div>
+        {/* <div
           style={{
             display: "flex",
             height: "100vh",
@@ -152,7 +200,7 @@ export function TileMapView({
             }}
             ref={setCanvas}
           ></canvas>
-        </div>
+        </div> */}
       </div>
     </div>
   );
