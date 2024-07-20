@@ -9,12 +9,7 @@ import {
 } from "pixi.js";
 import { IsometricTile } from "./App2";
 import { Atlas } from "./tiles";
-import invoicesUrl from "./invoices.png";
 import { isoTileSize } from "./App";
-
-const img = new Image();
-img.src = invoicesUrl;
-await img.decode();
 
 export async function initPixi({
   tileGridData,
