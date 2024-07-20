@@ -40,8 +40,6 @@ const bottom = applyToPoint(isoMatrix, {
 
 export const isoTileSize = { x: right.x * 2, y: bottom.y * 2 };
 
-console.log("isoTileSize", { x: tileSide, y: tileSide }, isoTileSize);
-
 export const deisoIndexMatrix = createDeisoIndexMatrix({
   size: isoTileSize,
 });

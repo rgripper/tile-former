@@ -22,11 +22,11 @@ export type SpritesheetFrame = {
     w: number;
     h: number;
   };
-  sourceSize: {
+  sourceSize?: {
     w: number;
     h: number;
   };
-  spriteSourceSize: {
+  spriteSourceSize?: {
     x: number;
     y: number;
     w: number;
@@ -107,23 +107,23 @@ export function createTextureAtlas(
     ctx.fill();
     ctx.stroke();
 
-    spriteItemData[tileType.name] = {
+    spriteItemData[tileType.id] = {
       frame: {
         x: 0,
         y: i * tileHeight,
         w: tileWidth,
         h: tileHeight,
       },
-      sourceSize: {
-        w: tileWidth,
-        h: tileHeight,
-      },
-      spriteSourceSize: {
-        x: 0,
-        y: 0,
-        w: tileWidth,
-        h: tileHeight,
-      },
+      // sourceSize: {
+      //   w: tileWidth,
+      //   h: tileHeight,
+      // },
+      // spriteSourceSize: {
+      //   x: 0,
+      //   y: 0,
+      //   w: tileWidth,
+      //   h: tileHeight,
+      // },
     };
   });
 

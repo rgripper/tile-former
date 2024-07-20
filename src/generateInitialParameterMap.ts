@@ -2,7 +2,7 @@ import { createNoise2D } from "simplex-noise";
 import { Point, IsometricTile } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
 import { rand, tileTypes, isometrifyingMatrix, isoTileSize } from "./App";
-import { tileSide } from "./config";
+import { tileHeight, tileSide } from "./config";
 
 export function generateInitialParameterMap(
   width: number,
@@ -10,7 +10,17 @@ export function generateInitialParameterMap(
 ): IsometricTile[][] {
   const noise2D = createNoise2D(() => rand.next());
 
-  return getTileCentersInGrid({ x: width, y: height }, tileSide).map((row) =>
+  const tileCenterGrid = getTileCentersInGrid(
+    { x: width, y: height },
+    tileSide
+  );
+  const _ = tileCenterGrid[0][tileCenterGrid[0].length - 1].topLeft;
+  const gridTopLeft = {
+    x: applyToPoint(isometrifyingMatrix, { x: _.x, y: _.y + tileHeight }).x,
+    y: applyToPoint(isometrifyingMatrix, tileCenterGrid[0][0].topLeft).y,
+  };
+
+  return tileCenterGrid.map((row) =>
     row.map(({ center, topLeft, index }) => {
       const value = (noise2D(index.x / 40, index.y / 40) + 1) / 2;
       const isoCenter = applyToPoint(isometrifyingMatrix, center);
@@ -19,8 +29,8 @@ export function generateInitialParameterMap(
         index,
         center: isoCenter,
         topLeft: {
-          x: isoCenter.x - isoTileSize.x / 2,
-          y: isoCenter.y - isoTileSize.y / 2,
+          x: isoCenter.x - isoTileSize.x / 2 - gridTopLeft.x,
+          y: isoCenter.y - isoTileSize.y / 2 - gridTopLeft.y,
         },
         value,
       };

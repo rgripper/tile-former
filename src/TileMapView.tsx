@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IsometricTile, TileType } from "./tiles";
+import { Atlas, IsometricTile, TileType } from "./tiles";
 import { drawGrid, drawBorders } from "./drawing";
 import { applyToPoint } from "transformation-matrix";
 import { deisoIndexMatrix, isoTileSize } from "./App";
@@ -15,7 +15,7 @@ export function TileMapView({
 }: {
   data: IsometricTile[][];
   tileTypes: TileType[];
-  textureAtlas: OffscreenCanvas;
+  textureAtlas: Atlas;
   gridSize: { width: number; height: number };
   canvasSize: { width: number; height: number };
 }) {
@@ -39,7 +39,7 @@ export function TileMapView({
       testCanvas.height = 1000;
 
       const context = testCanvas.getContext("2d")!;
-      context.drawImage(textureAtlas, 0, 0);
+      context.drawImage(textureAtlas.canvas, 0, 0);
     }
   }, [testCanvas, textureAtlas]);
 
@@ -49,7 +49,7 @@ export function TileMapView({
 
       drawGrid({
         ctx,
-        textureAtlas,
+        textureAtlas: textureAtlas.canvas,
         grid: data,
         gridSize,
         canvasSize: canvasSize,
@@ -106,12 +106,10 @@ export function TileMapView({
             Math.floor(event.offsetY / isoTileSize.y) * isoTileSize.y +
             isoTileSize.y,
         };
-        console.log({ x: event.offsetX, y: event.offsetY }, center);
         const offsetCenter = {
           x: center.x - gridOffset.x,
           y: center.y - gridOffset.y,
         };
-        console.log(offsetCenter);
 
         const index = applyToPoint(deisoIndexMatrix, {
           x: offsetCenter.x,
