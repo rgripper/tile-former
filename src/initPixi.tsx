@@ -14,14 +14,14 @@ import { isoTileSize } from "./App";
 export async function initPixi({
   tileGridData,
   textureAtlas,
+  size: { width, height },
 }: {
   tileGridData: IsometricTile[][];
   textureAtlas: Atlas;
+  size: { width: number; height: number };
 }) {
   const pixiContainer = new Container();
 
-  const width = 800;
-  const height = 800;
   const app = new Application();
   await app.init({
     width,
@@ -38,10 +38,9 @@ export async function initPixi({
     events: app.renderer.events,
   });
 
-  const Mat = new Matrix();
-  const isoMatrix = Mat.rotate(Math.PI / 4).scale(1, 0.63);
-
-  viewport.localTransform = isoMatrix;
+  // const Mat = new Matrix();
+  //const isoMatrix = Mat.rotate(Math.PI / 4).scale(1, 0.63);
+  //viewport.localTransform = isoMatrix;
 
   const texture = Texture.from(textureAtlas.canvas);
   const spritesheet = new Spritesheet(texture, {
@@ -62,15 +61,14 @@ export async function initPixi({
       sprite.y = tile.topLeft.y;
       sprite.width = isoTileSize.x;
       sprite.height = isoTileSize.y;
-      sprite.on("click", () => {
-        console.log("onclick", tile);
-      });
+
       pixiContainer.addChild(sprite);
     }
   }
   app.stage.addChild(viewport);
   viewport.drag().pinch().wheel().decelerate();
-
+  viewport.moveCenter(450, 250);
+  viewport.setZoom(0.1);
   viewport.addChild(pixiContainer);
 
   return app;

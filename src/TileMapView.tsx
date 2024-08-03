@@ -167,8 +167,12 @@ export function TileMapView({
           }
           tileTypes={tileTypes}
         />
-        <div style={{ width: 800, height: 800 }}>
-          <AppPixi textureAtlas={textureAtlas} tileGridData={data} />
+        <div style={{ width: canvasSize.width, height: canvasSize.height }}>
+          <AppPixi
+            textureAtlas={textureAtlas}
+            tileGridData={data}
+            canvasSize={canvasSize}
+          />
         </div>
         {/* <div
           style={{

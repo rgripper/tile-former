@@ -12,9 +12,11 @@ export type IsometricTile = {
 export function AppPixi({
   tileGridData,
   textureAtlas,
+  canvasSize,
 }: {
   tileGridData: IsometricTile[][];
   textureAtlas: Atlas;
+  canvasSize: { width: number; height: number };
 }) {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -23,6 +25,7 @@ export function AppPixi({
       initPixi({
         tileGridData,
         textureAtlas,
+        size: canvasSize,
       }).then((x) => {
         ref.appendChild(x.canvas);
 
