@@ -31,8 +31,8 @@ export async function initPixi({
   const viewport = new Viewport({
     screenWidth: width,
     screenHeight: height,
-    worldWidth: 2000,
-    worldHeight: 2000,
+    worldWidth: 20000,
+    worldHeight: 20000,
     noTicker: true,
     ticker: app.ticker,
     events: app.renderer.events,
@@ -68,7 +68,7 @@ export async function initPixi({
   app.stage.addChild(viewport);
   viewport.drag().pinch().wheel().decelerate();
   viewport.moveCenter(450, 250);
-  viewport.setZoom(0.1);
+  viewport.setZoom(0.05);
   viewport.addChild(pixiContainer);
 
   return app;

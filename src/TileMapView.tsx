@@ -19,19 +19,12 @@ export function TileMapView({
   gridSize: { width: number; height: number };
   canvasSize: { width: number; height: number };
 }) {
-  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
 
   const [hoveredTileIndex, setHoveredTileIndex] = useState<{
     x: number;
     y: number;
   }>();
-  useEffect(() => {
-    if (canvas) {
-      canvas.width = canvasSize.width;
-      canvas.height = canvasSize.height;
-    }
-  }, [canvas, canvasSize]);
 
   useEffect(() => {
     if (testCanvas) {
@@ -42,114 +35,6 @@ export function TileMapView({
       context.drawImage(textureAtlas.canvas, 0, 0);
     }
   }, [testCanvas, textureAtlas]);
-
-  useEffect(() => {
-    if (canvas) {
-      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-
-      drawGrid({
-        ctx,
-        textureAtlas: textureAtlas.canvas,
-        grid: data,
-        gridSize,
-        canvasSize: canvasSize,
-        atlasTileSize: { x: tileWidth, y: tileHeight },
-        isoTileSize: isoTileSize,
-        tileTypes,
-      });
-    }
-  }, [
-    canvas,
-    data,
-    hoveredTileIndex,
-    tileTypes,
-    textureAtlas,
-    gridSize,
-    canvasSize,
-  ]);
-
-  useEffect(() => {
-    if (canvas) {
-      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-      if (hoveredTileIndex) {
-        const isoTile = data[hoveredTileIndex.x][hoveredTileIndex.y];
-        drawBorders(ctx, isoTileSize.x, isoTileSize.y, isoTile.center);
-      }
-    }
-  }, [canvas, data, hoveredTileIndex]);
-
-  useEffect(() => {
-    if (canvas) {
-      const maxTilesInSide = Math.max(gridSize.height, gridSize.width);
-
-      const gridTopLeft = {
-        x: data[0][data[0].length - 1].topLeft.x,
-        y: data[0][0].topLeft.y,
-      };
-
-      const gridBoxSize = {
-        width: maxTilesInSide * isoTileSize.x,
-        height: maxTilesInSide * isoTileSize.y,
-      };
-
-      const gridOffset = {
-        x: canvasSize.width / 2 - gridBoxSize.width / 2 - gridTopLeft.x,
-        y: canvasSize.height / 2 - gridBoxSize.height / 2 - gridTopLeft.y,
-      };
-
-      const trackTile = (event: MouseEvent) => {
-        const center = {
-          x:
-            Math.floor(event.offsetX / isoTileSize.x) * isoTileSize.x +
-            isoTileSize.x,
-          y:
-            Math.floor(event.offsetY / isoTileSize.y) * isoTileSize.y +
-            isoTileSize.y,
-        };
-        const offsetCenter = {
-          x: center.x - gridOffset.x,
-          y: center.y - gridOffset.y,
-        };
-
-        const index = applyToPoint(deisoIndexMatrix, {
-          x: offsetCenter.x,
-          y: offsetCenter.y,
-        });
-
-        const x = Math.min(
-          Math.max(Math.round(index.x), 0),
-          gridSize.width - 1
-        );
-        const y = Math.min(
-          Math.max(Math.round(index.y), 0),
-          gridSize.width - 1
-        );
-
-        // setHoveredTileIndex((v) =>
-        //   (v && (v.x !== x || v.y !== y)) || !v ? { x, y } : v
-        // );
-        console.log(x, y);
-      };
-      const untrackTile = () => {
-        setHoveredTileIndex(undefined);
-      };
-      canvas.addEventListener("mousemove", trackTile);
-      canvas.addEventListener("mouseleave", untrackTile);
-
-      return () => {
-        canvas.removeEventListener("mousemove", trackTile);
-        canvas.removeEventListener("mouseleave", untrackTile);
-      };
-    }
-  }, [
-    canvas,
-    hoveredTileIndex,
-    data,
-    gridSize.height,
-    gridSize.width,
-    canvasSize.width,
-    canvasSize.height,
-  ]);
 
   return (
     <div
