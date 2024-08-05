@@ -3,7 +3,7 @@ import { useState } from "react";
 import Rand from "rand-seed";
 import { createTextureAtlas, createTileTypes } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
-import { TileMapView } from "./TileMapView";
+import { TileMapInspector } from "./TileMapInspector";
 import {
   createNormalIsoMatrix,
   createDeisoIndexMatrix,
@@ -56,7 +56,7 @@ function App() {
 
   return (
     <>
-      <TileMapView
+      <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}
         tileTypes={tileTypes}

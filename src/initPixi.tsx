@@ -7,7 +7,7 @@ import {
   Spritesheet,
   Sprite,
 } from "pixi.js";
-import { IsometricTile } from "./App2";
+import { IsometricTile } from "./TileMapView";
 import { Atlas } from "./tiles";
 import { isoTileSize } from "./App";
 

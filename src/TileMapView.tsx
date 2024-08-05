@@ -1,112 +1,42 @@
 import { useEffect, useState } from "react";
-import { Atlas, IsometricTile, TileType } from "./tiles";
-import { drawGrid, drawBorders } from "./drawing";
-import { applyToPoint } from "transformation-matrix";
-import { deisoIndexMatrix, isoTileSize } from "./App";
-import { tileHeight, tileWidth } from "./config";
-import { AppPixi } from "./App2";
+import { Atlas, Point } from "./tiles";
+import { initPixi } from "./initPixi";
+
+export type IsometricTile = {
+  tileTypeId: number;
+  center: Point;
+  index: Point;
+  topLeft: Point;
+};
 
 export function TileMapView({
-  data,
-  tileTypes,
+  tileGridData,
   textureAtlas,
-  gridSize,
   canvasSize,
 }: {
-  data: IsometricTile[][];
-  tileTypes: TileType[];
+  tileGridData: IsometricTile[][];
   textureAtlas: Atlas;
-  gridSize: { width: number; height: number };
   canvasSize: { width: number; height: number };
 }) {
-  const [testCanvas, setTestCanvas] = useState<HTMLCanvasElement | null>(null);
-
-  const [hoveredTileIndex, setHoveredTileIndex] = useState<{
-    x: number;
-    y: number;
-  }>();
-
+  const [ref, setRef] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    if (testCanvas) {
-      testCanvas.width = 160;
-      testCanvas.height = 1000;
+    if (ref) {
+      let unsubscribe = () => {};
+      initPixi({
+        tileGridData,
+        textureAtlas,
+        size: canvasSize,
+      }).then((x) => {
+        ref.appendChild(x.canvas);
 
-      const context = testCanvas.getContext("2d")!;
-      context.drawImage(textureAtlas.canvas, 0, 0);
+        unsubscribe = () => {
+          ref.removeChild(x.canvas);
+          x.destroy();
+        };
+      });
+
+      return () => unsubscribe();
     }
-  }, [testCanvas, textureAtlas]);
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div className="tile-map">
-        <TileInfo
-          tile={
-            hoveredTileIndex && data[hoveredTileIndex.x][hoveredTileIndex.y]
-          }
-          tileTypes={tileTypes}
-        />
-        <div style={{ width: canvasSize.width, height: canvasSize.height }}>
-          <AppPixi
-            textureAtlas={textureAtlas}
-            tileGridData={data}
-            canvasSize={canvasSize}
-          />
-        </div>
-        {/* <div
-          style={{
-            display: "flex",
-            height: "100vh",
-            flexDirection: "row",
-            justifyContent: "center",
-          }}
-        >
-          <canvas
-            ref={setTestCanvas}
-            style={{
-              width: 160,
-              height: 1000,
-              border: "1px solid black",
-              transform: `scale(0.4)`,
-              transformOrigin: "top center",
-            }}
-          ></canvas>
-          <canvas
-            style={{
-              transform: `scale(0.8)`,
-              transformOrigin: "top center",
-              width: canvasSize.width,
-              height: canvasSize.height,
-              border: "1px solid black",
-            }}
-            ref={setCanvas}
-          ></canvas>
-        </div> */}
-      </div>
-    </div>
-  );
-}
-
-function TileInfo({
-  tile,
-  tileTypes,
-}: {
-  tile: IsometricTile | undefined;
-  tileTypes: TileType[];
-}) {
-  return (
-    <div style={{ height: "5rem" }}>
-      {tile && (
-        <>
-          ({tile.index.x},{tile.index.y}) {tileTypes[tile.tileTypeId].name}
-        </>
-      )}
-    </div>
-  );
+  }, [ref, textureAtlas, tileGridData]);
+  return <div ref={setRef}></div>;
 }
