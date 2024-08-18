@@ -125,7 +125,7 @@ export default function kmeans(
         sum[idx] += data[i];
       }
       for (let j = 0; j < k; j++) {
-        cents[j] = [sum[j] / count[j]] || [0];
+        cents[j] = [sum[j] / count[j]];
       }
       cent_moved = true;
       for (let j = 0; j < k; j++) {
@@ -153,7 +153,7 @@ class Cluster {
   static k_means(data: Vectors, k: number, random: () => number): Centroids {
     let cents: Centroids = [];
     let t: number = k << 2;
-    let map = {};
+    let map: Record<string, boolean> = {};
     while (cents.length < k && t-- > 0) {
       let d: Array<number> = data[Math.floor(random() * data.length)];
       let key: string = data[0].length > 0 ? d.join("_") : `${d}`;
@@ -173,7 +173,7 @@ class Cluster {
       ? Distance.euclideanDist
       : Distance.dist;
     let cents: Centroids = [];
-    let map = {};
+    let map: Record<string, boolean> = {};
     // Initial random centroid
     let c: Centroid = data[Math.floor(random() * data.length)];
     cents.push(c);
