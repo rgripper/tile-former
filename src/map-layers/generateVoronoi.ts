@@ -1,16 +1,19 @@
 import { Delaunay, Voronoi } from "d3-delaunay";
 import { rand } from "../config";
-import kmeans from "kmeans-ts"; // dist/kmeans-ts.esm.js
+import kmeans from "./kmeans";
 
-export function generateVoronoi({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}) {
+export function generateVoronoi(
+  {
+    width,
+    height,
+  }: {
+    width: number;
+    height: number;
+  },
+  count: number
+) {
   const points: [number, number][] = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < count; i++) {
     points.push([rand.next() * width, rand.next() * height]);
   }
 
@@ -29,9 +32,7 @@ export function groupCells(
 ) {
   const data = points.map((p) => [p[0], p[1]]);
 
-  // Apply K-means clustering
-
-  const kmeansClusters = kmeans(data, k, "kmeans");
+  const kmeansClusters = kmeans(data, k, "kmeans", () => rand.next());
 
   const pairs = kmeansClusters.indexes.map((clusterIndex, pointIndex) => ({
     clusterIndex,

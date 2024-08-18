@@ -12,8 +12,9 @@ async function generateVoronoiMap() {
     backgroundColor: 0x1099bb,
   });
 
-  const { points, voronoi } = generateVoronoi(app.screen);
-  const groups = groupCells(points, voronoi, 7);
+  const pointCount = 50;
+  const { points, voronoi } = generateVoronoi(app.screen, pointCount);
+  const groups = groupCells(points, voronoi, Math.ceil(pointCount / 5));
 
   for (const group of groups) {
     const graphics = new Graphics();
