@@ -37,6 +37,6 @@ export function TileMapView({
 
       return () => unsubscribe();
     }
-  }, [ref, textureAtlas, tileGridData]);
+  }, [canvasSize, ref, textureAtlas, tileGridData]);
   return <div ref={setRef}></div>;
 }

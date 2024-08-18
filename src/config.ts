@@ -3,3 +3,13 @@ export const tileHeight = tileSide;
 export const tileWidth = tileHeight * 2;
 export const gridSize = { width: 200, height: 200 };
 export const canvasSize = { width: 1024, height: 640 };
+
+import Rand from "rand-seed";
+
+const _rand = new Rand("1234");
+
+export const rand = Object.assign(_rand, {
+  intBetween: (min: number, max: number) =>
+    Math.round(_rand.next() * (max - min) + min),
+  nextPositiveInt: () => Math.round(_rand.next()),
+});

@@ -1,6 +1,5 @@
 import "./App.css";
 import { useState } from "react";
-import Rand from "rand-seed";
 import { createTextureAtlas, createTileTypes } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
 import { TileMapInspector } from "./TileMapInspector";
@@ -17,8 +16,8 @@ import {
   gridSize,
   canvasSize,
 } from "./config";
-
-export const rand = new Rand("1234");
+import { BiomeFloor } from "./biome-floor/BiomeFloor";
+import { Layer } from "./map-layers/Layer";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 
@@ -56,13 +55,15 @@ function App() {
 
   return (
     <>
-      <TileMapInspector
+      {/* <BiomeFloor /> */}
+      <Layer />
+      {/* <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}
         tileTypes={tileTypes}
         gridSize={gridSize}
         canvasSize={canvasSize}
-      />
+      /> */}
     </>
   );
 }
