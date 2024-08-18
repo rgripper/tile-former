@@ -30,9 +30,7 @@ export function groupCells(
   voronoi: Voronoi<Delaunay.Point>,
   k: number
 ) {
-  const data = points.map((p) => [p[0], p[1]]);
-
-  const kmeansClusters = kmeans(data, k, "kmeans", () => rand.next());
+  const kmeansClusters = kmeans(points, k, "kmeans", () => rand.next());
 
   const pairs = kmeansClusters.indexes.map((clusterIndex, pointIndex) => ({
     clusterIndex,
