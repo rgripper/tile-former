@@ -18,6 +18,7 @@ import {
 } from "./config";
 import { BiomeFloor } from "./biome-floor/BiomeFloor";
 import { Layer } from "./map-layers/Layer";
+import { Layer2 } from "./map-layers/Layer2";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 
@@ -52,11 +53,12 @@ const initialTileMap = generateInitialParameterMap(
 
 function App() {
   const [tileMap] = useState(initialTileMap);
-
+  const [toggle, setToggle] = useState(false);
   return (
     <>
+      <button onClick={() => setToggle((x) => !x)}>toggle</button>
       {/* <BiomeFloor /> */}
-      <Layer />
+      {toggle ? <Layer /> : <Layer2 />}
       {/* <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}

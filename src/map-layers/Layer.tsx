@@ -1,9 +1,10 @@
 import { Application, Graphics } from "pixi.js";
 import { useEffect, useState } from "react";
-import { generateVoronoi, groupCells } from "./generateVoronoi";
+import { GenerateVoronoi, groupCells } from "./generateVoronoi";
 import { rand } from "../config";
+import { voronoiResult } from "./Layer2";
 
-async function generateVoronoiMap() {
+async function generateVoronoiMap({ points, voronoi }: GenerateVoronoi) {
   // Initialize PIXI Application
   const app = new Application();
   await app.init({
@@ -13,7 +14,6 @@ async function generateVoronoiMap() {
   });
 
   const pointCount = 50;
-  const { points, voronoi } = generateVoronoi(app.screen, pointCount);
   const groups = groupCells(points, voronoi, Math.ceil(pointCount / 5));
 
   for (const group of groups) {
@@ -52,7 +52,7 @@ async function generateVoronoiMap() {
   return app;
 }
 
-const app = await generateVoronoiMap();
+const app = await generateVoronoiMap(voronoiResult);
 
 export function Layer() {
   const [ref, setRef] = useState<HTMLDivElement | null>();
