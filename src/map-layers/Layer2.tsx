@@ -1,12 +1,14 @@
-import { Application, Graphics } from "pixi.js";
 import { useEffect, useState } from "react";
-import { generateVoronoi, groupCells, mergePolygons2 } from "./generateVoronoi";
-import { rand } from "../config";
+import { generateVoronoi, groupCells } from "./generateVoronoi";
 import { generateVoronoiMap } from "./generateVoronoiMap";
 
 export const voronoiResult = generateVoronoi({ width: 800, height: 600 }, 50);
-
-const app = await generateVoronoiMap(voronoiResult);
+export const groups = groupCells(
+  voronoiResult.points,
+  voronoiResult.voronoi,
+  Math.ceil(Math.round(voronoiResult.points.length / 5))
+).toArray();
+const app = await generateVoronoiMap(voronoiResult, groups);
 
 export function Layer2() {
   const [ref, setRef] = useState<HTMLDivElement | null>();

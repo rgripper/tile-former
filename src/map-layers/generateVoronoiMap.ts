@@ -1,8 +1,11 @@
 import { Application, Graphics } from "pixi.js";
 import { rand } from "../config";
-import { GenerateVoronoi, groupCells, mergePolygons, mergePolygons2 } from "./generateVoronoi";
+import { GenerateVoronoi, mergePolygons } from "./generateVoronoi";
 
-export async function generateVoronoiMap({ points, voronoi }: GenerateVoronoi) {
+export async function generateVoronoiMap(
+  { points, voronoi }: GenerateVoronoi,
+  groups: number[][]
+) {
   // Initialize PIXI Application
   const app = new Application();
   await app.init({
@@ -10,9 +13,6 @@ export async function generateVoronoiMap({ points, voronoi }: GenerateVoronoi) {
     height: 600,
     backgroundColor: 0x1099bb,
   });
-
-  const pointCount = 50;
-  const groups = groupCells(points, voronoi, Math.ceil(pointCount / 5));
 
   const mergedPolygons = groups.map((group) =>
     mergePolygons(group.map((cellIndex) => voronoi.cellPolygon(cellIndex)))

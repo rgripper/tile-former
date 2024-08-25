@@ -60,43 +60,6 @@ export function mergePolygons(polygons: Delaunay.Polygon[]) {
   );
 }
 
-export function mergePolygons2(polygons: Delaunay.Polygon[]) {
-  // Create a set to store unique points
-  const uniquePoints = new Set<string>();
-
-  // Combine all points from the polygons
-  for (const polygon of polygons) {
-    for (const point of polygon) {
-      uniquePoints.add(`${point[0]},${point[1]}`);
-    }
-  }
-
-  // Create a new polygon with the combined points
-  const mergedPolygon: Delaunay.Polygon = [];
-
-  for (const pointStr of uniquePoints) {
-    const [x, y] = pointStr.split(",").map(Number);
-    mergedPolygon.push([x, y]);
-  }
-
-  // Sort the points in a clockwise direction (adjust if needed)
-  mergedPolygon.sort((a, b) => {
-    // Implement a sorting algorithm based on your specific needs
-    // For example, using atan2 for angle calculation
-    const angleA = Math.atan2(
-      a[1] - mergedPolygon[0][1],
-      a[0] - mergedPolygon[0][0]
-    );
-    const angleB = Math.atan2(
-      b[1] - mergedPolygon[0][1],
-      b[0] - mergedPolygon[0][0]
-    );
-    return angleA - angleB;
-  });
-
-  return mergedPolygon;
-}
-
 function polygonToEdges(polygon: Delaunay.Polygon): Edge[] {
   return polygon.map((point, i): Edge => {
     const nextPoint = polygon[(i + 1) % polygon.length];
