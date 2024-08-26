@@ -6,7 +6,6 @@ import { Application } from "pixi.js";
 const voronoiResult = generateVoronoi({ width: 800, height: 600 }, 50);
 const groups = groupCells(
   voronoiResult.points,
-  voronoiResult.voronoi,
   Math.ceil(Math.round(voronoiResult.points.length / 5))
 ).toArray();
 
@@ -23,7 +22,16 @@ await app.init({
   backgroundColor: 0x1099bb,
 });
 
-await renderVoronoi(app, mergedPolygons);
+// const groups = groupCells(
+//   voronoiResult.points,
+//   voronoiResult.voronoi,
+//   Math.ceil(Math.round(voronoiResult.points.length / 5))
+// ).toArray();
+
+await renderVoronoi(
+  app,
+  mergedPolygons.map((x) => [x])
+);
 
 export function Layer() {
   const [ref, setRef] = useState<HTMLDivElement | null>();

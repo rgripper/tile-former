@@ -4,28 +4,30 @@ import { Delaunay } from "d3-delaunay";
 
 export async function renderVoronoi(
   app: Application,
-  polygons: Delaunay.Point[][]
+  polygonGroups: Delaunay.Polygon[][]
 ) {
   // Initialize PIXI Application
 
-  for (const polygon of polygons) {
+  for (const polygonGroup of polygonGroups) {
     const graphics = new Graphics();
     graphics.setStrokeStyle({
       width: 2,
     });
     const color = rand.next() * 0xffffff;
 
-    if (polygon) {
-      const [[startX, startY], ...otherPoints] = polygon;
-      graphics.moveTo(startX, startY);
+    for (const polygon of polygonGroup) {
+      if (polygon) {
+        const [[startX, startY], ...otherPoints] = polygon;
+        graphics.moveTo(startX, startY);
 
-      for (const [x, y] of otherPoints) {
-        graphics.lineTo(x, y);
+        for (const [x, y] of otherPoints) {
+          graphics.lineTo(x, y);
+        }
+
+        graphics.closePath();
+        graphics.fill(color);
+        app.stage.addChild(graphics);
       }
-
-      graphics.closePath();
-      graphics.fill(color);
-      app.stage.addChild(graphics);
     }
   }
 

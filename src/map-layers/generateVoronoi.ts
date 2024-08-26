@@ -67,21 +67,17 @@ function polygonToEdges(polygon: Delaunay.Polygon): Edge[] {
   });
 }
 
-export function groupCells(
-  points: [number, number][],
-  voronoi: Voronoi<Delaunay.Point>,
-  k: number
-) {
+export function groupCells(points: Delaunay.Point[], k: number) {
   const kmeansClusters = kmeans(points, k, "kmeans", () => rand.next());
 
   const pairs = kmeansClusters.indexes.map((clusterIndex, pointIndex) => ({
     clusterIndex,
-    voronoiIndex: voronoi.delaunay.find(...points[pointIndex]),
+    pointIndex,
   }));
 
   return Map.groupBy(pairs, (pair) => pair.clusterIndex)
     .values()
-    .map((cluster) => cluster.map((x) => x.voronoiIndex));
+    .map((cluster) => cluster.map((x) => x.pointIndex));
 }
 
 function connectEdges([firstEdge, ...edges]: Edge[]): Delaunay.Point[] {
