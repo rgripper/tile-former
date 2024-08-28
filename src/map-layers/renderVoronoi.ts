@@ -1,11 +1,17 @@
 import { Application, Graphics } from "pixi.js";
 import { rand } from "../config";
 import { Delaunay } from "d3-delaunay";
+import { Edge } from "./Edge";
 
-export async function renderVoronoi(
-  app: Application,
-  polygonGroups: Delaunay.Polygon[][]
-) {
+export async function renderVoronoi({
+  app,
+  polygonGroups,
+  mountainRanges,
+}: {
+  app: Application;
+  polygonGroups: Delaunay.Polygon[][];
+  mountainRanges: Edge[][];
+}) {
   // Initialize PIXI Application
 
   for (const polygonGroup of polygonGroups) {

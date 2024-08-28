@@ -66,27 +66,47 @@ export function generateCells() {
     })
   );
 
-  return chunks;
+  const mountainRanges = addMountainRanges({
+    landChunks: chunks.filter((x) => x.isLand),
+    groupCount: 2,
+    groupSize: 5,
+  });
 
-  // const chunksWithMountains = addMountainRanges({
-  //   chunks: chunks.filter((x) => x.isLand),
-  //   groupCount: 2,
-  //   groupSize: 5,
-  // });
-
-  // return chunksWithMountains;
+  return { chunks, mountainRanges };
 }
 
-// function addMountainRanges({
-//   landChunks,
-//   groupCount,
-//   groupSize,
-// }: {
-//   landChunks: {
-//     polygon: Delaunay.Point[];
-//     neighbors: Set<CellChunk>;
-//     cellIndexes: number[];
-//   }[];
-//   groupCount: number;
-//   groupSize: number;
-// }) {}
+function addMountainRanges({
+  landChunks,
+  groupCount,
+  groupSize,
+}: {
+  landChunks: CellChunk[];
+  groupCount: number;
+  groupSize: number;
+}) {
+  const mountainRanges: Edge[][] = [];
+
+  for (let i = 0; i < groupCount; i++) {
+    const range: Edge[] = [];
+
+    for (let j = 0; j < groupSize; j++) {
+      const chunk = landChunks[Math.floor(Math.random() * landChunks.length)];
+      const cell = chunk.cells[Math.floor(Math.random() * chunk.cells.length)];
+
+      const neighborChunks = Array.from(chunk.neighbors);
+      const neighborChunk =
+        neighborChunks[Math.floor(Math.random() * neighborChunks.length)];
+
+      const neighborCell =
+        neighborChunk.cells[
+          Math.floor(Math.random() * neighborChunk.cells.length)
+        ];
+
+      range.push([cell.point, neighborCell.point]);
+    }
+
+    mountainRanges.push(range);
+  }
+
+  return mountainRanges;
+}

@@ -3,7 +3,7 @@ import { renderVoronoi } from "./renderVoronoi";
 import { Application } from "pixi.js";
 import { generateCells } from "./generateCells";
 
-const clusteredByLand = generateCells();
+const { chunks, mountainRanges } = generateCells();
 const app = new Application();
 await app.init({
   width: 800,
@@ -11,13 +11,14 @@ await app.init({
   backgroundColor: 0x1099bb,
 });
 
-await renderVoronoi(
+await renderVoronoi({
   app,
-  Map.groupBy(clusteredByLand, (x) => x.isLand)
+  polygonGroups: Map.groupBy(chunks, (x) => x.isLand)
     .values()
     .map((x) => x.map((x) => x.polygon))
-    .toArray()
-);
+    .toArray(),
+  mountainRanges,
+});
 
 export function Layer() {
   const [ref, setRef] = useState<HTMLDivElement | null>();
