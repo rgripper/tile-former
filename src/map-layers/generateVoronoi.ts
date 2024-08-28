@@ -1,6 +1,7 @@
-import { Delaunay, Voronoi } from "d3-delaunay";
+import { Delaunay } from "d3-delaunay";
 import { rand } from "../config";
 import kmeans from "./kmeans";
+import { Edge } from "./Edge";
 
 export type GenerateVoronoi = ReturnType<typeof generateVoronoi>;
 
@@ -28,8 +29,6 @@ export function generateVoronoi(
   return { points, voronoi };
 }
 
-type Edge = [Delaunay.Point, Delaunay.Point];
-
 export function mergePolygons(polygons: Delaunay.Polygon[]) {
   const allEdges = polygons.flatMap((polygon) => polygonToEdges(polygon));
 
@@ -44,17 +43,6 @@ export function mergePolygons(polygons: Delaunay.Polygon[]) {
     .flatMap((x) => x)
     .toArray();
 
-  console.log(
-    [...filteredEdges]
-      .map((edge) =>
-        edge
-          .map((x) => x.map((x) => x.toFixed(1)).join("|"))
-          .toSorted()
-          .join(",")
-      )
-      .toSorted()
-      .join("\n")
-  );
   return connectEdges(
     filteredEdges.filter((edge) => edge[0].toString() !== edge[1].toString())
   );
@@ -119,24 +107,5 @@ function findNext(
     }
   }
 
-  console.log(edge, edges);
-  throw new Error("Could not find next point");
-}
-
-function findNextPoint(edge: Edge, edges: Edge[]): Delaunay.Point {
-  for (const otherEdge of edges) {
-    if (otherEdge === edge) {
-      continue;
-    }
-
-    if (areSamePoint(edge[1], otherEdge[0])) {
-      return otherEdge[1];
-    }
-    if (areSamePoint(edge[1], otherEdge[1])) {
-      return otherEdge[0];
-    }
-  }
-
-  console.log(edge, edges);
   throw new Error("Could not find next point");
 }
