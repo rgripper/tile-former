@@ -6,6 +6,6 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [tailwindcss(), react()],
   build: {
-    target: "esnext",
+    target: "es2023",
   },
 });

@@ -20,7 +20,6 @@ import { Layer } from "./map-layers/Layer";
 import { Button } from "./components/Button";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
-
 export const isometrifyingMatrix = createNormalIsoMatrix();
 
 const isoMatrix = createIsoMatrix({
