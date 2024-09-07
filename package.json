@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
     "@timohausmann/quadtree-js": "^1.2.6",
     "@turf/clusters-kmeans": "^7.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
     "d3-delaunay": "^6.0.4",
     "pixi-filters": "^6.0.5",
     "pixi-viewport": "^5.0.3",
@@ -20,6 +23,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "simplex-noise": "^4.0.3",
+    "tailwind-merge": "^2.5.2",
     "transformation-matrix": "^2.16.1"
   },
   "devDependencies": {

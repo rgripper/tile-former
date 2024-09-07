@@ -17,6 +17,7 @@ import {
 } from "./config";
 import { BiomeFloor } from "./biome-floor/BiomeFloor";
 import { Layer } from "./map-layers/Layer";
+import { Button } from "./components/Button";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 
@@ -54,7 +55,7 @@ function App() {
   const [toggle, setToggle] = useState(false);
   return (
     <>
-      <button onClick={() => setToggle((x) => !x)}>toggle</button>
+      <Button onClick={() => setToggle((x) => !x)}>toggle</Button>
       {/* <BiomeFloor /> */}
       <Layer />
       {/* <TileMapInspector
