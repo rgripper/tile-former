@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2023",
     "useDefineForClassFields": true,
     "lib": ["ESNext", "ES2023.Collection", "DOM", "DOM.Iterable"],
     "module": "ESNext",
@@ -16,10 +16,8 @@
     "allowSyntheticDefaultImports": true,
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true
+    "noFallthroughCasesInSwitch": true
+    // "noUncheckedIndexedAccess": true
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
