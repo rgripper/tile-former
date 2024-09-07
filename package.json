@@ -13,10 +13,10 @@
     "@timohausmann/quadtree-js": "^1.2.6",
     "@turf/clusters-kmeans": "^7.1.0",
     "d3-delaunay": "^6.0.4",
-    "pixi-filters": "^6.0.4",
+    "pixi-filters": "^6.0.5",
     "pixi-viewport": "^5.0.3",
-    "pixi.js": "^8.3.3",
-    "rand-seed": "^2.1.4",
+    "pixi.js": "^8.3.4",
+    "rand-seed": "^2.1.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "simplex-noise": "^4.0.3",
@@ -25,16 +25,16 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.0.0-alpha.23",
     "@types/d3-delaunay": "^6.0.4",
-    "@types/react": "^18.3.3",
+    "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^8.1.0",
-    "@typescript-eslint/parser": "^8.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.4.0",
+    "@typescript-eslint/parser": "^8.4.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "eslint": "^9.9.0",
+    "eslint": "^9.10.0",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "eslint-plugin-react-refresh": "^0.4.9",
+    "eslint-plugin-react-refresh": "^0.4.11",
     "tailwindcss": "4.0.0-alpha.23",
-    "typescript": "5.6.1-rc",
-    "vite": "^5.4.1"
+    "typescript": "5.5.4",
+    "vite": "^5.4.3"
   }
 }
