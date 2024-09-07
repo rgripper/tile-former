@@ -1,7 +1,8 @@
 import { Delaunay } from "d3-delaunay";
 import { generateVoronoi, groupCells, mergePolygons } from "./generateVoronoi";
-import { clusterSomeAroundRandomNode } from "./clusterSomeAroundRandomNode";
+import { floodFillNodes } from "./clusterSomeAroundRandomNode";
 import { Edge } from "./Edge";
+import { rand } from "../config";
 
 type Cell = {
   point: Delaunay.Point;
@@ -15,7 +16,12 @@ type CellChunk = {
   cells: Cell[];
 };
 
-export function generateCells() {
+export type AreaChunk = CellChunk & { isLand: boolean };
+
+export function generateCells(): {
+  chunks: AreaChunk[];
+  mountainRanges: Edge[];
+} {
   const voronoiResult = generateVoronoi({ width: 800, height: 600 }, 50);
   const numberOfClusters = Math.ceil(
     Math.round(voronoiResult.points.length / 5)
@@ -28,7 +34,7 @@ export function generateCells() {
   }));
   cells.forEach((cell, i) => {
     cell.neighbors = Array.from(voronoiResult.voronoi.neighbors(i)).map(
-      (x) => cells[x]
+      (x) => cells[x]!
     );
   });
 
@@ -44,7 +50,7 @@ export function generateCells() {
         )
       ),
       neighbors: new Set(),
-      cells: groupIndexes.map((i): Cell => cells[i]),
+      cells: groupIndexes.map((i): Cell => cells[i]!),
     }));
 
   for (const chunk of cellChunks) {
@@ -57,19 +63,15 @@ export function generateCells() {
     );
   }
 
-  const chunks = clusterSomeAroundRandomNode(
-    cellChunks,
-    0.85,
-    (x, isPicked) => ({
-      ...x,
-      isLand: isPicked,
-    })
-  );
+  const chunks = floodFillNodes(cellChunks, 0.85, (x, isPicked) => ({
+    ...x,
+    isLand: isPicked,
+  }));
 
+  const landChunks = chunks.filter((x) => x.isLand);
   const mountainRanges = addMountainRanges({
-    landChunks: chunks.filter((x) => x.isLand),
-    groupCount: 2,
-    groupSize: 5,
+    landChunks,
+    count: 10,
   });
 
   return { chunks, mountainRanges };
@@ -77,36 +79,30 @@ export function generateCells() {
 
 function addMountainRanges({
   landChunks,
-  groupCount,
-  groupSize,
+  count,
 }: {
   landChunks: CellChunk[];
-  groupCount: number;
-  groupSize: number;
+  count: number;
 }) {
-  const mountainRanges: Edge[][] = [];
+  const mountainRanges: Edge[] = [];
 
-  for (let i = 0; i < groupCount; i++) {
-    const range: Edge[] = [];
+  const _rand = rand;
+  const edges = landChunks.flatMap((x) =>
+    x.cells.flatMap((x) => getEdges(x.polygon))
+  );
 
-    for (let j = 0; j < groupSize; j++) {
-      const chunk = landChunks[Math.floor(Math.random() * landChunks.length)];
-      const cell = chunk.cells[Math.floor(Math.random() * chunk.cells.length)];
+  if (count > edges.length) {
+    throw new Error("Not enough edges to create that many mountain ranges");
+  }
 
-      const neighborChunks = Array.from(chunk.neighbors);
-      const neighborChunk =
-        neighborChunks[Math.floor(Math.random() * neighborChunks.length)];
-
-      const neighborCell =
-        neighborChunk.cells[
-          Math.floor(Math.random() * neighborChunk.cells.length)
-        ];
-
-      range.push([cell.point, neighborCell.point]);
-    }
-
-    mountainRanges.push(range);
+  for (let i = 0; i < count; i++) {
+    const edge = edges.splice(_rand.intBetween(0, edges.length), 1)[0]!;
+    mountainRanges.push(edge);
   }
 
   return mountainRanges;
+}
+
+function getEdges(polygon: Delaunay.Polygon): Edge[] {
+  return polygon.map((point, i) => [point, polygon[(i + 1) % polygon.length]!]);
 }

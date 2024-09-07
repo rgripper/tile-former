@@ -13,11 +13,8 @@ await app.init({
 
 await renderVoronoi({
   app,
-  polygonGroups: Map.groupBy(chunks, (x) => x.isLand)
-    .values()
-    .map((x) => x.map((x) => x.polygon))
-    .toArray(),
-  mountainRanges,
+  chunks,
+  mountainRanges: [mountainRanges],
 });
 
 export function Layer() {

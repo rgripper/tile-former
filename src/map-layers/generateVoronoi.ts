@@ -50,7 +50,7 @@ export function mergePolygons(polygons: Delaunay.Polygon[]) {
 
 function polygonToEdges(polygon: Delaunay.Polygon): Edge[] {
   return polygon.map((point, i): Edge => {
-    const nextPoint = polygon[(i + 1) % polygon.length];
+    const nextPoint = polygon[(i + 1) % polygon.length]!;
     return [point, nextPoint];
   });
 }
@@ -69,8 +69,8 @@ export function groupCells(points: Delaunay.Point[], k: number) {
 }
 
 function connectEdges([firstEdge, ...edges]: Edge[]): Delaunay.Point[] {
-  const points: Delaunay.Point[] = [...firstEdge];
-  let current = { edge: firstEdge, nextPoint: firstEdge[1] };
+  const points: Delaunay.Point[] = [...firstEdge!];
+  let current = { edge: firstEdge!, nextPoint: firstEdge![1]! };
   while (edges.length > 0) {
     current = findNext(current.edge, edges);
     points.push(current.nextPoint);

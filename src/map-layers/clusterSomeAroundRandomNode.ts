@@ -1,6 +1,6 @@
 import { rand } from "../config";
 
-export function clusterSomeAroundRandomNode<T extends { neighbors: Set<T> }, Y>(
+export function floodFillNodes<T extends { neighbors: Set<T> }, Y>(
   nodes: T[],
   ratio: number,
   mapNode: (node: T, isPicked: boolean) => Y
@@ -9,32 +9,30 @@ export function clusterSomeAroundRandomNode<T extends { neighbors: Set<T> }, Y>(
   if (ratio < 0 || ratio > 1) {
     throw new Error("Invalid ratio value");
   }
-  const clusteredCount = Math.round(nodes.length * ratio);
-  // then we can floodfill from one point to get all the points in the cluster
-  const clusterIndexes: number[] = [];
-  const startIndex = rand.intBetween(0, nodes.length);
-  const visited: boolean[] = new Array(nodes.length).fill(false);
-  const queue: number[] = [startIndex];
-  visited[startIndex] = true;
-  clusterIndexes.push(startIndex);
+  const filledCount = Math.round(nodes.length * ratio);
 
-  while (queue.length > 0 && clusterIndexes.length < clusteredCount) {
-    const currentIndex = queue.shift()!;
-    const neighbors = nodes[currentIndex].neighbors;
+  const filledNodes: T[] = [];
+  const pickedNodes: Set<T> = new Set();
 
-    for (const neighbor of neighbors) {
-      const neighborIndex = nodes.indexOf(neighbor);
-      if (!visited[neighborIndex]) {
-        visited[neighborIndex] = true;
-        clusterIndexes.push(neighborIndex);
-        queue.push(neighborIndex);
+  while (filledNodes.length < filledCount) {
+    const randomIndex = rand.intBetween(0, nodes.length - 1);
+    const randomNode = nodes[randomIndex]!;
 
-        if (clusterIndexes.length === clusteredCount) {
-          break;
+    if (!pickedNodes.has(randomNode)) {
+      filledNodes.push(randomNode);
+      pickedNodes.add(randomNode);
+
+      randomNode.neighbors.forEach((neighbor) => {
+        if (!pickedNodes.has(neighbor)) {
+          filledNodes.push(neighbor);
+          pickedNodes.add(neighbor);
         }
-      }
+      });
     }
   }
 
-  return nodes.map((node, i) => mapNode(node, clusterIndexes.includes(i)));
+  const result: Y[] = filledNodes.map((node) =>
+    mapNode(node, pickedNodes.has(node))
+  );
+  return result;
 }
