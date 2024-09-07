@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Build with pnpm
-        run: pnpm build
+        run: pnpm build --base tile-former
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
