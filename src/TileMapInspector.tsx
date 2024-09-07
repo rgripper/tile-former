@@ -33,18 +33,11 @@ export function TileMapInspector({
   }, [testCanvas, textureAtlas]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div className="tile-map">
+    <div>
+      <div>
         <TileInfo
           tile={
-            hoveredTileIndex && data[hoveredTileIndex.x][hoveredTileIndex.y]
+            hoveredTileIndex && data[hoveredTileIndex.x]![hoveredTileIndex.y]
           }
           tileTypes={tileTypes}
         />
@@ -89,7 +82,7 @@ function TileInfo({
     <div style={{ height: "5rem" }}>
       {tile && (
         <>
-          ({tile.index.x},{tile.index.y}) {tileTypes[tile.tileTypeId].name}
+          ({tile.index.x},{tile.index.y}) {tileTypes[tile.tileTypeId]!.name}
         </>
       )}
     </div>

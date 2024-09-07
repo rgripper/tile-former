@@ -23,6 +23,7 @@
     "transformation-matrix": "^2.16.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.0.0-alpha.23",
     "@types/d3-delaunay": "^6.0.4",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -32,6 +33,7 @@
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.9",
+    "tailwindcss": "4.0.0-alpha.23",
     "typescript": "5.6.1-rc",
     "vite": "^5.4.1"
   }

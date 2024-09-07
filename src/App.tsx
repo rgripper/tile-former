@@ -1,4 +1,3 @@
-import "./App.css";
 import { useState } from "react";
 import { createTextureAtlas, createTileTypes } from "./tiles";
 import { applyToPoint } from "transformation-matrix";

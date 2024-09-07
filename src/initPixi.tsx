@@ -52,8 +52,8 @@ export async function initPixi({
 
   await spritesheet.parse();
   for (let row = 0; row < tileGridData.length; row++) {
-    for (let col = 0; col < tileGridData[row].length; col++) {
-      const tile = tileGridData[row][col];
+    for (let col = 0; col < tileGridData[row]!.length; col++) {
+      const tile = tileGridData[row]![col]!;
 
       const sprite = new Sprite(spritesheet.textures[tile.tileTypeId]);
 

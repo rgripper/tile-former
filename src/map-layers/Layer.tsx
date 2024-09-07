@@ -28,5 +28,5 @@ export function Layer() {
     }
   }, [ref]);
 
-  return <div ref={setRef}></div>;
+  return <div ref={setRef} className="flex justify-center"></div>;
 }
