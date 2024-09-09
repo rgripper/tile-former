@@ -6,10 +6,17 @@ export const canvasSize = { width: 1024, height: 640 };
 
 import Rand from "rand-seed";
 
-const _rand = new Rand("1234");
+export type CustomRand = ReturnType<typeof createRand>;
 
-export const rand = Object.assign(_rand, {
-  intBetween: (min: number, exclusiveMax: number) =>
-    Math.round(_rand.next() * (exclusiveMax - 1 - min) + min),
-  nextPositiveInt: () => Math.round(_rand.next()),
-});
+export function createRand(input: string) {
+  const rand = new Rand(input);
+  const intBetween = ((min: number, exclusiveMax: number) =>
+    Math.round(rand.next() * (exclusiveMax - 1 - min) + min)).bind(rand);
+  return {
+    next: () => rand.next(),
+    intBetween,
+    arrayIndex: (arr: unknown[]) => intBetween(0, arr.length),
+  };
+}
+
+export const defaultRandSeed = "1234";

@@ -2,11 +2,12 @@ import { createNoise2D } from "simplex-noise";
 import { Point, IsometricTile } from "./tiles";
 import { applyToPoint } from "transformation-matrix";
 import { tileTypes, isometrifyingMatrix, isoTileSize } from "./App";
-import { rand, tileHeight, tileSide } from "./config";
+import { CustomRand, tileHeight, tileSide } from "./config";
 
 export function generateInitialParameterMap(
   width: number,
-  height: number
+  height: number,
+  rand: CustomRand
 ): IsometricTile[][] {
   const noise2D = createNoise2D(() => rand.next());
 

@@ -14,10 +14,14 @@ import {
   tileSide,
   gridSize,
   canvasSize,
+  createRand,
+  defaultRandSeed,
 } from "./config";
 import { BiomeFloor } from "./biome-floor/BiomeFloor";
-import { Layer } from "./map-layers/Layer";
+import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 import { Button } from "./components/Button";
+import { createAndRenderMap } from "./map-layers/createAndRenderMap";
+import { HeightMapLayer } from "./map-layers/HeightMapLayer";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 export const isometrifyingMatrix = createNormalIsoMatrix();
@@ -46,8 +50,15 @@ const textureAtlas = createTextureAtlas(tileTypes, tileWidth, tileHeight);
 
 const initialTileMap = generateInitialParameterMap(
   gridSize.width,
-  gridSize.height
+  gridSize.height,
+  createRand(defaultRandSeed)
 ); // tile size is 12x12
+
+const { chunkMapApp, chunkMap } = await createAndRenderMap({
+  rand: createRand(defaultRandSeed),
+  width: 800,
+  height: 800,
+});
 
 function App() {
   const [tileMap] = useState(initialTileMap);
@@ -56,7 +67,8 @@ function App() {
     <>
       <Button onClick={() => setToggle((x) => !x)}>toggle</Button>
       {/* <BiomeFloor /> */}
-      <Layer />
+      <ChunkMapLayer app={chunkMapApp} />
+      <HeightMapLayer chunkMap={chunkMap} />
       {/* <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}

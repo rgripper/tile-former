@@ -2,7 +2,7 @@ import { Delaunay } from "d3-delaunay";
 import { generateVoronoi, groupCells, mergePolygons } from "./generateVoronoi";
 import { floodFillNodes } from "./clusterSomeAroundRandomNode";
 import { Edge } from "./Edge";
-import { rand } from "../config";
+import { CustomRand } from "../config";
 
 type Cell = {
   point: Delaunay.Point;
@@ -18,11 +18,11 @@ type CellChunk = {
 
 export type AreaChunk = CellChunk & { isLand: boolean };
 
-export function generateCells(): {
+export function generateCells(rand: CustomRand): {
   chunks: AreaChunk[];
   mountainRanges: Edge[];
 } {
-  const voronoiResult = generateVoronoi({ width: 800, height: 600 }, 50);
+  const voronoiResult = generateVoronoi({ width: 800, height: 800 }, 50, rand);
   const numberOfClusters = Math.ceil(
     Math.round(voronoiResult.points.length / 5)
   );
@@ -40,7 +40,8 @@ export function generateCells(): {
 
   let cellChunks: CellChunk[] = groupCells(
     voronoiResult.points,
-    numberOfClusters
+    numberOfClusters,
+    rand.next
   )
     .toArray()
     .map((groupIndexes) => ({
@@ -63,15 +64,21 @@ export function generateCells(): {
     );
   }
 
-  const chunks = floodFillNodes(cellChunks, 0.85, (x, isPicked) => ({
-    ...x,
-    isLand: isPicked,
-  }));
+  const chunks = floodFillNodes({
+    nodes: cellChunks,
+    ratio: 0.85,
+    mapNode: (x, isPicked) => ({
+      ...x,
+      isLand: isPicked,
+    }),
+    rand,
+  });
 
   const landChunks = chunks.filter((x) => x.isLand);
   const mountainRanges = addMountainRanges({
     landChunks,
     count: 10,
+    rand,
   });
 
   return { chunks, mountainRanges };
@@ -80,13 +87,14 @@ export function generateCells(): {
 function addMountainRanges({
   landChunks,
   count,
+  rand,
 }: {
   landChunks: CellChunk[];
   count: number;
+  rand: CustomRand;
 }) {
   const mountainRanges: Edge[] = [];
 
-  const _rand = rand;
   const edges = landChunks.flatMap((x) =>
     x.cells.flatMap((x) => getEdges(x.polygon))
   );
@@ -96,7 +104,12 @@ function addMountainRanges({
   }
 
   for (let i = 0; i < count; i++) {
-    const edge = edges.splice(_rand.intBetween(0, edges.length), 1)[0]!;
+    const pickedIndex = rand.arrayIndex(edges);
+    const edge = edges.splice(pickedIndex, 1)[0];
+    if (!edge) {
+      console.log({ edges, pickedIndex });
+      throw new Error("Edge not found");
+    }
     mountainRanges.push(edge);
   }
 

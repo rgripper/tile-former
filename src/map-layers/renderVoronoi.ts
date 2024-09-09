@@ -7,23 +7,29 @@ export async function renderVoronoi({
   app,
   chunks,
   mountainRanges,
+  colors,
 }: {
   app: Application;
   chunks: AreaChunk[];
-  mountainRanges: Edge[][];
+  mountainRanges: Edge[];
+  colors: {
+    land: number;
+    water: number;
+    mountain: number;
+  };
 }) {
   chunks
     .map((x) =>
       getGraphicsFromPolygonCluster(
         x.cells.map((x) => x.polygon),
-        x.isLand ? 0x8dd35f : 0x1ca3ec
+        x.isLand ? colors.land : colors.water
       )
     )
     .forEach((g) => app.stage.addChild(g));
 
   const graphics = new Graphics();
 
-  for (const [start, end] of mountainRanges.flat()) {
+  for (const [start, end] of mountainRanges) {
     const [startX, startY] = start;
     const [endX, endY] = end;
     graphics
@@ -32,8 +38,9 @@ export async function renderVoronoi({
   }
 
   graphics.stroke({
-    color: 0xff00a0,
-    width: 10,
+    color: colors.mountain,
+    width: 20,
+    cap: "round",
   });
   app.stage.addChild(graphics);
 }

@@ -1,7 +1,7 @@
 import { Delaunay } from "d3-delaunay";
-import { rand } from "../config";
 import kmeans from "./kmeans";
 import { Edge } from "./Edge";
+import { CustomRand } from "../config";
 
 export type GenerateVoronoi = ReturnType<typeof generateVoronoi>;
 
@@ -13,7 +13,8 @@ export function generateVoronoi(
     width: number;
     height: number;
   },
-  count: number
+  count: number,
+  rand: CustomRand
 ) {
   const points: [number, number][] = [];
   for (let i = 0; i < count; i++) {
@@ -55,8 +56,12 @@ function polygonToEdges(polygon: Delaunay.Polygon): Edge[] {
   });
 }
 
-export function groupCells(points: Delaunay.Point[], k: number) {
-  const kmeansClusters = kmeans(points, k, "kmeans", () => rand.next());
+export function groupCells(
+  points: Delaunay.Point[],
+  k: number,
+  random: () => number
+) {
+  const kmeansClusters = kmeans(points, k, "kmeans", random);
 
   const pairs = kmeansClusters.indexes.map((clusterIndex, pointIndex) => ({
     clusterIndex,

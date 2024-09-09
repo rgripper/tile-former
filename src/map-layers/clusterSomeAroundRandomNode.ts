@@ -1,10 +1,16 @@
-import { rand } from "../config";
+import { CustomRand } from "../config";
 
-export function floodFillNodes<T extends { neighbors: Set<T> }, Y>(
-  nodes: T[],
-  ratio: number,
-  mapNode: (node: T, isPicked: boolean) => Y
-): Y[] {
+export function floodFillNodes<T extends { neighbors: Set<T> }, Y>({
+  nodes,
+  ratio,
+  mapNode,
+  rand,
+}: {
+  nodes: T[];
+  ratio: number;
+  mapNode: (node: T, isPicked: boolean) => Y;
+  rand: CustomRand;
+}): Y[] {
   // get furthest point, find one neighbour, unite them
   if (ratio < 0 || ratio > 1) {
     throw new Error("Invalid ratio value");
@@ -15,7 +21,7 @@ export function floodFillNodes<T extends { neighbors: Set<T> }, Y>(
   const pickedNodes: Set<T> = new Set();
 
   while (filledNodes.length < filledCount) {
-    const randomIndex = rand.intBetween(0, nodes.length - 1);
+    const randomIndex = rand.arrayIndex(nodes);
     const randomNode = nodes[randomIndex]!;
 
     if (!pickedNodes.has(randomNode)) {
@@ -31,8 +37,7 @@ export function floodFillNodes<T extends { neighbors: Set<T> }, Y>(
     }
   }
 
-  const result: Y[] = filledNodes.map((node) =>
-    mapNode(node, pickedNodes.has(node))
-  );
+  const result: Y[] = nodes.map((node) => mapNode(node, pickedNodes.has(node)));
+
   return result;
 }
