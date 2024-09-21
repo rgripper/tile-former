@@ -3,7 +3,7 @@ import { Delaunay } from "d3-delaunay";
 import { Edge } from "./Edge";
 import { AreaChunk } from "./generateCells";
 
-export async function renderVoronoi({
+export async function renderChunks({
   app,
   chunks,
   mountainRanges,
@@ -32,16 +32,14 @@ export async function renderVoronoi({
   for (const [start, end] of mountainRanges) {
     const [startX, startY] = start;
     const [endX, endY] = end;
+
     graphics
       .moveTo(Math.ceil(startX), Math.ceil(startY))
       .lineTo(Math.ceil(endX), Math.ceil(endY));
   }
 
-  graphics.stroke({
-    color: colors.mountain,
-    width: 20,
-    cap: "round",
-  });
+  graphics.stroke(colors.mountain);
+
   app.stage.addChild(graphics);
 }
 
@@ -70,3 +68,13 @@ function getGraphicsFromPolygonCluster(
 
   return graphics;
 }
+
+// type Point = [number, number];
+
+// type Path = Point[];
+
+// /// returns a closed rounded path being a shape that envelops the path at the specified distance
+// /// for N points in a path it would generate a shape with N + 2 or more points
+// function envelopePath(path: Path, distance: number): Path {
+
+// }

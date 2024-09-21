@@ -67,7 +67,7 @@ function App() {
     <>
       <Button onClick={() => setToggle((x) => !x)}>toggle</Button>
       {/* <BiomeFloor /> */}
-      <ChunkMapLayer app={chunkMapApp} />
+      {/* <ChunkMapLayer app={chunkMapApp} /> */}
       <HeightMapLayer chunkMap={chunkMap} />
       {/* <TileMapInspector
         data={tileMap}

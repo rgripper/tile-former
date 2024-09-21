@@ -40,11 +40,12 @@ export function HeightMapLayer({
   }, [canvas]);
 
   return (
-    <canvas
-      style={{ width: chunkMap[0].length, height: chunkMap.length }}
-      ref={setCanvas}
-      className="flex justify-center"
-    ></canvas>
+    <div className="flex justify-center">
+      <canvas
+        style={{ width: chunkMap[0].length, height: chunkMap.length }}
+        ref={setCanvas}
+      ></canvas>
+    </div>
   );
 }
 

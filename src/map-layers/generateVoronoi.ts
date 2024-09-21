@@ -73,15 +73,30 @@ export function groupCells(
     .map((cluster) => cluster.map((x) => x.pointIndex));
 }
 
+const addIfNotExistsInPath = (
+  array: Delaunay.Point[],
+  value: Delaunay.Point
+) => {
+  if (!array.some((x) => x[0] === value[0] && x[1] === value[1])) {
+    array.push(value);
+  }
+};
+
 function connectEdges([firstEdge, ...edges]: Edge[]): Delaunay.Point[] {
-  const points: Delaunay.Point[] = [...firstEdge!];
+  const points: Delaunay.Point[] = [];
+
+  firstEdge.forEach((point) => addIfNotExistsInPath(points, point));
+
   let current = { edge: firstEdge!, nextPoint: firstEdge![1]! };
   while (edges.length > 0) {
     current = findNext(current.edge, edges);
-    points.push(current.nextPoint);
+    addIfNotExistsInPath(points, current.nextPoint);
+
     edges.splice(edges.indexOf(current.edge), 1);
   }
-
+  if (points.length < 2) {
+    throw new Error("Not enough points");
+  }
   return points;
 }
 

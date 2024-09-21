@@ -1,6 +1,6 @@
 import { Application } from "pixi.js";
 import { getChunkMap } from "./ChunkMapLayer";
-import { renderVoronoi } from "./renderVoronoi";
+import { renderChunks } from "./renderChunks";
 import { generateCells } from "./generateCells";
 import { CustomRand } from "../config";
 
@@ -22,7 +22,7 @@ export async function createAndRenderMap({
     backgroundColor: 0x000000,
   });
 
-  await renderVoronoi({
+  await renderChunks({
     app: chunkMapApp,
     chunks,
     mountainRanges,
