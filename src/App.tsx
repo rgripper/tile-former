@@ -13,15 +13,16 @@ import {
   tileHeight,
   tileSide,
   gridSize,
-  canvasSize,
   createRand,
   defaultRandSeed,
 } from "./config";
-import { BiomeFloor } from "./biome-floor/BiomeFloor";
-import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
+
 import { Button } from "./components/Button";
 import { createAndRenderMap } from "./map-layers/createAndRenderMap";
+import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 import { HeightMapLayer } from "./map-layers/HeightMapLayer";
+// import { HeightMapLayer } from "./map-layers/HeightMapLayer";
+// import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 
 export const tileTypes = createTileTypes(tileWidth, tileHeight);
 export const isometrifyingMatrix = createNormalIsoMatrix();
@@ -54,21 +55,26 @@ const initialTileMap = generateInitialParameterMap(
   createRand(defaultRandSeed)
 ); // tile size is 12x12
 
-const { chunkMapApp, chunkMap } = await createAndRenderMap({
-  rand: createRand(defaultRandSeed),
+const mapSize = {
   width: 800,
   height: 800,
+};
+
+const { chunkMapApp, chunkMap, imageData } = await createAndRenderMap({
+  rand: createRand(defaultRandSeed),
+  ...mapSize,
 });
 
 function App() {
   const [tileMap] = useState(initialTileMap);
   const [toggle, setToggle] = useState(false);
+
   return (
     <>
       <Button onClick={() => setToggle((x) => !x)}>toggle</Button>
       {/* <BiomeFloor /> */}
-      {/* <ChunkMapLayer app={chunkMapApp} /> */}
-      <HeightMapLayer chunkMap={chunkMap} />
+      <ChunkMapLayer app={chunkMapApp} />
+      <HeightMapLayer data={imageData} />
       {/* <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}

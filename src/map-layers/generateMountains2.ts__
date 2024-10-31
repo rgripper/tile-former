@@ -1,0 +1,91 @@
+import { ValueNoise } from "value-noise-js";
+const noise = new ValueNoise();
+
+type Point = [number, number];
+type Line = [Point, Point];
+
+function thickenLine(line: Line, maxThickness: number): Point[] {
+  const thickenedPoints: Point[] = [];
+  const [start, end] = line;
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const length = Math.sqrt(dx * dx + dy * dy);
+  const steps = Math.ceil(length / 5); // Reduce number of points
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = start[0] + dx * t;
+    const y = start[1] + dy * t;
+    const thickness = noise.evalX(i) * maxThickness;
+    thickenedPoints.push([x, y + thickness]);
+    thickenedPoints.push([x, y - thickness]);
+  }
+
+  return thickenedPoints;
+}
+
+function generateDistanceField(
+  width: number,
+  height: number,
+  points: Point[]
+): Float32Array {
+  const field = new Float32Array(width * height);
+  field.fill(Infinity);
+
+  for (let i = 0; i < points.length; i++) {
+    const [px, py] = points[i];
+    const minX = Math.max(0, Math.floor(px - 100));
+    const maxX = Math.min(width - 1, Math.ceil(px + 100));
+    const minY = Math.max(0, Math.floor(py - 100));
+    const maxY = Math.min(height - 1, Math.ceil(py + 100));
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const dx = x - px;
+        const dy = y - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const index = y * width + x;
+        field[index] = Math.min(field[index], dist);
+      }
+    }
+  }
+
+  return field;
+}
+
+function generateSlopes(
+  distanceField: Float32Array,
+  width: number,
+  height: number,
+  slopeRadius: number
+): ImageData {
+  const imageData = new ImageData(width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < distanceField.length; i++) {
+    const heightValue = Math.max(0, 1 - distanceField[i] / slopeRadius);
+    const index = i * 4;
+    data[index] = data[index + 1] = data[index + 2] = heightValue * 255;
+    data[index + 3] = 255;
+  }
+
+  return imageData;
+}
+
+export function generateMountainRidges(
+  width: number,
+  height: number,
+  lines: Line[],
+  maxThickness: number,
+  slopeRadius: number
+): ImageData {
+  const allThickenedPoints = lines.flatMap((line) =>
+    thickenLine(line, maxThickness)
+  );
+  const distanceField = generateDistanceField(
+    width,
+    height,
+    allThickenedPoints
+  );
+  return generateSlopes(distanceField, width, height, slopeRadius);
+}

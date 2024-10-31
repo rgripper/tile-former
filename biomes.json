@@ -164,3 +164,20 @@ Here are terrain feature soils
   "Stony Riverbeds",
   "Moss Area" // Open Sphagnum Moss Areas
 ]
+
+
+An example of a milestone:
+
+A few biomes are introduced. Each contains biome-specific vegetation and have parameters that are set either on a tile, tile group (quad) or map-wide level. Each biome must be able to sustain a population (give wood and food).
+"Static" means there is no mechanics yet to change environmental parameters or terraform by this milestone.
+
+An example of an MVP issue for biome-based tiles:
+
+Design 3 different biomes
+For each describe:
+
+parameters, that compose biome's environment. For now:
+Temperature, Humidity, Soil composition:
+1 type of a tree that can be harvested just for wood (no fruit)
+1 type of a herbaceous plant (no in-game uses currently)
+1 type of a plant (tree/bush/root) that would be primarily be used for gathering fruits/vegetables/grain
