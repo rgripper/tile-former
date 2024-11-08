@@ -1,4 +1,4 @@
-import { Application } from "pixi.js";
+import { Application, Graphics, Renderer } from "pixi.js";
 import { getChunkMap } from "./ChunkMapLayer";
 import { renderChunks } from "./renderChunks";
 import { generateCells } from "./generateCells";
@@ -49,24 +49,18 @@ export async function createAndRenderMap({
   const canvas = new OffscreenCanvas(width, height);
   const noise2D = createNoise2D();
 
-  const encasing = encaseLine(
-    mountainRanges[0],
-    () => rand.intBetween(3, 20),
-    () => rand.intBetween(5, 15)
-  );
+  mountainRanges.forEach((range) => {
+    const encasing = encaseLine(
+      range,
+      () => rand.intBetween(3, 20),
+      () => rand.intBetween(5, 15)
+    );
 
-  renderEncasing(
-    encasing.map(([x, y]) => [x + 100, y + 100]),
-    canvas
-  );
-
-  // const imageData = generateMountainRidges(
-  //   width,
-  //   height,
-  //   mountainRanges,
-  //   8,
-  //   10
-  // );
+    renderEncasing(
+      encasing.map(([x, y]) => [x, y]),
+      chunkMapApp
+    );
+  });
 
   return {
     chunkMapApp,
@@ -75,18 +69,20 @@ export async function createAndRenderMap({
   };
 }
 
-function renderEncasing(encasing: [number, number][], canvas: OffscreenCanvas) {
-  const ctx = canvas.getContext("2d")!;
-  console.log(encasing);
-  ctx.beginPath();
-  ctx.moveTo(...encasing[0]);
-  for (const point of encasing.slice(1)) {
-    ctx.lineTo(...point);
-  }
-  ctx.closePath();
-  ctx.fillStyle = "black";
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "blue";
+function renderEncasing(
+  encasing: [number, number][],
+  app: Application<Renderer>
+) {
+  const graphics = new Graphics();
+  graphics.fillStyle = "grey";
+  graphics.setStrokeStyle({ width: 1, color: "blue" });
 
-  ctx.stroke();
+  graphics.moveTo(encasing[0][0], encasing[0][1]);
+  for (const point of encasing.slice(1)) {
+    graphics.lineTo(point[0], point[1]);
+  }
+  graphics.closePath();
+  graphics.fill();
+
+  app.stage.addChild(graphics);
 }
