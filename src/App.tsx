@@ -17,7 +17,7 @@ import {
   defaultRandSeed,
 } from "./config";
 
-import { Button } from "./components/Button";
+import { Button } from "@/components/ui/button";
 import { createAndRenderMap } from "./map-layers/createAndRenderMap";
 import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 import { HeightMapLayer } from "./map-layers/HeightMapLayer";

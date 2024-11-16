@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-slider": "^1.2.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@timohausmann/quadtree-js": "^1.2.6",
     "@turf/clusters-kmeans": "^7.1.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "d3-delaunay": "^6.0.4",
+    "lucide-react": "^0.460.0",
     "pixi-filters": "^6.0.5",
     "pixi-viewport": "^5.0.3",
     "pixi.js": "^8.3.4",
@@ -24,21 +26,26 @@
     "react-dom": "^18.3.1",
     "simplex-noise": "^4.0.3",
     "tailwind-merge": "^2.5.2",
+    "tailwindcss-animate": "^1.0.7",
     "transformation-matrix": "^2.16.1",
     "value-noise-js": "^1.2.6"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.0.0-alpha.34",
     "@tailwindcss/vite": "4.0.0-alpha.26",
     "@types/d3-delaunay": "^6.0.4",
+    "@types/node": "^22.9.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^8.4.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.10.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.11",
-    "tailwindcss": "4.0.0-alpha.23",
+    "postcss": "^8.4.49",
+    "tailwindcss": "4.0.0-alpha.34",
     "typescript": "5.6.3",
     "vite": "^5.4.8"
   }
