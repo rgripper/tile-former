@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { calcClustersAndGradients } from "./calcClustersAndGradients";
 
 const ForestClusters = () => {
   const GRID_SIZE = 40;
@@ -28,104 +29,17 @@ const ForestClusters = () => {
     setGrid(newGrid);
   }, []);
 
-  // Find clusters using flood fill
-  const findClusters = (grid: number[][]) => {
-    const visited = Array(GRID_SIZE)
-      .fill(0)
-      .map(() => Array(GRID_SIZE).fill(false));
-    const clusters: {
-      cells: { row: number; col: number; trees: number }[];
-      density?: number;
-    }[] = [];
-
-    const floodFill = (
-      row: number,
-      col: number,
-      cluster: { cells: { row: number; col: number; trees: number }[] }
-    ) => {
-      if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return;
-      if (visited[row][col] || grid[row][col] === 0) return;
-
-      visited[row][col] = true;
-      cluster.cells.push({ row, col, trees: grid[row][col] });
-
-      // Check neighbors (8-directional)
-      for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <= 1; j++) {
-          if (i === 0 && j === 0) continue;
-          floodFill(row + i, col + j, cluster);
-        }
-      }
-    };
-
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        if (!visited[row][col] && grid[row][col] > 0) {
-          const cluster = {
-            cells: [] as { row: number; col: number; trees: number }[],
-          };
-          floodFill(row, col, cluster);
-
-          if (cluster.cells.length >= clusterSizeThreshold) {
-            const totalTrees = cluster.cells.reduce(
-              (sum, cell) => sum + cell.trees,
-              0
-            );
-            const density = totalTrees / cluster.cells.length;
-
-            if (density >= densityThreshold) {
-              clusters.push({ ...cluster, density });
-              clusters.push(cluster);
-            }
-          }
-        }
-      }
-    }
-    return clusters;
-  };
-
-  // Calculate gradient influence for each cell
-  const calculateGradients = (
-    clusters: {
-      cells: { row: number; col: number; trees: number }[];
-      density?: number;
-    }[]
-  ) => {
-    const gradientMap = Array(GRID_SIZE)
-      .fill(0)
-      .map(() => Array(GRID_SIZE).fill(0));
-
-    // For each cluster
-    clusters.forEach((cluster) => {
-      // For each cell in the cluster and surrounding area
-      for (let row = 0; row < GRID_SIZE; row++) {
-        for (let col = 0; col < GRID_SIZE; col++) {
-          // Find minimum distance to any cluster cell
-          let minDistance = Math.min(
-            ...cluster.cells.map((clusterCell) => {
-              const dx = clusterCell.row - row;
-              const dy = clusterCell.col - col;
-              return Math.sqrt(dx * dx + dy * dy);
-            })
-          );
-
-          // Calculate gradient influence based on distance
-          const influence =
-            ((1 - minDistance / GRADIENT_RANGE) * (cluster.density || 0)) /
-            densityThreshold;
-          gradientMap[row][col] = Math.max(gradientMap[row][col], influence);
-        }
-      }
-    });
-
-    return gradientMap;
-  };
-
   useEffect(() => {
     if (grid.length > 0) {
-      const newClusters = findClusters(grid);
+      const { newClusters, newGradients } = calcClustersAndGradients(
+        GRID_SIZE,
+        clusterSizeThreshold,
+        densityThreshold,
+        GRADIENT_RANGE,
+        grid
+      );
       setClusters(newClusters);
-      setGradientMap(calculateGradients(newClusters));
+      setGradientMap(newGradients);
     }
   }, [grid, densityThreshold, clusterSizeThreshold]);
 

@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "./shadcn.css";
-@plugin 'tailwindcss-animate';
 
 @theme {
   --color-background: var(--background);
