@@ -76,3 +76,19 @@
 body {
   @apply bg-background text-foreground;
 }
+
+.bg-green-600 {
+  @apply bg-green-600;
+}
+
+.bg-green-500 {
+  @apply bg-green-500;
+}
+
+.bg-green-400 {
+  @apply bg-green-400;
+}
+
+.bg-green-300 {
+  @apply bg-green-300;
+}

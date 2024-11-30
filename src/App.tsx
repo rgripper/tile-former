@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { createAndRenderMap } from "./map-layers/createAndRenderMap";
 import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 import { HeightMapLayer } from "./map-layers/HeightMapLayer";
+import ForestClusters from "./ForestClusters";
 // import { HeightMapLayer } from "./map-layers/HeightMapLayer";
 // import { ChunkMapLayer } from "./map-layers/ChunkMapLayer";
 
@@ -73,8 +74,9 @@ function App() {
     <>
       <Button onClick={() => setToggle((x) => !x)}>toggle</Button>
       {/* <BiomeFloor /> */}
-      <ChunkMapLayer app={chunkMapApp} />
-      <HeightMapLayer data={imageData} />
+      {/* <ChunkMapLayer app={chunkMapApp} />
+      <HeightMapLayer data={imageData} /> */}
+      <ForestClusters />
       {/* <TileMapInspector
         data={tileMap}
         textureAtlas={textureAtlas}
