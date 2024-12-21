@@ -1,30 +1,24 @@
 import { useEffect, useState } from "react";
-import { Atlas, Point } from "./tiles";
-import { initPixi } from "./initPixi";
-
-export type IsometricTile = {
-  tileTypeId: number;
-  center: Point;
-  index: Point;
-  topLeft: Point;
-};
+import { initApp } from "./initApp.ts";
+import { Spritesheet, Texture } from "pixi.js";
+import { Tile } from "./tile.ts";
 
 export function TileMapView({
-  tileGridData,
-  textureAtlas,
+  tileMap,
+  tileSpritesheet,
   canvasSize,
 }: {
-  tileGridData: IsometricTile[][];
-  textureAtlas: Atlas;
+  tileMap: Tile[][];
+  tileSpritesheet: Spritesheet;
   canvasSize: { width: number; height: number };
 }) {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (ref) {
       let unsubscribe = () => {};
-      initPixi({
-        tileGridData,
-        textureAtlas,
+      initApp({
+        tileMap,
+        tileSpritesheet,
         size: canvasSize,
       }).then((x) => {
         ref.appendChild(x.canvas);
@@ -37,6 +31,6 @@ export function TileMapView({
 
       return () => unsubscribe();
     }
-  }, [canvasSize, ref, textureAtlas, tileGridData]);
+  }, [canvasSize, ref, tileSpritesheet, tileMap]);
   return <div ref={setRef}></div>;
 }
