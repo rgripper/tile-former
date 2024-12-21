@@ -1,19 +1,19 @@
 export function calcClustersAndGradients(
-  GRID_SIZE: number,
+  gridSize: number,
   clusterSizeThreshold: number,
   densityThreshold: number,
   gradientRange: number,
   grid: number[][]
 ) {
   const newClusters = findClusters({
-    gridSize: GRID_SIZE,
+    gridSize,
     clusterSizeThreshold,
     densityThreshold,
     grid,
   });
 
   const newGradients = calculateGradients({
-    gridSize: GRID_SIZE,
+    gridSize,
     densityThreshold,
     gradientRange,
     clusters: newClusters,
@@ -40,33 +40,13 @@ function findClusters({
     density?: number;
   }[] = [];
 
-  const floodFill = (
-    row: number,
-    col: number,
-    cluster: { cells: { row: number; col: number; trees: number }[] }
-  ) => {
-    if (row < 0 || row >= gridSize || col < 0 || col >= gridSize) return;
-    if (visited[row][col] || grid[row][col] === 0) return;
-
-    visited[row][col] = true;
-    cluster.cells.push({ row, col, trees: grid[row][col] });
-
-    // Check neighbors (8-directional)
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        if (i === 0 && j === 0) continue;
-        floodFill(row + i, col + j, cluster);
-      }
-    }
-  };
-
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
       if (!visited[row][col] && grid[row][col] > 0) {
         const cluster = {
           cells: [] as { row: number; col: number; trees: number }[],
         };
-        floodFill(row, col, cluster);
+        floodFill(row, col, visited, cluster, grid, gridSize);
 
         if (cluster.cells.length >= clusterSizeThreshold) {
           const totalTrees = cluster.cells.reduce(
@@ -85,6 +65,30 @@ function findClusters({
   }
   return clusters;
 }
+
+function floodFill(
+  row: number,
+  col: number,
+  visited: boolean[][],
+  cluster: { cells: { row: number; col: number; trees: number }[] },
+  grid: number[][],
+  gridSize: number
+) {
+  if (row < 0 || row >= gridSize || col < 0 || col >= gridSize) return;
+  if (visited[row][col] || grid[row][col] === 0) return;
+
+  visited[row][col] = true;
+  cluster.cells.push({ row, col, trees: grid[row][col] });
+
+  // Check neighbors (8-directional)
+  for (let i = -1; i <= 1; i++) {
+    for (let j = -1; j <= 1; j++) {
+      if (i === 0 && j === 0) continue;
+      floodFill(row + i, col + j, visited, cluster, grid, gridSize);
+    }
+  }
+}
+
 // Calculate gradient influence for each cell
 function calculateGradients({
   gridSize,

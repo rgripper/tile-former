@@ -2,21 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { calcClustersAndGradients } from "./calcClustersAndGradients";
+import { DynamicGridClustering } from "./Grid";
 
 const ForestClusters = () => {
   const GRID_SIZE = 40;
-  const [grid, setGrid] = useState<number[][]>([]);
-  const [clusters, setClusters] = useState<
-    { cells: { row: number; col: number; trees: number }[]; density?: number }[]
-  >([]);
-  const [gradientMap, setGradientMap] = useState<number[][]>([]);
-  const [densityThreshold, setDensityThreshold] = useState(3);
-  const [clusterSizeThreshold, setClusterSizeThreshold] = useState(8);
-  const [temperatureThreshold, setTemperatureThreshold] = useState(0.6);
-  const GRADIENT_RANGE = 5; // How far the gradient spreads
-
-  // Initialize grid
-  useEffect(() => {
+  const [clustering, setClustering] = useState<DynamicGridClustering>(() => {
     const newGrid = Array(GRID_SIZE)
       .fill(0)
       .map(() =>
@@ -26,8 +16,17 @@ const ForestClusters = () => {
             Math.random() < 0.3 ? Math.floor(Math.random() * 3) + 1 : 0
           )
       );
-    setGrid(newGrid);
-  }, []);
+
+    return new DynamicGridClustering(newGrid, clusterSizeThreshold);
+  });
+  const [clusters, setClusters] = useState<
+    { cells: { row: number; col: number; trees: number }[]; density?: number }[]
+  >([]);
+  const [gradientMap, setGradientMap] = useState<number[][]>([]);
+  const [densityThreshold, setDensityThreshold] = useState(3);
+  const [clusterSizeThreshold, setClusterSizeThreshold] = useState(8);
+  const [temperatureThreshold, setTemperatureThreshold] = useState(0.6);
+  const GRADIENT_RANGE = 5; // How far the gradient spreads
 
   useEffect(() => {
     if (grid.length > 0) {
@@ -42,40 +41,6 @@ const ForestClusters = () => {
       setGradientMap(newGradients);
     }
   }, [grid, densityThreshold, clusterSizeThreshold]);
-
-  const getCellColor = (row: number, col: number) => {
-    const trees = grid[row]?.[col] || 0;
-    const gradientValue = gradientMap[row]?.[col] || 0;
-
-    // Find if cell is part of a cluster
-    const cluster = clusters.find((c) =>
-      c.cells.some((cell) => cell.row === row && cell.col === col)
-    );
-
-    // Temperature overlay (pink gradient)
-    if (gradientValue >= temperatureThreshold) {
-      const intensity = Math.min(
-        1,
-        (gradientValue - temperatureThreshold) / (1 - temperatureThreshold)
-      );
-      return `bg-gradient-to-r from-pink-500/${Math.floor(
-        intensity * 60
-      )} to-pink-600/${Math.floor(intensity * 60)}`;
-    }
-
-    // Forest and gradient colors
-    if (cluster) {
-      return cluster.density! >= densityThreshold * 1.5
-        ? "bg-green-900" // Dark forest
-        : "bg-green-700"; // Normal forest cluster
-    } else if (gradientValue > 0) {
-      const intensity = Math.floor(gradientValue * 500);
-      return `bg-green-${Math.min(500, intensity)}`;
-    }
-
-    // Base colors for trees or empty tiles
-    return trees === 0 ? "bg-green-100" : `bg-green-${trees * 100 + 300}`;
-  };
 
   return (
     <Card className="w-full max-w-4xl">
@@ -129,13 +94,21 @@ const ForestClusters = () => {
               width: "fit-content",
             }}
           >
-            {grid.map((row, i) =>
-              row.map((cell, j) => (
+            {grid.map((row, x) =>
+              row.map((cell, y) => (
                 <div
-                  key={`${i}-${j}`}
-                  className={`w-3 h-3 ${getCellColor(i, j)}`}
-                  title={`Trees: ${cell}, Gradient: ${gradientMap[i]?.[
-                    j
+                  key={`${x}-${y}`}
+                  className={`w-3 h-3 ${getCellColor({
+                    row: x,
+                    col: y,
+                    clusters,
+                    grid,
+                    gradientMap,
+                    densityThreshold,
+                    temperatureThreshold,
+                  })}`}
+                  title={`Trees: ${cell}, Gradient: ${gradientMap[x]?.[
+                    y
                   ]?.toFixed(2)}`}
                 />
               ))
@@ -158,5 +131,58 @@ const ForestClusters = () => {
     </Card>
   );
 };
+
+function getCellColor({
+  grid,
+  gradientMap,
+  clusters,
+  densityThreshold,
+  temperatureThreshold,
+  row,
+  col,
+}: {
+  grid: number[][];
+  gradientMap: number[][];
+  clusters: {
+    cells: { row: number; col: number; trees: number }[];
+    density?: number;
+  }[];
+  densityThreshold: number;
+  temperatureThreshold: number;
+  row: number;
+  col: number;
+}) {
+  const trees = grid[row]?.[col] || 0;
+  const gradientValue = gradientMap[row]?.[col] || 0;
+
+  // Find if cell is part of a cluster
+  const cluster = clusters.find((c) =>
+    c.cells.some((cell) => cell.row === row && cell.col === col)
+  );
+
+  // Temperature overlay (pink gradient)
+  if (gradientValue >= temperatureThreshold) {
+    const intensity = Math.min(
+      1,
+      (gradientValue - temperatureThreshold) / (1 - temperatureThreshold)
+    );
+    return `bg-gradient-to-r from-pink-500/${Math.floor(
+      intensity * 60
+    )} to-pink-600/${Math.floor(intensity * 60)}`;
+  }
+
+  // Forest and gradient colors
+  if (cluster) {
+    return cluster.density! >= densityThreshold * 1.5
+      ? "bg-green-900" // Dark forest
+      : "bg-green-700"; // Normal forest cluster
+  } else if (gradientValue > 0) {
+    const intensity = Math.floor(gradientValue * 500);
+    return `bg-green-${Math.min(500, intensity)}`;
+  }
+
+  // Base colors for trees or empty tiles
+  return trees === 0 ? "bg-green-100" : `bg-green-${trees * 100 + 300}`;
+}
 
 export default ForestClusters;
