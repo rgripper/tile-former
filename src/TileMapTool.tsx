@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { TileMapView } from "./TileMapView.tsx";
 import { Tile, TileType } from "./tile.ts";
 import { Spritesheet } from "pixi.js";
@@ -7,12 +7,10 @@ export function TileMapTool({
   tileMap,
   tileTypes,
   tileSpritesheet,
-  canvasSize,
 }: {
   tileMap: Tile[][];
   tileTypes: TileType[];
   tileSpritesheet: Spritesheet;
-  canvasSize: { width: number; height: number };
 }) {
   const [hoveredTileIndex, setHoveredTileIndex] = useState<{
     x: number;
@@ -20,7 +18,7 @@ export function TileMapTool({
   }>();
 
   return (
-    <div>
+    <div className="flex-1 flex flex-col">
       <div>
         <TileInfo
           tile={
@@ -28,13 +26,9 @@ export function TileMapTool({
           }
           tileTypes={tileTypes}
         />
-        <div style={{ width: canvasSize.width, height: canvasSize.height }}>
-          <TileMapView
-            tileSpritesheet={tileSpritesheet}
-            tileMap={tileMap}
-            canvasSize={canvasSize}
-          />
-        </div>
+      </div>
+      <div className="flex-1 flex flex-col">
+        <TileMapView tileSpritesheet={tileSpritesheet} tileMap={tileMap} />
       </div>
     </div>
   );
@@ -48,7 +42,7 @@ function TileInfo({
   tileTypes: TileType[];
 }) {
   return (
-    <div style={{ height: "5rem" }}>
+    <div className="h-5">
       {tile && (
         <>
           ({tile.index.x},{tile.index.y}) {tileTypes[tile.typeId]!.name}

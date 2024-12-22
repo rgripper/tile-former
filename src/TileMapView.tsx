@@ -1,36 +1,41 @@
-import { useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { initApp } from "./initApp.ts";
-import { Spritesheet, Texture } from "pixi.js";
+import { Application, Spritesheet, Texture } from "pixi.js";
 import { Tile } from "./tile.ts";
+import { Viewport } from "pixi-viewport";
 
 export function TileMapView({
   tileMap,
   tileSpritesheet,
-  canvasSize,
 }: {
   tileMap: Tile[][];
   tileSpritesheet: Spritesheet;
-  canvasSize: { width: number; height: number };
 }) {
   const [ref, setRef] = useState<HTMLElement | null>(null);
+  const appAndViewportRef = useRef<
+    { app: Application; viewport: Viewport } | undefined
+  >(undefined);
+
   useEffect(() => {
     if (ref) {
       let unsubscribe = () => {};
       initApp({
         tileMap,
         tileSpritesheet,
-        size: canvasSize,
-      }).then((x) => {
-        ref.appendChild(x.canvas);
-
+        container: ref,
+      }).then(({ app, viewport }) => {
+        appAndViewportRef.current = { app, viewport };
+        ref.appendChild(app.canvas);
         unsubscribe = () => {
-          ref.removeChild(x.canvas);
-          x.destroy();
+          appAndViewportRef.current = undefined;
+          ref.removeChild(app.canvas);
+          app.destroy();
         };
       });
 
       return () => unsubscribe();
     }
-  }, [canvasSize, ref, tileSpritesheet, tileMap]);
-  return <div ref={setRef}></div>;
+  }, [ref, tileSpritesheet, tileMap]);
+
+  return <div className="flex-1 flex" ref={setRef}></div>;
 }

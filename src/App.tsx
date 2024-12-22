@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canvasSize, defaultRandSeed } from "./config.ts";
+import { defaultRandSeed } from "./config.ts";
 import { TileMapTool } from "./TileMapTool.tsx";
 import { createRand } from "./rand.ts";
 import { Assets, Spritesheet, Texture } from "pixi.js";
@@ -34,7 +34,6 @@ function App() {
         tileMap={tileMap}
         tileSpritesheet={tileSpritesheet}
         tileTypes={tileTypes}
-        canvasSize={canvasSize}
       />
     </>
   );
