@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useState } from "react";
 import { TileMapView } from "./TileMapView.tsx";
-import { Tile, TileType } from "./tile.ts";
+import { Tile, TileType } from "./tileMap/tile.ts";
 import { Spritesheet } from "pixi.js";
 
 export function TileMapTool({

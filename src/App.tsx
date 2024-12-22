@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { defaultRandSeed } from "./config.ts";
 import { TileMapTool } from "./TileMapTool.tsx";
-import { createRand } from "./rand.ts";
 import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
-import { generateTileMap, tileTypes } from "./generateTileMap.ts";
+import { generateTileMap, tileTypes } from "./tileMap/generateTileMap.ts";
 
 const texture = await Assets.load<Texture>(atlasUrl);
 const tileSpritesheet = new Spritesheet(texture, {
@@ -23,8 +21,7 @@ await tileSpritesheet.parse();
 
 function App() {
   const [tileMap] = useState(() => {
-    const rand = createRand(defaultRandSeed);
-    const map = generateTileMap(rand);
+    const map = generateTileMap();
     return map;
   });
 

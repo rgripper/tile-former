@@ -1,7 +1,7 @@
 import { Viewport } from "pixi-viewport";
 import { Container, Application, Spritesheet, Sprite, Graphics } from "pixi.js";
 import { gridSize, tileSide } from "./config.ts";
-import { SoilComponent, Tile } from "./tile.ts";
+import { SoilComponent, Tile } from "./tileMap/tile.ts";
 
 export async function initApp({
   tileMap,
