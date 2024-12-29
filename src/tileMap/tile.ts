@@ -5,15 +5,15 @@ export type TileType = {
 
 export type SoilComponents = {
   sand: number; // 0-1
-  silt: number; // 0-1
   clay: number; // 0-1
-  organic: number; // 0-1
+  other: number; // 0-1
 };
 
 export type Tile = {
   typeId: number;
   index: { x: number; y: number };
   soilComponents: SoilComponents;
+  fertility: number; // 0-1
 };
 
 export type SoilComponent = keyof SoilComponents;

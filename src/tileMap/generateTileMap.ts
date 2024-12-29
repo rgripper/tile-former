@@ -1,18 +1,18 @@
 import { createRand } from "@/rand.ts";
 import { gridSize } from "../config.ts";
-import { Tile } from "./tile.ts";
+import { SoilComponents, Tile } from "./tile.ts";
 import { createNoise2D, NoiseFunction2D } from "simplex-noise";
-export const tileTypes = [{ id: 0, name: "Grass" } as const];
-
-type ComponentNoises = [
-  NoiseFunction2D,
-  NoiseFunction2D,
-  NoiseFunction2D,
-  NoiseFunction2D
+export const tileTypes = [
+  // we use luminosity-adjusted colors
+  { id: 0, name: "Grass", color: "#4CAF50" },
+  { id: 1, name: "Sand", color: "#f2d2a9" },
+  { id: 2, name: "Rock", color: "#BDBDBD" },
 ];
 
+type ComponentNoises = [NoiseFunction2D, NoiseFunction2D, NoiseFunction2D];
+
 export function generateTileMap() {
-  const noises = Iterator.range(0, 4)
+  const noises = Iterator.range(0, 3)
     .map((x) => "abc" + x)
     .map((seed) => createRand(seed))
     .map((rand) => createNoise2D(rand.next))
@@ -33,22 +33,42 @@ type Point = { x: number; y: number };
 // the sum of all components should be 1
 function generateSoilComponents(point: Point, noises: ComponentNoises) {
   const sand = noises[0](point.x / 15, point.y / 15);
-  const silt = noises[1](point.x / 20, point.y / 20);
-  const clay = noises[2](point.x / 17, point.y / 17);
-  const organic = noises[3](point.x / 20, point.y / 20);
-  const total = sand + silt + clay + organic;
-  console.log(sand, silt, clay, organic);
+  const clay = noises[1](point.x / 17, point.y / 17);
+  const other = noises[2](point.x / 20, point.y / 20) ** 2;
+
+  const total = sand + clay + other;
   return {
     sand: sand / total,
-    silt: silt / total,
     clay: clay / total,
-    organic: organic / total,
+    other: other / total,
   };
 }
+
+// Add "Fertility" indicator is based on proportion of sand vs clay. Impacted by two factors:
+// The closer it is to 50%/50% sand vs clay the closer the potential indicator to 1.0.
+// Then scale resulting indicator by % of (clay + sand) vs otherMinerals in overall soil composition.
+function calculateFertility(soilComponents: SoilComponents): number {
+  const { sand, clay } = soilComponents;
+  const total = sand + clay;
+  const idealAerationFactor = 0.5;
+  const aerationFactor = 1 - Math.abs(sand / total - idealAerationFactor);
+  const idealWaterRetentionFactor = 0.5;
+  const waterRetentionFactor =
+    1 - Math.abs(clay / total - idealWaterRetentionFactor);
+  return total * (aerationFactor * waterRetentionFactor);
+}
+
 function generateTile(index: Point, noises: ComponentNoises): Tile {
+  const soilComponents = generateSoilComponents(index, noises);
   return {
     index,
-    soilComponents: generateSoilComponents(index, noises),
-    typeId: tileTypes[0].id,
+    soilComponents,
+    fertility: calculateFertility(soilComponents),
+    typeId:
+      soilComponents.sand > 0.7
+        ? tileTypes[1].id
+        : soilComponents.other > 0.5
+        ? tileTypes[2].id
+        : tileTypes[0].id,
   };
 }
