@@ -9,13 +9,15 @@
     "@tailwindcss/cli": "@tailwindcss/cli",
     "generate": "@tailwindcss/cli -i input.css -o output.css",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.1",
     "@timohausmann/quadtree-js": "^1.2.6",
     "@turf/clusters-kmeans": "^7.1.0",
+    "@uidotdev/usehooks": "^2.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "core-js": "^3.39.0",
@@ -27,9 +29,12 @@
     "rand-seed": "^2.1.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "recharts": "^2.15.0",
     "simplex-noise": "^4.0.3",
+    "suncalc": "^1.9.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "temporal-polyfill": "^0.2.5",
     "transformation-matrix": "^2.16.1",
     "value-noise-js": "^1.2.6"
   },
@@ -40,6 +45,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/suncalc": "^1.9.2",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.4",
@@ -51,6 +57,7 @@
     "tailwindcss": "4.0.0-beta.8",
     "typescript": "5.7.2",
     "vite": "^6.0.5",
-    "vite-plugin-wasm-pack": "^0.1.12"
+    "vite-plugin-wasm-pack": "^0.1.12",
+    "vitest": "^2.1.8"
   }
 }

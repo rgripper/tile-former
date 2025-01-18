@@ -3,6 +3,8 @@ import { TileMapTool } from "./TileMapTool.tsx";
 import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
 import { generateTileMap, tileTypes } from "./tileMap/generateTileMap.ts";
+import { WeatherTool } from "./temperature/WeatherTool.tsx";
+import { Temporal } from "temporal-polyfill";
 
 const texture = await Assets.load<Texture>(atlasUrl);
 const tileSpritesheet = new Spritesheet(texture, {
@@ -24,9 +26,12 @@ function App() {
     const map = generateTileMap();
     return map;
   });
-
+  const [dateTime, setDateTime] = useState(() =>
+    Temporal.Now.plainDateTimeISO()
+  );
   return (
     <>
+      <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} />
       <TileMapTool
         tileMap={tileMap}
         tileSpritesheet={tileSpritesheet}

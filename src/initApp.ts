@@ -27,13 +27,9 @@ export async function initApp({
     events: app.renderer.events,
   });
 
-  viewport
-    //.drag()
-    .pinch()
-    .wheel()
-    .decelerate();
+  viewport.drag().pinch().wheel().decelerate();
   //viewport.moveCenter(450, 250);
-  viewport.setZoom(0.15);
+  viewport.setZoom(0.2);
 
   app.stage.addChild(viewport);
 
