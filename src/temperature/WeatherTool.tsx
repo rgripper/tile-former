@@ -1,30 +1,24 @@
-import { Temporal } from "temporal-polyfill";
-import { AnnualCurveView } from "./AnnualCurveView";
-import { DailyWeather } from "./DailyWeather";
+import { AnnualCurveView } from "./AnnualCurveView.tsx";
+import { AnnualDateTime } from "./AnnualDateTime.ts";
+import { DailyWeather } from "./DailyWeather.tsx";
+import { getTemperature } from "./getTemperature.ts";
 
 export function WeatherTool({
   dateTime,
   onDateTimeChange,
 }: {
-  dateTime: Temporal.PlainDateTime;
-  onDateTimeChange: (dateTime: Temporal.PlainDateTime) => void;
+  dateTime: AnnualDateTime;
+  onDateTimeChange: (dateTime: AnnualDateTime) => void;
 }) {
   return (
     <div>
       <AnnualCurveView
         totalDays={dateTime.daysInYear}
-        onDayChange={(day) =>
-          onDateTimeChange(
-            dateTime.withPlainDate(
-              dateTime.with({ day: 1, month: 1 }).add({ days: day - 1 })
-            )
-          )
-        }
+        onDayChange={(day) => onDateTimeChange({ ...dateTime, dayOfYear: day })}
         day={dateTime.dayOfYear}
       />
-
       <DailyWeather
-        date={dateTime.toPlainDate()}
+        date={dateTime}
         latitude={38.736946}
         longitude={-9.142685}
       />

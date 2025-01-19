@@ -1,8 +1,5 @@
-"use client";
-
 import { TrendingUp } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
-
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   Card,
   CardContent,
@@ -17,7 +14,11 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { AnnualDate } from "./AnnualDateTime.ts";
+import { getTemperature } from "./getTemperature.ts";
+import { useMemo } from "react";
 import { Temporal } from "temporal-polyfill";
+
 const chartData = [
   { month: "January", desktop: 186 },
   { month: "February", desktop: 305 },
@@ -34,67 +35,79 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+function getHourlyReadings(
+  date: AnnualDate,
+  coordinates: { latitude: number; longitude: number }
+) {
+  return Iterator.range(0, 23)
+    .map((x) => ({
+      hour: x,
+      temperature: getTemperature(20, coordinates, {
+        ...date,
+        dayPart: x / 24,
+      }),
+    }))
+    .toArray();
+}
+
 export function DailyWeather({
   date,
   latitude,
   longitude,
 }: {
-  date: Temporal.PlainDate;
+  date: AnnualDate;
   latitude: number;
   longitude: number;
 }) {
+  const hourlyReadings = useMemo(
+    () => getHourlyReadings(date, { latitude, longitude }),
+    [date]
+  );
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Area Chart</CardTitle>
+        <CardTitle>
+          Intraday temperature{" "}
+          {Temporal.PlainDate.from({ year: 2024, month: 1, day: 1 })
+            .add({
+              days: date.dayOfYear,
+            })
+            .toLocaleString("en-GB", {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+            })}
+        </CardTitle>
         <CardDescription>
-          Showing total visitors for the last 6 months
+          Lat: {latitude} Lon: {longitude}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>
           <AreaChart
             accessibilityLayer
-            data={chartData}
+            data={hourlyReadings}
             margin={{
               left: 12,
               right: 12,
             }}
           >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
-            />
+            <CartesianGrid />
+            <XAxis dataKey="hour" tickMargin={8} />
+            <YAxis dataKey="temperature" type="number" domain={[-20, 40]} />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent indicator="line" />}
             />
             <Area
-              dataKey="desktop"
-              type="natural"
+              dataKey="temperature"
               fill="var(--color-desktop)"
-              fillOpacity={0.4}
               stroke="var(--color-desktop)"
+              baseValue={-20}
             />
           </AreaChart>
         </ChartContainer>
       </CardContent>
-      <CardFooter>
-        <div className="flex w-full items-start gap-2 text-sm">
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2 font-medium leading-none">
-              Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-            </div>
-            <div className="flex items-center gap-2 leading-none text-muted-foreground">
-              January - June 2024
-            </div>
-          </div>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { AnnualDateTime } from "./AnnualDateTime.ts";
 import { calculateSunPosition } from "./calculateSunPosition.ts";
 
 type GeoCoordinates = {
@@ -5,26 +6,20 @@ type GeoCoordinates = {
   longitude: number;
 };
 
-export type AnnualDateTime = {
-  dayOfYear: number;
-  dayPart: number;
-};
-
 export function getTemperature(
   meanAnnualValue: number,
   coordinates: GeoCoordinates,
-  dateTime: AnnualDateTime,
-  daysInYear: number
+  dateTime: AnnualDateTime
 ): number {
   const baseDayRange = getMeanDailyTemperatureRange({
     meanAnnualValue,
     dayOfYear: dateTime.dayOfYear,
-    daysInYear,
+    daysInYear: dateTime.daysInYear,
     ...coordinates,
   });
   return getIntradayTemperature(
     baseDayRange,
-    getSunPositionForDate(dateTime, coordinates, daysInYear),
+    getSunPositionForDate(dateTime, coordinates),
     1.0
   );
 }
@@ -40,20 +35,6 @@ export function getIntradayTemperature(
     (baseDayRange.end - baseDayRange.start) * partOfDay
   );
 }
-
-// export function getMeanDailyTemperatureRange(
-//   meanAnnualValue: number,
-//   dayOfYear: number,
-//   daysInYear: number,
-//   amplitude: number
-// ): { start: number; end: number } {
-//   const startAngle = (2 * Math.PI * dayOfYear) / daysInYear;
-//   const endAngle = (2 * Math.PI * (dayOfYear + 1)) / daysInYear;
-//   const start =
-//     meanAnnualValue + amplitude * Math.sin(startAngle - Math.PI / 2);
-//   const end = meanAnnualValue + amplitude * Math.sin(endAngle - Math.PI / 2);
-//   return { start, end };
-// }
 
 export function getMeanDailyTemperatureRange({
   meanAnnualValue,
@@ -98,13 +79,12 @@ function getDailyMaxDelta(
 
 function getSunPositionForDate( // this is left like this to try again with suncalc and compare the results
   dateTime: AnnualDateTime,
-  coordinates: GeoCoordinates,
-  daysInYear: number
+  coordinates: GeoCoordinates
 ): number {
   return calculateSunPosition({
     dayProgress: dateTime.dayPart,
-    yearProgress: dateTime.dayOfYear / daysInYear,
-    daysInYear,
+    yearProgress: dateTime.dayOfYear / dateTime.daysInYear,
+    daysInYear: dateTime.daysInYear,
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
   }).altitude;

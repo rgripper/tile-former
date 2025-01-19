@@ -4,7 +4,7 @@ import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
 import { generateTileMap, tileTypes } from "./tileMap/generateTileMap.ts";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
-import { Temporal } from "temporal-polyfill";
+import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
 
 const texture = await Assets.load<Texture>(atlasUrl);
 const tileSpritesheet = new Spritesheet(texture, {
@@ -26,9 +26,11 @@ function App() {
     const map = generateTileMap();
     return map;
   });
-  const [dateTime, setDateTime] = useState(() =>
-    Temporal.Now.plainDateTimeISO()
-  );
+  const [dateTime, setDateTime] = useState<AnnualDateTime>({
+    dayOfYear: 0,
+    dayPart: 0,
+    daysInYear: 365,
+  });
   return (
     <>
       <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} />
