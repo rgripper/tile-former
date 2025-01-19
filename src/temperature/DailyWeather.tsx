@@ -15,7 +15,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { AnnualDate } from "./AnnualDateTime.ts";
-import { getTemperature } from "./getTemperature.ts";
+import { getMeanDailyTemperature, getTemperature } from "./getTemperature.ts";
 import { useMemo } from "react";
 import { Temporal } from "temporal-polyfill";
 
@@ -76,7 +76,14 @@ export function DailyWeather({
               year: "numeric",
               month: "short",
               day: "2-digit",
-            })}
+            })}{" "}
+          {getMeanDailyTemperature({
+            baselineValue: 20,
+            dayOfYear: date.dayOfYear,
+            daysInYear: 365,
+            latitude,
+            longitude,
+          }).toFixed(1)}
         </CardTitle>
         <CardDescription>
           Lat: {latitude} Lon: {longitude}

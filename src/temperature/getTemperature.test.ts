@@ -1,13 +1,13 @@
 import { Temporal } from "temporal-polyfill";
 import {
   getIntradayTemperature,
-  getMeanDailyTemperatureRange,
+  getMeanDailyTemperature,
 } from "./getTemperature.ts";
 import { describe, it, expect } from "vitest";
 
 describe("temperature", () => {
   it("should return the temperature for a given day and location", () => {
-    const meanAnnualValue = 17.4;
+    const baselineValue = 17.4;
 
     const expectedTemperatures = [
       {
@@ -58,8 +58,8 @@ describe("temperature", () => {
     const actualTemperatures = expectedTemperatures.map(({ date }) => {
       return {
         date,
-        temperature: getMeanDailyTemperatureRange({
-          meanAnnualValue,
+        temperature: getMeanDailyTemperature({
+          baselineValue,
           dayOfYear: Temporal.PlainDate.from(date).dayOfYear,
           daysInYear: 365,
           latitude: LISBON_LAT,

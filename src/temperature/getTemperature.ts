@@ -7,18 +7,36 @@ type GeoCoordinates = {
 };
 
 export function getTemperature(
-  meanAnnualValue: number,
+  baselineValue: number,
   coordinates: GeoCoordinates,
   dateTime: AnnualDateTime
 ): number {
-  const baseDayRange = getMeanDailyTemperatureRange({
-    meanAnnualValue,
-    dayOfYear: dateTime.dayOfYear,
+  const start = getMeanDailyTemperature({
+    baselineValue,
+    dayOfYear:
+      (dateTime.dayOfYear > 0 ? dateTime.dayOfYear : dateTime.daysInYear) - 0.5,
+    daysInYear: dateTime.daysInYear,
+    ...coordinates,
+  });
+
+  const end = getMeanDailyTemperature({
+    baselineValue,
+    dayOfYear:
+      (dateTime.dayOfYear < dateTime.daysInYear - 1 ? dateTime.dayOfYear : 0) +
+      0.5,
     daysInYear: dateTime.daysInYear,
     ...coordinates,
   });
   return getIntradayTemperature(
-    baseDayRange,
+    {
+      start,
+      end,
+      maxDelta: getDailyMaxDelta(
+        dateTime.dayOfYear,
+        dateTime.daysInYear,
+        coordinates.latitude
+      ),
+    },
     getSunPositionForDate(dateTime, coordinates),
     1.0
   );
@@ -36,28 +54,43 @@ export function getIntradayTemperature(
   );
 }
 
-export function getMeanDailyTemperatureRange({
-  meanAnnualValue,
+export function getMeanDailyTemperature({
+  baselineValue,
   dayOfYear,
   daysInYear,
   latitude,
   longitude,
 }: {
-  meanAnnualValue: number;
+  baselineValue: number;
   dayOfYear: number;
   daysInYear: number;
   latitude: number;
-  longitude: number; // -180 to 180
-}): { start: number; end: number; maxDelta: number } {
-  const startAngle = (2 * Math.PI * dayOfYear) / daysInYear;
-  const endAngle = (2 * Math.PI * (dayOfYear + 1)) / daysInYear;
-  const start = meanAnnualValue + Math.sin(startAngle - Math.PI / 2);
-  const end = meanAnnualValue + Math.sin(endAngle - Math.PI / 2);
-  return {
-    start,
-    end,
-    maxDelta: getDailyMaxDelta(dayOfYear, daysInYear, latitude),
-  };
+  longitude: number;
+}) {
+  const TEMP_AMPLITUDE = 15; // Maximum temperature variation
+  const PHASE_SHIFT = 0.5; // Shifts the sine wave to align with seasons
+
+  // Normalize day of year to [0, 2π]
+  const normalizedDay = (2 * Math.PI * dayOfYear) / daysInYear;
+
+  // Adjust phase based on hemisphere (latitude)
+  // Northern hemisphere: peak in summer (July), trough in winter (January)
+  // Southern hemisphere: opposite pattern
+  const isNorthernHemisphere = latitude >= 0;
+  const phase = isNorthernHemisphere ? normalizedDay : normalizedDay + Math.PI;
+
+  // Calculate temperature variation using sine wave
+  const temperatureVariation = Math.sin(phase - Math.PI * PHASE_SHIFT);
+
+  // Adjust amplitude based on latitude (stronger seasons near poles)
+  const latitudeEffect = Math.abs(latitude) / 90;
+  const adjustedAmplitude = TEMP_AMPLITUDE * latitudeEffect;
+
+  // Calculate base temperature with latitude effect
+  const baseTemp = baselineValue - (Math.abs(latitude) / 90) * 10;
+
+  // Combine all effects
+  return baseTemp + temperatureVariation * adjustedAmplitude;
 }
 
 function getDailyMaxDelta(
