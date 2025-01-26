@@ -1,19 +1,7 @@
-export type TileType = {
-  id: number;
-  name: string;
-};
+import { Biome } from "./Biome";
+import { TileProperties } from "./TileProperties";
 
-export type SoilComponents = {
-  sand: number; // 0-1
-  clay: number; // 0-1
-  other: number; // 0-1
-};
-
-export type Tile = {
-  typeId: number;
+export type Tile = TileProperties & {
+  biome: Biome;
   index: { x: number; y: number };
-  soilComponents: SoilComponents;
-  fertility: number; // 0-1
 };
-
-export type SoilComponent = keyof SoilComponents;

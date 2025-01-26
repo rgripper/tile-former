@@ -7,9 +7,11 @@ import { Viewport } from "pixi-viewport";
 export function TileMapView({
   tileMap,
   tileSpritesheet,
+  onTileClick,
 }: {
   tileMap: Tile[][];
   tileSpritesheet: Spritesheet;
+  onTileClick: (tile: Tile) => void;
 }) {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const appAndViewportRef = useRef<
@@ -23,6 +25,7 @@ export function TileMapView({
         tileMap,
         tileSpritesheet,
         container: ref,
+        onTileClick,
       }).then(({ app, viewport }) => {
         appAndViewportRef.current = { app, viewport };
         ref.appendChild(app.canvas);

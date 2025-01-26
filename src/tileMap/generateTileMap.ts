@@ -1,7 +1,12 @@
 import { createRand } from "@/rand.ts";
 import { gridSize } from "../config.ts";
-import { SoilComponents, Tile } from "./tile.ts";
+import { Tile } from "./tile.ts";
 import { createNoise2D, NoiseFunction2D } from "simplex-noise";
+import { biomes } from "./biomes.ts";
+import { BiomeClassifier } from "./BiomeClassifier.ts";
+import { TileProperties } from "./TileProperties.ts";
+import { classifyTile } from "./classifyTile.ts";
+
 export const tileTypes = [
   // we use luminosity-adjusted colors
   { id: 0, name: "Grass", color: "#4CAF50" },
@@ -9,66 +14,84 @@ export const tileTypes = [
   { id: 2, name: "Rock", color: "#BDBDBD" },
 ];
 
-type ComponentNoises = [NoiseFunction2D, NoiseFunction2D, NoiseFunction2D];
+type Point = { x: number; y: number };
+
+type OverlayNoises = [NoiseFunction2D, NoiseFunction2D, NoiseFunction2D];
 
 export function generateTileMap() {
+  const baseTileProperties = {
+    temperature: 20,
+    moisture: 2.5 / 4,
+    light: 2.2 / 4,
+    altitude: 1 / 4,
+    seasonality: 1 / 4,
+  };
   const noises = Iterator.range(0, 3)
     .map((x) => "abc" + x)
     .map((seed) => createRand(seed))
     .map((rand) => createNoise2D(rand.next))
-    .map((noise) => (x: number, y: number) => (noise(x, y) + 1) / 2)
-    .toArray() as ComponentNoises;
+    .toArray() as OverlayNoises;
 
-  return Iterator.range(0, gridSize.height)
-    .map((y) =>
-      Iterator.range(0, gridSize.width)
-        .map((x) => generateTile({ x, y }, noises))
+  return Iterator.range(0, gridSize.width)
+    .map((x) =>
+      Iterator.range(0, gridSize.height)
+        .map((y) => generateTile({ x, y }, baseTileProperties, noises))
         .toArray()
     )
     .toArray();
 }
 
-type Point = { x: number; y: number };
+const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
 // the sum of all components should be 1
-function generateSoilComponents(point: Point, noises: ComponentNoises) {
-  const sand = noises[0](point.x / 15, point.y / 15);
-  const clay = noises[1](point.x / 17, point.y / 17);
-  const other = noises[2](point.x / 20, point.y / 20) ** 2;
-
-  const total = sand + clay + other;
+function generateTileOverlay(
+  point: Point,
+  [temperatureNoise, moistureNoise]: [NoiseFunction2D, NoiseFunction2D]
+): TileOverlay {
   return {
-    sand: sand / total,
-    clay: clay / total,
-    other: other / total,
+    temperatureModifier: (t) =>
+      t + t * temperatureNoise(point.x, point.y) * 0.01,
+    moistureModifier: (t) => clamp(t + 0.02 * moistureNoise(point.x, point.y)),
   };
 }
 
-// Add "Fertility" indicator is based on proportion of sand vs clay. Impacted by two factors:
-// The closer it is to 50%/50% sand vs clay the closer the potential indicator to 1.0.
-// Then scale resulting indicator by % of (clay + sand) vs otherMinerals in overall soil composition.
-function calculateFertility(soilComponents: SoilComponents): number {
-  const { sand, clay } = soilComponents;
-  const total = sand + clay;
-  const idealAerationFactor = 0.5;
-  const aerationFactor = 1 - Math.abs(sand / total - idealAerationFactor);
-  const idealWaterRetentionFactor = 0.5;
-  const waterRetentionFactor =
-    1 - Math.abs(clay / total - idealWaterRetentionFactor);
-  return total * (aerationFactor * waterRetentionFactor);
-}
+type TileOverlay = {
+  temperatureModifier: (value: number) => number;
+  moistureModifier: (value: number) => number;
+};
 
-function generateTile(index: Point, noises: ComponentNoises): Tile {
-  const soilComponents = generateSoilComponents(index, noises);
+function generateTile(
+  index: Point,
+  baseTileProperties: TileProperties,
+  [biomeGuessNoise, ...otherNoises]: OverlayNoises
+): Tile {
+  const tileOverlay = generateTileOverlay(index, otherNoises);
+  const tileProperties = {
+    ...baseTileProperties,
+    temperature: tileOverlay.temperatureModifier(
+      baseTileProperties.temperature
+    ),
+    moisture: tileOverlay.moistureModifier(baseTileProperties.moisture),
+  };
+
+  const biomeGuesses = classifyTile(biomes, tileProperties, 3);
+  const totalConfidence = biomeGuesses.reduce(
+    (sum, guess) => sum + guess.confidence,
+    0
+  );
+  const randomValue =
+    ((biomeGuessNoise(index.x, index.y) + 1) / 2) * totalConfidence;
+
+  let accumulatedConfidence = 0;
+  const biomeGuessPick = biomeGuesses.find((guess) => {
+    accumulatedConfidence += guess.confidence;
+    return accumulatedConfidence >= randomValue;
+  });
+
   return {
+    ...tileProperties,
     index,
-    soilComponents,
-    fertility: calculateFertility(soilComponents),
-    typeId:
-      soilComponents.sand > 0.7
-        ? tileTypes[1].id
-        : soilComponents.other > 0.5
-        ? tileTypes[2].id
-        : tileTypes[0].id,
+    biomeGuesses,
+    biome: biomeGuessPick?.biome || biomeGuesses[0].biome,
   };
 }

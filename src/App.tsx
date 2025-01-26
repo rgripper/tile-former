@@ -33,12 +33,8 @@ function App() {
   });
   return (
     <>
-      <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} />
-      <TileMapTool
-        tileMap={tileMap}
-        tileSpritesheet={tileSpritesheet}
-        tileTypes={tileTypes}
-      />
+      {/* <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} /> */}
+      <TileMapTool tileMap={tileMap} tileSpritesheet={tileSpritesheet} />
     </>
   );
 }
