@@ -58,24 +58,26 @@ export function generateTileMap() {
     .map((rand) => createNoise2D(rand.next))
     .toArray() as OverlayNoises;
 
-  const startIndexes = pickRandomIndexesSparsely(
-    baseTileMap,
-    5,
-    (existing, grid) => {
-      let x: number | undefined, y: number | undefined;
-      do {
-        x = Math.floor(rand.next() * grid.length);
-        y = Math.floor(rand.next() * grid[0].length);
-      } while (existing.some((point) => point.x === x && point.y === y));
-
-      return { x, y };
-    }
-  );
+  const numberOfPoints = 5;
+  const minimalDistance =
+    (baseTileMap.length / baseTileMap.length +
+      baseTileMap[0].length / numberOfPoints) /
+    2;
+  const startIndexes = pickRandomIndexesSparsely({
+    count: numberOfPoints,
+    next: () => {
+      return {
+        x: Math.floor(rand.next() * baseTileMap.length),
+        y: Math.floor(rand.next() * baseTileMap[0].length),
+      };
+    },
+    minimumDistance: minimalDistance,
+  });
 
   return growTileClusters(
     baseTileMap,
     (index) => pickBiomeIndex(index, baseTileMap[index.x][index.y], noises[0]),
-    biomes,
+    () => rand.next(),
     startIndexes
   ) satisfies Tile[][];
 }

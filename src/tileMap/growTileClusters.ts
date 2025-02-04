@@ -28,35 +28,24 @@ function getNeighbors(
 }
 
 // Grow islands from starting points
-export function growTileClusters<Tile, Biome>(
-  grid: Tile[][],
+export function growTileClusters<Tile>(
+  tileMap: Tile[][],
   resolveBiomeId: (index: Point) => number,
-  biomes: Biome[],
+  next: () => number,
   startPoints: Point[]
 ): (Tile & { biomeId: number })[][] {
   const queue: [number, number, number][] = [];
 
-  const gridWidth = grid.length;
-  const gridHeight = grid[0].length;
-  const newGrid: (Tile & { biomeId: number | null })[][] = Array.from(
-    { length: grid.length },
-    (_, x) =>
-      Array.from({ length: grid[0].length }, (_, y) => ({
-        ...grid[x][y],
-        biomeId: null,
-      }))
-  );
+  const gridWidth = tileMap.length;
+  const gridHeight = tileMap[0].length;
+  const newGrid = copyTileMap(tileMap);
 
-  console.log(startPoints);
   // Initialize starting points
   for (const { x, y } of startPoints) {
     const biomeId = resolveBiomeId({ x, y });
     newGrid[x][y].biomeId = biomeId;
-    console.log("Starting point", x, y, newGrid[x][y]);
     queue.push([x, y, biomeId]);
   }
-
-  console.log(newGrid);
 
   // BFS for spreading
   while (queue.length > 0) {
@@ -65,7 +54,7 @@ export function growTileClusters<Tile, Biome>(
     for (const [nx, ny] of getNeighbors(x, y, gridWidth, gridHeight)) {
       const tile = newGrid[nx][ny];
       if (tile.biomeId === null) {
-        if (Math.random() < SPREAD_PROBABILITY) {
+        if (next() < SPREAD_PROBABILITY) {
           tile.biomeId = resolveBiomeId({ x: nx, y: ny });
         } else {
           tile.biomeId = ancestorBiomeId;
@@ -75,21 +64,23 @@ export function growTileClusters<Tile, Biome>(
     }
   }
 
-  // now render the grid to the console
-  for (let y = 0; y < gridHeight; y++) {
-    let row = y.toString() + ": ";
-    for (let x = 0; x < gridWidth; x++) {
-      row += newGrid[x][y].biomeId;
-    }
-    console.log(row);
-  }
-
   return newGrid as (Tile & { biomeId: number })[][];
+}
+
+function copyTileMap<Tile>(
+  tileMap: Tile[][]
+): (Tile & { biomeId: number | null })[][] {
+  return Array.from({ length: tileMap.length }, (_, x) =>
+    Array.from({ length: tileMap[0].length }, (_, y) => ({
+      ...tileMap[x][y],
+      biomeId: null,
+    }))
+  );
 }
 
 // Choose random starting points
 
-export function pickRandomIndexesSparsely<T>(
+export function pickRandomIndexes<T>(
   grid: T[][],
   count: number,
   next: (existing: Point[], grid: T[][]) => Point
@@ -102,4 +93,32 @@ export function pickRandomIndexesSparsely<T>(
   return points;
 }
 
+export function pickRandomIndexesSparsely<T>({
+  count,
+  next,
+  minimumDistance,
+}: {
+  count: number;
+  next: () => Point;
+  minimumDistance: number;
+}): Point[] {
+  const points: Point[] = [];
+
+  function isFarEnough(point: Point): boolean {
+    return points.every(
+      (p) =>
+        Math.abs(p.x - point.x) >= minimumDistance &&
+        Math.abs(p.y - point.y) >= minimumDistance
+    );
+  }
+
+  while (points.length < count) {
+    const point = next();
+    if (isFarEnough(point)) {
+      points.push(point);
+    }
+  }
+
+  return points;
+}
 // generate unresolved grid -> cluster-resolve tiles
