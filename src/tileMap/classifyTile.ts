@@ -1,7 +1,7 @@
 import { Biome } from "./Biome";
 import { TileProperties } from "./TileProperties";
 interface BiomeGuess {
-  biome: Biome;
+  biomeId: number;
   confidence: number; // Confidence level as a percentage
 }
 
@@ -46,7 +46,7 @@ export function classifyTile(
         seasonalityConfidence) /
       5;
 
-    return { biome, confidence: overallConfidence };
+    return { biomeId: biomes.indexOf(biome), confidence: overallConfidence };
   });
 
   // Sort by confidence in descending order and pick the top N results

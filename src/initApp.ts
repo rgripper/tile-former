@@ -2,7 +2,8 @@ import { Viewport } from "pixi-viewport";
 import { Container, Application, Spritesheet, Sprite, Graphics } from "pixi.js";
 import { gridSize, tileSide } from "./config.ts";
 import { Tile } from "./tileMap/tile.ts";
-import { tileTypes } from "./tileMap/generateTileMap.ts";
+import { Biome } from "./tileMap/Biome.ts";
+import { biomes } from "./tileMap/biomes.ts";
 
 export async function initApp({
   tileMap,
@@ -37,6 +38,7 @@ export async function initApp({
 
   const tileGridContainer = createTileGridSprites(
     tileMap,
+    biomes,
     tileSpritesheet,
     onTileClick
   );
@@ -53,6 +55,7 @@ export async function initApp({
 
 function createTileGridSprites(
   tileMap: Tile[][],
+  biomes: Biome[],
   tileSpritesheet: Spritesheet,
   onTileClick: (tile: Tile) => void
 ) {
@@ -70,7 +73,7 @@ function createTileGridSprites(
       tileGraphics.height = tileSide;
 
       tileGraphics.rect(0, 0, tileSide, tileSide);
-      tileGraphics.fill(tile.biome.textureColor);
+      tileGraphics.fill(biomes[tile.biomeId].textureColor);
       tileGraphics.interactive = true;
       tileGraphics.on("click", () => onTileClick(tile));
       container.addChild(tileGraphics);

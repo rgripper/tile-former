@@ -1,24 +1,22 @@
 import { createRand } from "@/rand.ts";
 import { gridSize } from "../config.ts";
-import { Tile } from "./tile.ts";
 import { createNoise2D, NoiseFunction2D } from "simplex-noise";
 import { biomes } from "./biomes.ts";
-import { BiomeClassifier } from "./BiomeClassifier.ts";
 import { TileProperties } from "./TileProperties.ts";
 import { classifyTile } from "./classifyTile.ts";
+import {
+  createTileOverlayModifiers,
+  OverlayNoises,
+} from "./createTileOverlayModifiers.ts";
+import {
+  growTileClusters,
+  pickRandomIndexesSparsely,
+} from "./growTileClusters.ts";
+import { Tile } from "./tile.ts";
 
-export const tileTypes = [
-  // we use luminosity-adjusted colors
-  { id: 0, name: "Grass", color: "#4CAF50" },
-  { id: 1, name: "Sand", color: "#f2d2a9" },
-  { id: 2, name: "Rock", color: "#BDBDBD" },
-];
+export type Point = { x: number; y: number };
 
-type Point = { x: number; y: number };
-
-type OverlayNoises = [NoiseFunction2D, NoiseFunction2D, NoiseFunction2D];
-
-export function generateTileMap() {
+function generateBaseTileMap() {
   const baseTileProperties = {
     temperature: 20,
     moisture: 2.5 / 4,
@@ -32,48 +30,61 @@ export function generateTileMap() {
     .map((rand) => createNoise2D(rand.next))
     .toArray() as OverlayNoises;
 
+  const applyModifiers = createTileOverlayModifiers({
+    temperatureNoise: noises[1],
+    moistureNoise: noises[2],
+  });
   return Iterator.range(0, gridSize.width)
     .map((x) =>
       Iterator.range(0, gridSize.height)
-        .map((y) => generateTile({ x, y }, baseTileProperties, noises))
+        .map((y) => ({ x, y }))
+        .map((index) => ({
+          index,
+          ...baseTileProperties,
+          ...applyModifiers(index, baseTileProperties),
+        }))
         .toArray()
     )
     .toArray();
 }
 
-const clamp = (value: number) => Math.max(0, Math.min(1, value));
+export function generateTileMap() {
+  const baseTileMap = generateBaseTileMap();
 
-// the sum of all components should be 1
-function generateTileOverlay(
-  point: Point,
-  [temperatureNoise, moistureNoise]: [NoiseFunction2D, NoiseFunction2D]
-): TileOverlay {
-  return {
-    temperatureModifier: (t) =>
-      t + t * temperatureNoise(point.x, point.y) * 0.01,
-    moistureModifier: (t) => clamp(t + 0.02 * moistureNoise(point.x, point.y)),
-  };
+  const rand = createRand("hahaha");
+  const noises = Iterator.range(0, 2)
+    .map((x) => "def" + x)
+    .map((seed) => createRand(seed))
+    .map((rand) => createNoise2D(rand.next))
+    .toArray() as OverlayNoises;
+
+  const startIndexes = pickRandomIndexesSparsely(
+    baseTileMap,
+    5,
+    (existing, grid) => {
+      let x: number | undefined, y: number | undefined;
+      do {
+        x = Math.floor(rand.next() * grid.length);
+        y = Math.floor(rand.next() * grid[0].length);
+      } while (existing.some((point) => point.x === x && point.y === y));
+
+      return { x, y };
+    }
+  );
+
+  return growTileClusters(
+    baseTileMap,
+    (index) => pickBiomeIndex(index, baseTileMap[index.x][index.y], noises[0]),
+    biomes,
+    startIndexes
+  ) satisfies Tile[][];
 }
 
-type TileOverlay = {
-  temperatureModifier: (value: number) => number;
-  moistureModifier: (value: number) => number;
-};
-
-function generateTile(
+function pickBiomeIndex(
   index: Point,
-  baseTileProperties: TileProperties,
-  [biomeGuessNoise, ...otherNoises]: OverlayNoises
-): Tile {
-  const tileOverlay = generateTileOverlay(index, otherNoises);
-  const tileProperties = {
-    ...baseTileProperties,
-    temperature: tileOverlay.temperatureModifier(
-      baseTileProperties.temperature
-    ),
-    moisture: tileOverlay.moistureModifier(baseTileProperties.moisture),
-  };
-
+  tileProperties: TileProperties,
+  biomeGuessNoise: NoiseFunction2D
+): number {
   const biomeGuesses = classifyTile(biomes, tileProperties, 3);
   const totalConfidence = biomeGuesses.reduce(
     (sum, guess) => sum + guess.confidence,
@@ -88,10 +99,5 @@ function generateTile(
     return accumulatedConfidence >= randomValue;
   });
 
-  return {
-    ...tileProperties,
-    index,
-    biomeGuesses,
-    biome: biomeGuessPick?.biome || biomeGuesses[0].biome,
-  };
+  return biomeGuessPick?.biomeId || biomeGuesses[0].biomeId;
 }
