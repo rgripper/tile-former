@@ -5,6 +5,7 @@ import atlasUrl from "./assets/grass.png";
 import { generateTileMap, tileTypes } from "./tileMap/generateTileMap.ts";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
 import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
+import { biomes } from "./tileMap/biomes.ts";
 
 const texture = await Assets.load<Texture>(atlasUrl);
 const tileSpritesheet = new Spritesheet(texture, {
@@ -34,7 +35,11 @@ function App() {
   return (
     <>
       {/* <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} /> */}
-      <TileMapTool tileMap={tileMap} tileSpritesheet={tileSpritesheet} />
+      <TileMapTool
+        biomes={biomes}
+        tileMap={tileMap}
+        tileSpritesheet={tileSpritesheet}
+      />
     </>
   );
 }

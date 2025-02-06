@@ -5,95 +5,99 @@ type UnresolvedTile = Omit<Tile, "biome"> & {
   biome?: undefined;
 };
 
-type Grid<T extends Tile | UnresolvedTile> = T[][];
-
-const SPREAD_PROBABILITY = 0.2; // Chance to spread to neighboring tiles
-
-// Get neighboring coordinates
-function getNeighbors(
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): [number, number][] {
+function getNeighbors(point: Point, width: number, height: number): Point[] {
+  const neighbors: Point[] = [];
   const directions = [
-    [0, 1],
-    [1, 0],
-    [0, -1],
-    [-1, 0], // Up, Right, Down, Left
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
   ];
-  return directions
-    .map(([dx, dy]) => [x + dx, y + dy] as [number, number])
-    .filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < width && ny < height);
-}
 
-// Grow islands from starting points
-export function growTileClusters<Tile>(
-  tileMap: Tile[][],
-  resolveBiomeId: (index: Point) => number,
-  next: () => number,
-  startPoints: Point[]
-): (Tile & { biomeId: number })[][] {
-  const queue: [number, number, number][] = [];
-
-  const gridWidth = tileMap.length;
-  const gridHeight = tileMap[0].length;
-  const newGrid = copyTileMap(tileMap);
-
-  // Initialize starting points
-  for (const { x, y } of startPoints) {
-    const biomeId = resolveBiomeId({ x, y });
-    newGrid[x][y].biomeId = biomeId;
-    queue.push([x, y, biomeId]);
-  }
-
-  // BFS for spreading
-  while (queue.length > 0) {
-    const [x, y, ancestorBiomeId] = queue.shift()!;
-
-    for (const [nx, ny] of getNeighbors(x, y, gridWidth, gridHeight)) {
-      const tile = newGrid[nx][ny];
-      if (tile.biomeId === null) {
-        if (next() < SPREAD_PROBABILITY) {
-          tile.biomeId = resolveBiomeId({ x: nx, y: ny });
-        } else {
-          tile.biomeId = ancestorBiomeId;
-        }
-        queue.push([nx, ny, tile.biomeId]);
-      }
+  for (const direction of directions) {
+    const neighbor = { x: point.x + direction.x, y: point.y + direction.y };
+    if (
+      neighbor.x >= 0 &&
+      neighbor.x < width &&
+      neighbor.y >= 0 &&
+      neighbor.y < height
+    ) {
+      neighbors.push(neighbor);
     }
   }
 
-  return newGrid as (Tile & { biomeId: number })[][];
+  return neighbors;
 }
 
-function copyTileMap<Tile>(
-  tileMap: Tile[][]
-): (Tile & { biomeId: number | null })[][] {
-  return Array.from({ length: tileMap.length }, (_, x) =>
-    Array.from({ length: tileMap[0].length }, (_, y) => ({
-      ...tileMap[x][y],
-      biomeId: null,
-    }))
-  );
-}
+// given a starting point, resolve biome for all tiles in the grid, that don't have one already, using cellular automata
+// if no biome around, pick a one using the likelyBiomeIds function and probability by using next()
+// if there are biomes around, pick one of them with probability proportional to the number of biomes around
+// update the tileMap with the resolved biomes
+export function resolveTiles(
+  tileMap: { biomeId?: number }[][],
+  likelyBiomeIds: (index: Point) => { confidence: number; biomeId: number }[],
+  next: () => number,
+  startingPoints: Point[]
+) {
+  const width = tileMap.length;
+  const height = tileMap[0].length;
+  const queue: Point[] = [...startingPoints];
 
-// Choose random starting points
+  while (queue.length > 0) {
+    const point = queue.shift()!;
+    const tile = tileMap[point.x][point.y];
 
-export function pickRandomIndexes<T>(
-  grid: T[][],
-  count: number,
-  next: (existing: Point[], grid: T[][]) => Point
-): Point[] {
-  const points: Point[] = [];
-  while (points.length < count) {
-    const point = next(points, grid);
-    points.push(point);
+    if (tile.biomeId !== undefined) continue;
+
+    const neighbors = getNeighbors(point, width, height);
+    const neighborBiomes = neighbors
+      .map((neighbor) => tileMap[neighbor.x][neighbor.y].biomeId)
+      .filter((biomeId) => biomeId !== undefined) as number[];
+
+    if (neighborBiomes.length > 0) {
+      const biomeCounts = neighborBiomes.reduce((counts, biomeId) => {
+        counts[biomeId] = (counts[biomeId] || 0) + 1;
+        return counts;
+      }, {} as Record<number, number>);
+
+      const total = neighborBiomes.length;
+      const random = next() * total;
+      let cumulative = 0;
+
+      for (const [biomeId, count] of Object.entries(biomeCounts)) {
+        cumulative += count;
+        if (random < cumulative) {
+          tile.biomeId = parseInt(biomeId);
+          break;
+        }
+      }
+    } else {
+      const biomes = likelyBiomeIds(point);
+      const totalProbability = biomes.reduce(
+        (sum, { confidence }) => sum + confidence,
+        0
+      );
+      const random = next() * totalProbability;
+      let cumulative = 0;
+
+      for (const { confidence, biomeId } of biomes) {
+        cumulative += confidence;
+        if (random < cumulative) {
+          tile.biomeId = biomeId;
+          break;
+        }
+      }
+    }
+
+    queue.push(
+      ...neighbors.filter(
+        (neighbor) => tileMap[neighbor.x][neighbor.y].biomeId === undefined
+      )
+    );
   }
-  return points;
 }
 
-export function pickRandomIndexesSparsely<T>({
+export function pickRandomIndexesSparsely({
   count,
   next,
   minimumDistance,
@@ -121,4 +125,3 @@ export function pickRandomIndexesSparsely<T>({
 
   return points;
 }
-// generate unresolved grid -> cluster-resolve tiles

@@ -8,10 +8,7 @@ import {
   createTileOverlayModifiers,
   OverlayNoises,
 } from "./createTileOverlayModifiers.ts";
-import {
-  growTileClusters,
-  pickRandomIndexesSparsely,
-} from "./growTileClusters.ts";
+import { resolveTiles, pickRandomIndexesSparsely } from "./growTileClusters.ts";
 import { Tile } from "./tile.ts";
 
 export type Point = { x: number; y: number };
@@ -74,12 +71,14 @@ export function generateTileMap() {
     minimumDistance: minimalDistance,
   });
 
-  return growTileClusters(
-    baseTileMap,
-    (index) => pickBiomeIndex(index, baseTileMap[index.x][index.y], noises[0]),
+  resolveTiles(
+    baseTileMap as unknown as { biomeId: undefined }[][],
+    (index) => classifyTile(biomes, baseTileMap[index.x][index.y], 3),
     () => rand.next(),
     startIndexes
-  ) satisfies Tile[][];
+  );
+
+  return baseTileMap as unknown as Tile[][];
 }
 
 function pickBiomeIndex(
