@@ -108,7 +108,7 @@ export function pickRandomIndexesSparsely({
 }): Point[] {
   const points: Point[] = [];
 
-  function isFarEnough(point: Point): boolean {
+  function isFarEnough(point: Point, minimumDistance: number): boolean {
     return points.every(
       (p) =>
         Math.abs(p.x - point.x) >= minimumDistance &&
@@ -116,11 +116,13 @@ export function pickRandomIndexesSparsely({
     );
   }
 
+  let runs = 0;
   while (points.length < count) {
     const point = next();
-    if (isFarEnough(point)) {
+    if (isFarEnough(point, minimumDistance * Math.min(1, count / runs))) {
       points.push(point);
     }
+    runs++;
   }
 
   return points;

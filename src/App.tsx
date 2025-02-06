@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TileMapTool } from "./TileMapTool.tsx";
 import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
-import { generateTileMap, tileTypes } from "./tileMap/generateTileMap.ts";
+import { generateTileMap } from "./tileMap/generateTileMap.ts";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
 import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
 import { biomes } from "./tileMap/biomes.ts";

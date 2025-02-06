@@ -49,13 +49,8 @@ export function generateTileMap() {
   const baseTileMap = generateBaseTileMap();
 
   const rand = createRand("hahaha");
-  const noises = Iterator.range(0, 2)
-    .map((x) => "def" + x)
-    .map((seed) => createRand(seed))
-    .map((rand) => createNoise2D(rand.next))
-    .toArray() as OverlayNoises;
 
-  const numberOfPoints = 5;
+  const numberOfPoints = 20;
   const minimalDistance =
     (baseTileMap.length / baseTileMap.length +
       baseTileMap[0].length / numberOfPoints) /
@@ -71,34 +66,14 @@ export function generateTileMap() {
     minimumDistance: minimalDistance,
   });
 
+  const numberOfGuesses = 3;
   resolveTiles(
     baseTileMap as unknown as { biomeId: undefined }[][],
-    (index) => classifyTile(biomes, baseTileMap[index.x][index.y], 3),
+    (index) =>
+      classifyTile(biomes, baseTileMap[index.x][index.y], numberOfGuesses),
     () => rand.next(),
     startIndexes
   );
 
   return baseTileMap as unknown as Tile[][];
-}
-
-function pickBiomeIndex(
-  index: Point,
-  tileProperties: TileProperties,
-  biomeGuessNoise: NoiseFunction2D
-): number {
-  const biomeGuesses = classifyTile(biomes, tileProperties, 3);
-  const totalConfidence = biomeGuesses.reduce(
-    (sum, guess) => sum + guess.confidence,
-    0
-  );
-  const randomValue =
-    ((biomeGuessNoise(index.x, index.y) + 1) / 2) * totalConfidence;
-
-  let accumulatedConfidence = 0;
-  const biomeGuessPick = biomeGuesses.find((guess) => {
-    accumulatedConfidence += guess.confidence;
-    return accumulatedConfidence >= randomValue;
-  });
-
-  return biomeGuessPick?.biomeId || biomeGuesses[0].biomeId;
 }
