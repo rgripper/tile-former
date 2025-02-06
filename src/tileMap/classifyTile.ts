@@ -50,7 +50,21 @@ export function classifyTile(
   });
 
   // Sort by confidence in descending order and pick the top N results
-  return biomeConfidences
+  // Apply a logarithmic scale to the confidence levels
+  const adjustedConfidences = biomeConfidences.map((biomeConfidence) => {
+    return {
+      ...biomeConfidence,
+      confidence: Math.pow(biomeConfidence.confidence, 3),
+    };
+  });
+
+  console.log(
+    adjustedConfidences
+      .map((x) => x.confidence)
+      .sort()
+      .reverse()
+  );
+  return adjustedConfidences
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, topN);
 }
