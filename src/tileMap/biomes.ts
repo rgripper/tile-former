@@ -95,12 +95,17 @@ export const biomes: Biome[] = (
   ] satisfies Omit<Biome, "id">[]
 ).map((biome, index) => ({
   ...biome,
-  moistureRange: biome.moistureRange.map((x) => x / 4) as [number, number],
-  lightRange: biome.lightRange.map((x) => x / 4) as [number, number],
-  altitudeRange: biome.altitudeRange.map((x) => x / 4) as [number, number],
-  seasonalityRange: biome.seasonalityRange.map((x) => x / 4) as [
-    number,
-    number
-  ],
+  moistureRange: scaleRange(biome.moistureRange as [number, number]),
+  lightRange: scaleRange(biome.lightRange as [number, number]),
+  altitudeRange: scaleRange(biome.altitudeRange as [number, number]),
+  seasonalityRange: scaleRange(biome.seasonalityRange as [number, number]),
   id: index + 1,
 }));
+
+export function scaleRange(
+  range: [number, number],
+  min: number = 1,
+  max: number = 4
+): [number, number] {
+  return range.map((x) => (x - min) / (max - min)) as [number, number];
+}

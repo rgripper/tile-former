@@ -1,0 +1,245 @@
+[
+  {
+    "name": "Cacao Tree",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [22, 30],
+    "moistureRange": [3, 4],
+    "lightRange": [3, 4],
+    "biome": "Tropical Rainforest"
+  },
+  {
+    "name": "Kapok Tree",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [24, 32],
+    "moistureRange": [3, 4],
+    "lightRange": [3, 4],
+    "biome": "Tropical Rainforest"
+  },
+  {
+    "name": "Heliconia",
+    "fruit": false,
+    "type": "Flowering Plant",
+    "temperatureRange": [22, 30],
+    "moistureRange": [3, 4],
+    "lightRange": [2, 4],
+    "biome": "Tropical Rainforest"
+  },
+  {
+    "name": "Mango Tree",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [20, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Tropical Dry Forest"
+  },
+  {
+    "name": "Ceiba Tree",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [18, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Tropical Dry Forest"
+  },
+  {
+    "name": "Agave",
+    "fruit": false,
+    "type": "Succulent",
+    "temperatureRange": [15, 30],
+    "moistureRange": [1, 2],
+    "lightRange": [3, 4],
+    "biome": "Tropical Dry Forest"
+  },
+  {
+    "name": "Baobab Tree",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [20, 35],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Savanna"
+  },
+  {
+    "name": "Acacia",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [18, 35],
+    "moistureRange": [1, 3],
+    "lightRange": [3, 4],
+    "biome": "Savanna"
+  },
+  {
+    "name": "Elephant Grass",
+    "fruit": false,
+    "type": "Grass",
+    "temperatureRange": [20, 35],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Savanna"
+  },
+  {
+    "name": "Date Palm",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [25, 45],
+    "moistureRange": [1, 2],
+    "lightRange": [3, 4],
+    "biome": "Desert"
+  },
+  {
+    "name": "Saguaro Cactus",
+    "fruit": false,
+    "type": "Cactus",
+    "temperatureRange": [20, 40],
+    "moistureRange": [1, 2],
+    "lightRange": [3, 4],
+    "biome": "Desert"
+  },
+  {
+    "name": "Creosote Bush",
+    "fruit": false,
+    "type": "Shrub",
+    "temperatureRange": [15, 40],
+    "moistureRange": [1, 2],
+    "lightRange": [2, 4],
+    "biome": "Desert"
+  },
+  {
+    "name": "Apple Tree",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [5, 25],
+    "moistureRange": [2, 4],
+    "lightRange": [2, 4],
+    "biome": "Temperate Forest"
+  },
+  {
+    "name": "Oak Tree",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [0, 25],
+    "moistureRange": [2, 4],
+    "lightRange": [2, 4],
+    "biome": "Temperate Forest"
+  },
+  {
+    "name": "Fern",
+    "fruit": false,
+    "type": "Fern",
+    "temperatureRange": [5, 22],
+    "moistureRange": [3, 4],
+    "lightRange": [1, 3],
+    "biome": "Temperate Forest"
+  },
+  {
+    "name": "Blue Grama Grass",
+    "fruit": false,
+    "type": "Grass",
+    "temperatureRange": [10, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Grassland"
+  },
+  {
+    "name": "Buffalo Grass",
+    "fruit": false,
+    "type": "Grass",
+    "temperatureRange": [5, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Grassland"
+  },
+  {
+    "name": "Sunflower",
+    "fruit": true,
+    "type": "Flower",
+    "temperatureRange": [10, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Grassland"
+  },
+  {
+    "name": "Olive Tree",
+    "fruit": true,
+    "type": "Tree",
+    "temperatureRange": [10, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Mediterranean"
+  },
+  {
+    "name": "Cork Oak",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [5, 30],
+    "moistureRange": [2, 3],
+    "lightRange": [3, 4],
+    "biome": "Mediterranean"
+  },
+  {
+    "name": "Lavender",
+    "fruit": false,
+    "type": "Shrub",
+    "temperatureRange": [5, 30],
+    "moistureRange": [1, 3],
+    "lightRange": [3, 4],
+    "biome": "Mediterranean"
+  },
+  {
+    "name": "Spruce",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [-10, 15],
+    "moistureRange": [2, 3],
+    "lightRange": [1, 3],
+    "biome": "Taiga (Boreal Forest)"
+  },
+  {
+    "name": "Bilberry",
+    "fruit": true,
+    "type": "Shrub",
+    "temperatureRange": [-5, 15],
+    "moistureRange": [2, 3],
+    "lightRange": [1, 3],
+    "biome": "Taiga (Boreal Forest)"
+  },
+  {
+    "name": "Lichen",
+    "fruit": false,
+    "type": "Lichen",
+    "temperatureRange": [-15, 10],
+    "moistureRange": [1, 3],
+    "lightRange": [1, 2],
+    "biome": "Taiga (Boreal Forest)"
+  },
+  {
+    "name": "Edelweiss",
+    "fruit": false,
+    "type": "Flower",
+    "temperatureRange": [-5, 15],
+    "moistureRange": [2, 3],
+    "lightRange": [2, 4],
+    "biome": "Alpine"
+  },
+  {
+    "name": "Dwarf Willow",
+    "fruit": false,
+    "type": "Tree",
+    "temperatureRange": [-10, 10],
+    "moistureRange": [2, 3],
+    "lightRange": [2, 4],
+    "biome": "Alpine"
+  },
+  {
+    "name": "Alpine Sorrel",
+    "fruit": true,
+    "type": "Herb",
+    "temperatureRange": [-5, 15],
+    "moistureRange": [2, 3],
+    "lightRange": [2, 4],
+    "biome": "Alpine"
+  }
+]
