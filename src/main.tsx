@@ -13,11 +13,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 // Example plant
-const examplePlant = {
-  name: "Cactus",
-  temperatureRange: [20, 40],
-  moistureRange: [1, 2],
-  lightRange: [3, 4],
-} as const;
+// const examplePlant = {
+//   name: "Cactus",
+//   temperatureRange: [20, 40],
+//   moistureRange: [1, 2],
+//   lightRange: [3, 4],
+// } as const;
 
-console.log(classifyPlantBiome(examplePlant, biomes));
+// console.log(classifyPlantBiome(examplePlant, biomes));

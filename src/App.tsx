@@ -6,6 +6,7 @@ import { generateTileMap } from "./tileMap/generateTileMap.ts";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
 import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
 import { biomes } from "./tileMap/biomes.ts";
+import CurvedTopRectangle from "./CurvedTopRectangle.tsx";
 
 const texture = await Assets.load<Texture>(atlasUrl);
 const tileSpritesheet = new Spritesheet(texture, {
@@ -34,12 +35,13 @@ function App() {
   });
   return (
     <>
+      <CurvedTopRectangle />
       {/* <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} /> */}
-      <TileMapTool
+      {/* <TileMapTool
         biomes={biomes}
         tileMap={tileMap}
         tileSpritesheet={tileSpritesheet}
-      />
+      /> */}
     </>
   );
 }

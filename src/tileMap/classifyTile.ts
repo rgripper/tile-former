@@ -58,12 +58,6 @@ export function classifyTile(
     };
   });
 
-  console.log(
-    adjustedConfidences
-      .map((x) => x.confidence)
-      .sort()
-      .reverse()
-  );
   return adjustedConfidences
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, topN);
