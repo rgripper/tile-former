@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { generateCurvedTopShape } from "./generateCurvedTopShape";
-import { randerBranch } from "./randerBranch";
+import { renderBranch } from "./randerBranch";
 
 const CurvedTopRectangle = () => {
   // Canvas ref
@@ -35,7 +35,7 @@ const CurvedTopRectangle = () => {
       random: Math.random,
       ...baseParameter,
     });
-    randerBranch({ ctx, branch: trunk });
+    renderBranch({ ctx, branch: trunk });
 
     for (const branchBottom of trunk.topPointPairs) {
       const branch = generateCurvedTopShape({
@@ -45,7 +45,17 @@ const CurvedTopRectangle = () => {
         random: Math.random,
         ...baseParameter,
       });
-      randerBranch({ ctx, branch });
+      renderBranch({ ctx, branch });
+      for (const branchBottom of branch.topPointPairs) {
+        const branch = generateCurvedTopShape({
+          leftPoint: branchBottom.start,
+          rightPoint: branchBottom.end,
+          height,
+          random: Math.random,
+          ...baseParameter,
+        });
+        renderBranch({ ctx, branch });
+      }
     }
 
     setTopSegmentsCount(trunk.topPointPairs.length);

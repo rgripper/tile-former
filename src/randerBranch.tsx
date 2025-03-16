@@ -1,6 +1,6 @@
 import { Branch } from "./generateCurvedTopShape";
 
-export function randerBranch({
+export function renderBranch({
   ctx,
   branch: { shapePoints, topPointPairs },
 }: {
