@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { generateLSystem, TreeTemplates } from "./l-system-generator";
 import { parseLSystem } from "./l-system-parser";
-import LSystemRenderer from "./threejs-lsystem-renderer";
+import LSystemRenderer from "./threejs-lsystem-renderer.tsx";
 
 const TreeRenderer: React.FC = () => {
   // State for the L-System parameters

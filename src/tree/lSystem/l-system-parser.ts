@@ -14,6 +14,7 @@ export type Position = {
 export type Segment = {
   start: Position;
   end: Position;
+  angleRad: number;
   width: number;
 };
 
@@ -91,6 +92,7 @@ export const parseLSystem = (
         const segment: Segment = {
           start: { ...currentPosition },
           end: { ...newPosition },
+          angleRad: radians,
           width: currentWidth,
         };
 
@@ -147,30 +149,6 @@ export const parseLSystem = (
   }
 
   return { root: rootBranch };
-};
-
-/**
- * Helper function to flatten tree into segments for easy rendering
- *
- * @param tree - The tree to flatten
- * @returns Array of all segments in the tree
- */
-export const flattenTree = (tree: Tree): Segment[] => {
-  const segments: Segment[] = [];
-
-  const traverseBranch = (branch: Branch) => {
-    // Add all segments from this branch
-    segments.push(...branch.segments);
-
-    // Recursively process children
-    for (const child of branch.children) {
-      traverseBranch(child);
-    }
-  };
-
-  traverseBranch(tree.root);
-
-  return segments;
 };
 
 /**

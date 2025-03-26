@@ -5,7 +5,6 @@ import {
   type Segment,
   calculateTreeBounds,
 } from "./l-system-parser";
-import { BranchShapeNode, buildShapeTree } from "./generateCurvedTopShape";
 
 // Props for the LSystemRenderer component
 interface LSystemRendererProps {
@@ -48,7 +47,7 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
 
     // Flatten the tree into segments
     const segments = flattenTreeForRendering(tree);
-    const shapeTree = buildShapeTree(tree, 20);
+
     // Calculate bounds to center and scale the tree
     const bounds = calculateTreeBounds(segments);
     const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -75,7 +74,16 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
     camera.position.z = 100;
 
     // Render the tree using lines
-    renderShapeTree(scene, shapeTree, centerX, centerY, scale, branchColor);
+    renderTreeLines(
+      scene,
+      segments,
+      centerX,
+      centerY,
+      scale,
+      branchColor,
+      leafColor,
+      showLeaves
+    );
 
     // Render once
     renderer.render(scene, camera);
@@ -101,35 +109,77 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
 /**
  * Renders the L-System tree using line segments for a simpler 2D appearance
  */
-const renderShapeTree = (
+const renderTreeLines = (
   scene: THREE.Scene,
-  tree: BranchShapeNode,
+  segments: Segment[],
   centerX: number,
   centerY: number,
   scale: number,
-  branchColor: string
+  branchColor: string,
+  leafColor: string,
+  showLeaves: boolean
 ) => {
-  const material = new THREE.LineBasicMaterial({ color: branchColor });
+  // Create materials
+  const branchMaterial = new THREE.LineBasicMaterial({
+    color: branchColor,
+    linewidth: 1,
+  });
 
-  const drawBranch = (node: BranchShapeNode) => {
-    const points = node.shapePoints;
-    const scaledPoints = points.map(
-      (point) =>
-        new THREE.Vector3(
-          point.x * scale - centerX,
-          point.y * scale - centerY,
-          0
-        )
-    );
+  // Group to hold all lines
+  const treeGroup = new THREE.Group();
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(scaledPoints);
-    const line = new THREE.Line(geometry, material);
-    scene.add(line);
+  // Create geometry for branches
+  const branchGeometry = new THREE.BufferGeometry();
 
-    node.children.forEach(drawBranch);
-  };
+  // Collect points for branches
+  const branchPoints: THREE.Vector3[] = [];
 
-  drawBranch(tree);
+  // Set to keep track of leaf positions (end points of terminal branches)
+  const leafPositions: THREE.Vector3[] = [];
+  const terminatingSegments = findTerminatingSegments(segments);
+
+  // Process each segment
+  segments.forEach((segment) => {
+    const startX = (segment.start.x - centerX) * scale;
+    const startY = (segment.start.y - centerY) * scale;
+    const endX = (segment.end.x - centerX) * scale;
+    const endY = (segment.end.y - centerY) * scale;
+
+    // Add points for this segment
+    branchPoints.push(new THREE.Vector3(startX, startY, 0));
+    branchPoints.push(new THREE.Vector3(endX, endY, 0));
+
+    // If this is a terminating segment, add its end position as a leaf position
+    if (terminatingSegments.has(segment) && showLeaves) {
+      leafPositions.push(new THREE.Vector3(endX, endY, 0));
+    }
+  });
+
+  // Set positions for branch lines
+  branchGeometry.setFromPoints(branchPoints);
+
+  // Create branch line segments
+  const branchLines = new THREE.LineSegments(branchGeometry, branchMaterial);
+  treeGroup.add(branchLines);
+
+  // Add leaves at terminal points if enabled
+  if (showLeaves) {
+    const leafMaterial = new THREE.PointsMaterial({
+      color: leafColor,
+      size: 3,
+      sizeAttenuation: false,
+    });
+
+    const leafGeometry = new THREE.BufferGeometry();
+    const leafPoints = Array.from(leafPositions);
+    leafGeometry.setFromPoints(leafPoints);
+
+    const leaves = new THREE.Points(leafGeometry, leafMaterial);
+    treeGroup.add(leaves);
+  }
+
+  // Add the tree group to the scene
+  scene.add(treeGroup);
 };
 
 /**
