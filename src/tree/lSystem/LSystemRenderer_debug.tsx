@@ -20,7 +20,7 @@ interface LSystemRendererProps {
 /**
  * React component that renders an L-System tree using Three.js in 2D
  */
-const LSystemRenderer: React.FC<LSystemRendererProps> = ({
+const LSystemRenderer_debug: React.FC<LSystemRendererProps> = ({
   tree,
   width = 800,
   height = 600,
@@ -46,6 +46,7 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
     containerRef.current.appendChild(renderer.domElement);
 
     // Flatten the tree into segments
+    console.log("real tree", tree);
     const segments = flattenTreeForRendering(tree);
 
     // Calculate bounds to center and scale the tree
@@ -226,4 +227,4 @@ const flattenTreeForRendering = (tree: Tree): Segment[] => {
   return segments;
 };
 
-export default LSystemRenderer;
+export default LSystemRenderer_debug;

@@ -11,16 +11,12 @@ function generateCurvedTopShape({
   height,
   numberOfChildren,
   curvature,
-  maxChildRadiusDeviation,
-  random,
 }: {
   leftPoint: Point;
   rightPoint: Point;
   height: number;
   numberOfChildren: number;
   curvature: number;
-  maxChildRadiusDeviation: number;
-  random: () => number;
 }) {
   // Array to hold all shape points
   const shapePoints = [];
@@ -79,13 +75,8 @@ function generateCurvedTopShape({
       // Calculate a base ratio (evenly distributed)
       const baseStep = 1 / (pointsCount + 1);
 
-      // Add randomness within the specified percentage
-      const randomOffset =
-        baseStep * maxChildRadiusDeviation * (random() * 2 - 1);
-      const actualStep = baseStep + randomOffset;
-
       // Make sure we don't go backwards or beyond 1
-      currentRatio += Math.max(0.01, actualStep); // Ensure at least some forward movement
+      currentRatio += Math.max(0.01, baseStep); // Ensure at least some forward movement
       currentRatio = Math.min(currentRatio, 0.999); // Don't exceed 1
 
       ratios.push(currentRatio);
@@ -170,7 +161,21 @@ export type BranchShape = {
 };
 
 export function buildShapeTree(tree: Tree, width: number) {
-  return buildTreeShapesAndDescendants(buildBranchWithLevels(tree.root), width);
+  const leftPoint = {
+    x: tree.root.segments[0].start.x - width / 2,
+    y: tree.root.segments[0].start.y,
+  };
+
+  const rightPoint = {
+    x: tree.root.segments[0].start.x + width / 2,
+    y: tree.root.segments[0].start.y,
+  };
+  return buildTreeShapesAndDescendants(
+    buildBranchWithLevels(tree.root),
+    width,
+    leftPoint,
+    rightPoint
+  );
 }
 
 type BranchWithLevels = {
@@ -201,14 +206,16 @@ export type BranchShapeNode = BranchShape & {
 
 function buildTreeShapesAndDescendants(
   branch: BranchWithLevels,
-  width: number
+  width: number,
+  startPoint: Point,
+  endPoint: Point
 ): BranchShapeNode {
   const descendantTotalPoints = branch.children
     .map((child) => child.descendantLevelCount)
     .reduce((a, b) => a + b, 0);
   if (descendantTotalPoints === 0) {
     return {
-      ...buildBranchShape(branch, width),
+      ...buildBranchShape(branch, width, startPoint, endPoint),
       children: [],
     };
   }
@@ -218,29 +225,39 @@ function buildTreeShapesAndDescendants(
   // thickness of a branch is proportional to the number of levels of descendants
   const fragmentWidth = Math.sqrt(widthSquared / descendantTotalPoints);
 
+  const shape = buildBranchShape(branch, width, startPoint, endPoint);
   return {
-    ...buildBranchShape(branch, width),
-    children: branch.children.map((branch) =>
-      buildTreeShapesAndDescendants(branch, fragmentWidth)
-    ),
+    ...shape,
+    children: branch.children
+      .filter((branch) => branch.segments.length > 0)
+      .map((branch, i) =>
+        buildTreeShapesAndDescendants(
+          branch,
+          fragmentWidth,
+          shape.topPointPairs[i].start,
+          shape.topPointPairs[i].end
+        )
+      ),
   };
 }
 
 function buildBranchShape(
   branch: BranchWithLevels,
-  width: number
+  width: number,
+  startPoint: Point,
+  endPoint: Point
 ): BranchShape {
   const segment = branch.segments[0]!;
 
-  const leftPoint = {
-    x: segment.start.x - width / 2,
-    y: segment.start.y,
-  };
+  // const leftPoint = {
+  //   x: segment.start.x - width / 2,
+  //   y: segment.start.y,
+  // };
 
-  const rightPoint = {
-    x: segment.start.x + width / 2,
-    y: segment.start.y,
-  };
+  // const rightPoint = {
+  //   x: segment.start.x + width / 2,
+  //   y: segment.start.y,
+  // };
 
   const height = Math.sqrt(
     Math.pow(segment.end.x - segment.start.x, 2) +
@@ -248,12 +265,11 @@ function buildBranchShape(
   );
 
   return generateCurvedTopShape({
-    leftPoint,
-    rightPoint,
+    leftPoint: startPoint,
+    rightPoint: endPoint,
     height,
-    numberOfChildren: 3,
+    numberOfChildren: branch.children.filter((x) => x.segments.length > 0)
+      .length,
     curvature: 1,
-    maxChildRadiusDeviation: 0.2,
-    random: Math.random,
   });
 }

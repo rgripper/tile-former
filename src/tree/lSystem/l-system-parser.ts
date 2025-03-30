@@ -148,6 +148,8 @@ export const parseLSystem = (
     }
   }
 
+  cleanupEmptyBranches(rootBranch);
+
   return { root: rootBranch };
 };
 
@@ -212,4 +214,17 @@ export const stringifyTree = (tree: Tree): string => {
 
   stringifyBranch(tree.root);
   return result;
+};
+
+const cleanupEmptyBranches = (branch: Branch): boolean => {
+  // Filter out empty children
+  branch.children = branch.children.filter((child) => {
+    // Recursively clean up child branches
+    const keepChild = cleanupEmptyBranches(child);
+    // Keep this child if it has segments or has children with segments
+    return keepChild || child.segments.length > 0;
+  });
+
+  // Return true if this branch or any of its children have segments
+  return branch.children.length > 0 || branch.segments.length > 0;
 };

@@ -113,7 +113,12 @@ const renderShapeTree = (
 
   const drawBranch = (node: BranchShapeNode) => {
     const points = node.shapePoints;
-    const scaledPoints = points.map(
+    console.log(points);
+
+    // Close the shape by adding the first point to the end
+    const closedPoints = [...points, points[0]];
+
+    const scaledPoints = closedPoints.map(
       (point) =>
         new THREE.Vector3(
           point.x * scale - centerX,

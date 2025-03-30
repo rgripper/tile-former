@@ -2,11 +2,15 @@ import React, { useState, useEffect } from "react";
 import { generateLSystem, TreeTemplates } from "./l-system-generator";
 import { parseLSystem } from "./l-system-parser";
 import LSystemRenderer from "./threejs-lsystem-renderer.tsx";
+import LSystemRenderer_debug from "./LSystemRenderer_debug.tsx";
+import Rand from "rand-seed";
+
+const rand = new Rand("random");
 
 const TreeRenderer: React.FC = () => {
   // State for the L-System parameters
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("pine");
-  const [iterations, setIterations] = useState<number>(3);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("oak");
+  const [iterations, setIterations] = useState<number>(2);
   const [angleParameter, setAngleParameter] = useState<number>(25);
   const [segmentLength, setSegmentLength] = useState<number>(10);
   const [lSystemString, setLSystemString] = useState<string>("");
@@ -39,9 +43,11 @@ const TreeRenderer: React.FC = () => {
     );
 
     // Generate the L-System string
-    const generatedString = generateLSystem(template, iterations);
+    const generatedString = generateLSystem(template, iterations, () =>
+      rand.next()
+    );
     setLSystemString(generatedString);
-    console.log(generatedString);
+
     // Parse the L-System into a tree structure
     const parsedTree = parseLSystem(generatedString, {
       initialPosition: { x: 0, y: 0 },
@@ -50,7 +56,7 @@ const TreeRenderer: React.FC = () => {
       angleDelta: angleParameter,
       widthFactor: 0.8,
     });
-
+    console.log("tree", generatedString, parsedTree);
     // Add timestamp to ensure React detects the change
     setTree({ ...parsedTree, _timestamp: timestamp });
   }, [selectedTemplate, iterations, angleParameter, segmentLength]);
@@ -142,32 +148,25 @@ const TreeRenderer: React.FC = () => {
       >
         {tree && (
           <>
-            <h2>2D Tree Visualization</h2>
-            <LSystemRenderer
-              tree={tree}
-              width={800}
-              height={600}
-              backgroundColor="#e6f7ff"
-              branchColor="#8B4513"
-            />
-
-            <div style={{ marginTop: "20px", width: "100%" }}>
-              <h3>L-System String (First 100 characters)</h3>
-              <pre
-                style={{
-                  backgroundColor: "#f5f5f5",
-                  padding: "10px",
-                  borderRadius: "5px",
-                  overflow: "auto",
-                  maxHeight: "100px",
-                }}
-              >
-                {lSystemString.length > 100
-                  ? `${lSystemString.substring(0, 100)}... (total length: ${
-                      lSystemString.length
-                    })`
-                  : lSystemString}
-              </pre>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <LSystemRenderer_debug
+                  tree={tree}
+                  width={400}
+                  height={600}
+                  backgroundColor="#e6f7ff"
+                  branchColor="#8B4513"
+                />
+              </div>
+              <div>
+                <LSystemRenderer
+                  tree={tree}
+                  width={400}
+                  height={600}
+                  backgroundColor="#e6f7ff"
+                  branchColor="#8B4513"
+                />
+              </div>
             </div>
           </>
         )}
