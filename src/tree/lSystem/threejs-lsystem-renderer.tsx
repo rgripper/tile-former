@@ -5,7 +5,8 @@ import {
   type Segment,
   calculateTreeBounds,
 } from "./l-system-parser";
-import { BranchShapeNode, buildShapeTree } from "./generateCurvedTopShape";
+import { buildShapeTree } from "./buildTree";
+import { NodeWithInlet } from "./buildNodeWithInlet";
 
 // Props for the LSystemRenderer component
 interface LSystemRendererProps {
@@ -48,7 +49,8 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
 
     // Flatten the tree into segments
     const segments = flattenTreeForRendering(tree);
-    const shapeTree = buildShapeTree(tree, 20);
+    const abstractTree = buildShapeTree(tree.root, 40);
+
     // Calculate bounds to center and scale the tree
     const bounds = calculateTreeBounds(segments);
     const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -75,7 +77,7 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
     camera.position.z = 100;
 
     // Render the tree using lines
-    renderShapeTree(scene, shapeTree, centerX, centerY, scale, branchColor);
+    renderShapeTree(scene, abstractTree, centerX, centerY, scale, branchColor);
 
     // Render once
     renderer.render(scene, camera);
@@ -103,7 +105,7 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
  */
 const renderShapeTree = (
   scene: THREE.Scene,
-  tree: BranchShapeNode,
+  tree: NodeWithInlet,
   centerX: number,
   centerY: number,
   scale: number,
@@ -111,8 +113,8 @@ const renderShapeTree = (
 ) => {
   const material = new THREE.LineBasicMaterial({ color: branchColor });
 
-  const drawBranch = (node: BranchShapeNode) => {
-    const points = node.shapePoints;
+  const drawBranch = (node: NodeWithInlet) => {
+    const points = node.inlet;
     console.log(points);
 
     // Close the shape by adding the first point to the end
@@ -171,9 +173,9 @@ const findTerminatingSegments = (segments: Segment[]): Set<Segment> => {
 const flattenTreeForRendering = (tree: Tree): Segment[] => {
   const segments: Segment[] = [];
 
-  const traverseBranch = (branch: { segments: Segment[]; children: any[] }) => {
+  const traverseBranch = (branch: { segments: Segment[] }) => {
     segments.push(...branch.segments);
-    branch.children.forEach(traverseBranch);
+    branch.segments.flatMap((x) => x.branches).forEach(traverseBranch);
   };
 
   traverseBranch(tree.root);

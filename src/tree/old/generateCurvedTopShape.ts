@@ -1,4 +1,9 @@
-import { Branch, Segment, Tree } from "./l-system-parser";
+import {
+  buildSegmentNode,
+  PositionedSegment,
+  TreeNode,
+} from "./buildSegmentNode";
+import { Branch, Segment, Tree } from "../lSystem/l-system-parser";
 
 export type Point = {
   x: number;
@@ -170,84 +175,104 @@ export function buildShapeTree(tree: Tree, width: number) {
     x: tree.root.segments[0].start.x + width / 2,
     y: tree.root.segments[0].start.y,
   };
-  return buildTreeShapesAndDescendants(
-    buildBranchWithLevels(tree.root),
-    width,
-    leftPoint,
-    rightPoint
-  );
+  const { branch, maxLevel } = buildBranchWithLevels(tree.root, 0);
+  return buildSegmentNode(branch, width, leftPoint, rightPoint, maxLevel);
 }
 
-type BranchWithLevels = {
-  descendantLevelCount: number;
-  segments: Segment[];
-  children: BranchWithLevels[];
+export type AugmentedSegment = Omit<Segment, "branches"> & {
+  level: number;
+  branches: BranchWithAugmentedSegments[];
+};
+type BranchWithAugmentedSegments = {
+  segments: AugmentedSegment[];
 };
 
-function buildBranchWithLevels(branch: Branch): BranchWithLevels {
-  const childrenWithLevels = branch.children.map(buildBranchWithLevels);
+function convertBranchToSegmentTree(
+  segment: Segment
+): TreeNode<Segment | Branch>[] {
+  return [
+    createNodeFromSegment(segment),
+    ...segment.branches.map((branch) => createNodeFromBranch(branch)),
+  ];
+}
 
-  const descendantLevelCount = childrenWithLevels.length
-    ? Math.max(
-        ...childrenWithLevels.map((child) => child.descendantLevelCount)
-      ) + 1
-    : 0;
-
+function createNodeFromBranch(branch: Branch): TreeNode<Branch> {
   return {
     ...branch,
-    descendantLevelCount,
-    children: childrenWithLevels,
+    children: branch.segments.map((segment) => createNodeFromSegment(segment)),
   };
 }
 
-export type BranchShapeNode = BranchShape & {
-  children: BranchShapeNode[];
-};
-
-function buildTreeShapesAndDescendants(
-  branch: BranchWithLevels,
-  width: number,
-  startPoint: Point,
-  endPoint: Point
-): BranchShapeNode {
-  const descendantTotalPoints = branch.children
-    .map((child) => child.descendantLevelCount)
-    .reduce((a, b) => a + b, 0);
-  if (descendantTotalPoints === 0) {
-    return {
-      ...buildBranchShape(branch, width, startPoint, endPoint),
+function convertManyToSegmentTree(
+  segment: Segment | null,
+  branches: Branch[]
+): TreeNode<Segment>[] {
+  const nodes: TreeNode<Segment>[] = [];
+  if (segment) {
+    const rootNode = {
+      ...segment,
       children: [],
     };
+    nodes.push(rootNode);
   }
 
-  const widthSquared = Math.pow(width, 2);
+  for (const branch of branches) {
+    const childNode = convertBranchToSegmentTree(branch);
+    if (childNode) {
+      rootNode.children.push(childNode);
+    }
+  }
+}
 
-  // thickness of a branch is proportional to the number of levels of descendants
-  const fragmentWidth = Math.sqrt(widthSquared / descendantTotalPoints);
+function buildPositionedSegmentTree(
+  segment: Segment,
+  branches: Branch[],
+  level: number
+): { segments: PositionedSegment[]; maxLevel: number } {
+  const positionedSegment: PositionedSegment = {
+    ...segment,
+    isPrimary: true,
+    level,
+  };
 
-  const shape = buildBranchShape(branch, width, startPoint, endPoint);
-  return {
-    ...shape,
-    children: branch.children
-      .filter((branch) => branch.segments.length > 0)
-      .map((branch, i) =>
-        buildTreeShapesAndDescendants(
-          branch,
-          fragmentWidth,
-          shape.topPointPairs[i].start,
-          shape.topPointPairs[i].end
-        )
+  const augmentedSegments = segment.branch.segments.map((segment, i) => {
+    const childrenWithLevels = segment.branches.map((child) =>
+      buildPositionedSegmentTree(child, level + i)
+    );
+    return {
+      ...segment,
+      level: level + i,
+      branches: childrenWithLevels.map((x) => x.branch),
+      maxLevel: Math.max(
+        ...childrenWithLevels.map((x) => x.maxLevel),
+        level + i
       ),
+    };
+  });
+
+  const maxLevel = Math.max(...augmentedSegments.map((x) => x.maxLevel), 0);
+
+  const branchWithLevels: BranchWithAugmentedSegments = {
+    ...branch,
+    segments: augmentedSegments,
+  };
+  return {
+    branch: branchWithLevels,
+    maxLevel,
   };
 }
 
-function buildBranchShape(
-  branch: BranchWithLevels,
+export type SegmentShapeNode = BranchShape & {
+  children: SegmentShapeNode[];
+};
+
+function buildSegmentShape(
+  segment: AugmentedSegment,
   width: number,
   startPoint: Point,
   endPoint: Point
 ): BranchShape {
-  const segment = branch.segments[0]!;
+  //const segment = branch.segments[0]!;
 
   // const leftPoint = {
   //   x: segment.start.x - width / 2,
@@ -268,7 +293,7 @@ function buildBranchShape(
     leftPoint: startPoint,
     rightPoint: endPoint,
     height,
-    numberOfChildren: branch.children.filter((x) => x.segments.length > 0)
+    numberOfChildren: segment.branches.filter((x) => x.segments.length > 0)
       .length,
     curvature: 1,
   });

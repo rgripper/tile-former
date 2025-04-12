@@ -16,11 +16,11 @@ export type Segment = {
   end: Position;
   angleRad: number;
   width: number;
+  branches: Branch[];
 };
 
 export type Branch = {
   segments: Segment[];
-  children: Branch[];
 };
 
 export type Tree = {
@@ -66,7 +66,7 @@ export const parseLSystem = (
   const widths: number[] = [1]; // Start with width of 1
 
   // Root branch
-  const rootBranch: Branch = { segments: [], children: [] };
+  const rootBranch: Branch = { segments: [] };
 
   // Current branch being built
   let currentBranch: Branch = rootBranch;
@@ -94,6 +94,7 @@ export const parseLSystem = (
           end: { ...newPosition },
           angleRad: radians,
           width: currentWidth,
+          branches: [],
         };
 
         // Add segment to current branch
@@ -118,10 +119,15 @@ export const parseLSystem = (
         widths.push(currentWidth * opts.widthFactor); // Reduce width for new branch
 
         // Create new branch
-        const newBranch: Branch = { segments: [], children: [] };
+        const newBranch: Branch = { segments: [] };
 
         // Add new branch as child of current branch
-        currentBranch.children.push(newBranch);
+
+        const lastSegment = currentBranch.segments.at(-1);
+        if (!lastSegment) {
+          throw new Error("No segment found to attach the new branch.");
+        }
+        lastSegment.branches.push(newBranch);
 
         // Save current branch on stack
         branchStack.push(currentBranch);
@@ -206,10 +212,12 @@ export const stringifyTree = (tree: Tree): string => {
     const padding = " ".repeat(indent * 2);
     result += `${padding}Branch with ${branch.segments.length} segments\n`;
 
-    branch.children.forEach((child, index) => {
-      result += `${padding}Child ${index + 1}:\n`;
-      stringifyBranch(child, indent + 1);
-    });
+    branch.segments
+      .flatMap((x) => x.branches)
+      .forEach((child, index) => {
+        result += `${padding}Child ${index + 1}:\n`;
+        stringifyBranch(child, indent + 1);
+      });
   };
 
   stringifyBranch(tree.root);
@@ -217,14 +225,16 @@ export const stringifyTree = (tree: Tree): string => {
 };
 
 const cleanupEmptyBranches = (branch: Branch): boolean => {
-  // Filter out empty children
-  branch.children = branch.children.filter((child) => {
-    // Recursively clean up child branches
-    const keepChild = cleanupEmptyBranches(child);
-    // Keep this child if it has segments or has children with segments
-    return keepChild || child.segments.length > 0;
-  });
+  // // Filter out empty children
+  // branch.children = branch.children.filter((child) => {
+  //   // Recursively clean up child branches
+  //   const keepChild = cleanupEmptyBranches(child);
+  //   // Keep this child if it has segments or has children with segments
+  //   return keepChild || child.segments.length > 0;
+  // });
 
-  // Return true if this branch or any of its children have segments
-  return branch.children.length > 0 || branch.segments.length > 0;
+  // // Return true if this branch or any of its children have segments
+  // return branch.children.length > 0 || branch.segments.length > 0;
+
+  return true;
 };

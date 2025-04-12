@@ -217,9 +217,9 @@ const findTerminatingSegments = (segments: Segment[]): Set<Segment> => {
 const flattenTreeForRendering = (tree: Tree): Segment[] => {
   const segments: Segment[] = [];
 
-  const traverseBranch = (branch: { segments: Segment[]; children: any[] }) => {
+  const traverseBranch = (branch: { segments: Segment[] }) => {
     segments.push(...branch.segments);
-    branch.children.forEach(traverseBranch);
+    branch.segments.flatMap((x) => x.branches).forEach(traverseBranch);
   };
 
   traverseBranch(tree.root);
