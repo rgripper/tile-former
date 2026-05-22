@@ -14,7 +14,7 @@ export const biomes: Biome[] = [
     temperatureRange: [20, 35],
     moistureRange: [0.65, 1],
     lightRange: [0.5, 1],      // high insolation, near-equatorial
-    altitudeRange: [0, 0.3],   // lowland basins
+    altitudeRange: [0, 0.35],  // lowland basins
     seasonalityRange: [0, 0.25], // near-constant climate year-round
     textureColor: "#228B22",
   },
@@ -35,7 +35,7 @@ export const biomes: Biome[] = [
     moistureRange: [0.1, 0.4],
     lightRange: [0.5, 1],
     altitudeRange: [0, 0.4],
-    seasonalityRange: [0.3, 0.7],
+    seasonalityRange: [0.05, 0.7],
     textureColor: "#FFD700",
   },
   {
@@ -107,6 +107,16 @@ export const biomes: Biome[] = [
     altitudeRange: [0.45, 1],
     seasonalityRange: [0.5, 1],
     textureColor: "#ADD8E6",
+  },
+  {
+    id: 11,
+    name: "Cloud Forest",
+    temperatureRange: [15, 28],
+    moistureRange: [0.5, 1],
+    lightRange: [0.4, 0.85],   // often overcast, diffuse light
+    altitudeRange: [0.3, 0.65],
+    seasonalityRange: [0.2, 0.65],
+    textureColor: "#3B7A57",
   },
 ];
 
