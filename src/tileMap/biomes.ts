@@ -130,4 +130,37 @@ export const biomes: Biome[] = [
     seasonalityRange: [0.2, 0.65],
     textureColor: "#3B7A57",
   },
+  {
+    id: 12,
+    name: "Tropical Swamp",
+    temperatureRange: [20, 35],
+    precipitationRange: [0.6, 1],  // flooded year-round
+    drainageRange: [0, 0.2],       // standing water, impermeable substrate
+    lightRange: [0.3, 0.85],
+    altitudeRange: [0, 0.2],       // lowland basins and floodplains
+    seasonalityRange: [0, 0.45],
+    textureColor: "#2E6B3E",
+  },
+  {
+    id: 13,
+    name: "Temperate Wetland",
+    temperatureRange: [-5, 20],
+    precipitationRange: [0.35, 1.0],
+    drainageRange: [0, 0.25],      // floodplains, marshes, fens
+    lightRange: [0.3, 0.8],
+    altitudeRange: [0, 0.35],
+    seasonalityRange: [0.2, 0.75],
+    textureColor: "#4F7942",
+  },
+  {
+    id: 14,
+    name: "Boreal Bog",
+    temperatureRange: [-15, 5],
+    precipitationRange: [0.2, 0.8],
+    drainageRange: [0, 0.15],      // peat/permafrost, water trapped permanently
+    lightRange: [0.1, 0.55],
+    altitudeRange: [0, 0.3],
+    seasonalityRange: [0.5, 1],
+    textureColor: "#5C7A4E",
+  },
 ];

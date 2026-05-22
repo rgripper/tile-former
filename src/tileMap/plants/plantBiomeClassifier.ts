@@ -12,48 +12,9 @@ type Plant = {
   lightRange: readonly [number, number];
 };
 
-const biomes: Biome[] = [
-  {
-    name: "Tropical Rainforest",
-    temperatureRange: [22, 30],
-    moistureRange: [3, 4],
-    lightRange: [3, 4],
-  },
-  {
-    name: "Savanna",
-    temperatureRange: [20, 35],
-    moistureRange: [2, 3],
-    lightRange: [3, 4],
-  },
-  {
-    name: "Desert",
-    temperatureRange: [25, 45],
-    moistureRange: [1, 2],
-    lightRange: [3, 4],
-  },
-  {
-    name: "Temperate Forest",
-    temperatureRange: [5, 25],
-    moistureRange: [2, 4],
-    lightRange: [2, 4],
-  },
-  {
-    name: "Tundra",
-    temperatureRange: [-10, 10],
-    moistureRange: [2, 3],
-    lightRange: [1, 3],
-  },
-  {
-    name: "Taiga (Boreal Forest)",
-    temperatureRange: [-10, 15],
-    moistureRange: [2, 3],
-    lightRange: [1, 3],
-  },
-];
-
 export function classifyPlantBiome(
   plant: Plant,
-  biomes: Biome[]
+  biomes: Biome[],
 ): { biome: string; confidence: number }[] {
   let scores: { biome: string; confidence: number }[] = [];
 
@@ -64,7 +25,7 @@ export function classifyPlantBiome(
     const tempOverlap = Math.max(
       0,
       Math.min(plant.temperatureRange[1], biome.temperatureRange[1]) -
-        Math.max(plant.temperatureRange[0], biome.temperatureRange[0])
+        Math.max(plant.temperatureRange[0], biome.temperatureRange[0]),
     );
     score += tempOverlap;
 
@@ -72,7 +33,7 @@ export function classifyPlantBiome(
     const moistureOverlap = Math.max(
       0,
       Math.min(plant.moistureRange[1], biome.moistureRange[1]) -
-        Math.max(plant.moistureRange[0], biome.moistureRange[0])
+        Math.max(plant.moistureRange[0], biome.moistureRange[0]),
     );
     score += moistureOverlap * 2; // Moisture is weighted higher for biome classification
 
@@ -80,7 +41,7 @@ export function classifyPlantBiome(
     const lightOverlap = Math.max(
       0,
       Math.min(plant.lightRange[1], biome.lightRange[1]) -
-        Math.max(plant.lightRange[0], biome.lightRange[0])
+        Math.max(plant.lightRange[0], biome.lightRange[0]),
     );
     score += lightOverlap;
 
