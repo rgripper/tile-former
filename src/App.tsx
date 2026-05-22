@@ -2,7 +2,6 @@ import { useState } from "react";
 import { TileMapTool } from "./TileMapTool.tsx";
 import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
-import { generateTileMap } from "./tileMap/generateTileMap.ts";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
 import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
 import { biomes } from "./tileMap/biomes.ts";
@@ -24,10 +23,6 @@ const tileSpritesheet = new Spritesheet(texture, {
 await tileSpritesheet.parse();
 
 function App() {
-  const [tileMap] = useState(() => {
-    const map = generateTileMap();
-    return map;
-  });
   const [dateTime, setDateTime] = useState<AnnualDateTime>({
     dayOfYear: 0,
     dayPart: 0,
@@ -39,7 +34,6 @@ function App() {
       {/* <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} /> */}
       <TileMapTool
         biomes={biomes}
-        tileMap={tileMap}
         tileSpritesheet={tileSpritesheet}
       />
     </>

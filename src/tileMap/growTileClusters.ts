@@ -42,9 +42,10 @@ export function resolveTiles(
   const width = tileMap.length;
   const height = tileMap[0].length;
   const queue: Point[] = [...startingPoints];
+  let head = 0;
 
-  while (queue.length > 0) {
-    const point = queue.shift()!;
+  while (head < queue.length) {
+    const point = queue[head++];
     const tile = tileMap[point.x][point.y];
 
     if (tile.biomeId !== undefined) continue;

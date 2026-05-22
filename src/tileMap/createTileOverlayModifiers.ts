@@ -2,32 +2,34 @@ import { NoiseFunction2D } from "simplex-noise";
 import { Point } from "./generateTileMap";
 import { TileProperties } from "./TileProperties";
 
-export type OverlayNoises = [NoiseFunction2D, NoiseFunction2D, NoiseFunction2D];
-
-export type TileOverlayProperties = Pick<
-  TileProperties,
-  "moisture" | "temperature"
->;
+export type OverlayNoises = {
+  temperature: NoiseFunction2D;
+  moisture: NoiseFunction2D;
+  light: NoiseFunction2D;
+  altitude: NoiseFunction2D;
+  seasonality: NoiseFunction2D;
+};
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
-// the sum of all components should be 1
-export function createTileOverlayModifiers({
-  temperatureNoise,
-  moistureNoise,
-}: {
-  temperatureNoise: NoiseFunction2D;
-  moistureNoise: NoiseFunction2D;
-}) {
-  const modifiers = {
-    temperature: (point: Point, t: number) =>
-      t + t * temperatureNoise(point.x, point.y) * 0.01,
-    moisture: (point: Point, x: number) =>
-      clamp(x + 0.02 * moistureNoise(point.x, point.y)),
-  };
-
-  return (point: Point, baseTileProperties: TileProperties) => ({
-    temperature: modifiers.temperature(point, baseTileProperties.temperature),
-    moisture: modifiers.moisture(point, baseTileProperties.moisture),
+export function createTileOverlayModifiers(
+  noises: OverlayNoises,
+  swing: TileProperties,
+) {
+  return (point: Point, base: TileProperties): TileProperties => ({
+    temperature:
+      base.temperature +
+      swing.temperature * noises.temperature(point.x, point.y),
+    moisture: clamp(
+      base.moisture + swing.moisture * noises.moisture(point.x, point.y),
+    ),
+    light: clamp(base.light + swing.light * noises.light(point.x, point.y)),
+    altitude: clamp(
+      base.altitude + swing.altitude * noises.altitude(point.x, point.y),
+    ),
+    seasonality: clamp(
+      base.seasonality +
+        swing.seasonality * noises.seasonality(point.x, point.y),
+    ),
   });
 }

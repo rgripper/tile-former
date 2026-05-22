@@ -1,26 +1,47 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TileMapView } from "./TileMapView.tsx";
-import { Tile } from "./tileMap/tile.ts";
 import { Spritesheet } from "pixi.js";
 import { Biome } from "./tileMap/Biome.ts";
+import {
+  generateTileMap,
+  MapGenParams,
+  defaultMapGenParams,
+} from "./tileMap/generateTileMap.ts";
+import { TileProperties } from "./tileMap/TileProperties.ts";
+import { ParamsPanel } from "./ParamsPanel.tsx";
+import { TileInfo } from "./TileInfo.tsx";
 
 export function TileMapTool({
-  tileMap,
   biomes,
   tileSpritesheet,
 }: {
-  tileMap: Tile[][];
   biomes: Biome[];
   tileSpritesheet: Spritesheet;
 }) {
+  const [params, setParams] = useState<MapGenParams>(defaultMapGenParams);
+  const [genParams, setGenParams] = useState<MapGenParams>(defaultMapGenParams);
   const [hoveredTileIndex, setHoveredTileIndex] = useState<{
     x: number;
     y: number;
   }>();
 
+  useEffect(() => {
+    const timer = setTimeout(() => setGenParams(params), 250);
+    return () => clearTimeout(timer);
+  }, [params]);
+
+  const tileMap = useMemo(() => generateTileMap(genParams), [genParams]);
+
+  const setBase = (key: keyof TileProperties, value: number) =>
+    setParams((p) => ({ ...p, base: { ...p.base, [key]: value } }));
+
+  const setSwing = (key: keyof TileProperties, value: number) =>
+    setParams((p) => ({ ...p, swing: { ...p.swing, [key]: value } }));
+
   return (
     <div className="flex-1 flex flex-col">
-      <div>
+      <div className="flex flex-row gap-4 p-2">
+        <ParamsPanel params={params} onBaseChange={setBase} onSwingChange={setSwing} />
         <TileInfo
           biomes={biomes}
           tile={
@@ -35,30 +56,6 @@ export function TileMapTool({
           onTileClick={(x) => setHoveredTileIndex(x.index)}
         />
       </div>
-    </div>
-  );
-}
-
-function TileInfo({
-  tile,
-  biomes,
-}: {
-  tile: Tile | undefined;
-  biomes: Biome[];
-}) {
-  console.log(tile);
-  return (
-    <div className="h-60">
-      {tile && (
-        <>
-          ({tile.index.x},{tile.index.y}) {biomes[tile.biomeId].name}
-          {Object.entries(tile).map(([key, value]) => (
-            <div key={key}>
-              {key}: {value.toString()}
-            </div>
-          ))}
-        </>
-      )}
     </div>
   );
 }
