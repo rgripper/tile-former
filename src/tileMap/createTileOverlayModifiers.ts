@@ -4,7 +4,8 @@ import { TileProperties } from "./TileProperties";
 
 export type OverlayNoises = {
   temperature: NoiseFunction2D;
-  moisture: NoiseFunction2D;
+  precipitation: NoiseFunction2D;
+  drainage: NoiseFunction2D;
   light: NoiseFunction2D;
   altitude: NoiseFunction2D;
   seasonality: NoiseFunction2D;
@@ -20,8 +21,12 @@ export function createTileOverlayModifiers(
     temperature:
       base.temperature +
       swing.temperature * noises.temperature(point.x, point.y),
-    moisture: clamp(
-      base.moisture + swing.moisture * noises.moisture(point.x, point.y),
+    precipitation: clamp(
+      base.precipitation +
+        swing.precipitation * noises.precipitation(point.x, point.y),
+    ),
+    drainage: clamp(
+      base.drainage + swing.drainage * noises.drainage(point.x, point.y),
     ),
     light: clamp(base.light + swing.light * noises.light(point.x, point.y)),
     altitude: clamp(

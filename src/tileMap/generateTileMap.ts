@@ -18,14 +18,16 @@ export type MapGenParams = {
 export const defaultMapGenParams: MapGenParams = {
   base: {
     temperature: 20,
-    moisture: 2.5 / 4,
+    precipitation: 0.55,
+    drainage: 0.35,
     light: 2.2 / 4,
     altitude: 1 / 4,
     seasonality: 1 / 4,
   },
   swing: {
     temperature: 2,
-    moisture: 0.05,
+    precipitation: 0.1,
+    drainage: 0.08,
     light: 0,
     altitude: 0,
     seasonality: 0,
@@ -36,7 +38,8 @@ function generateBaseTileMap(params: MapGenParams) {
   const makeNoise = (seed: string) => createNoise2D(createRand(seed).next);
   const noises = {
     temperature: makeNoise("abc1"),
-    moisture: makeNoise("abc2"),
+    precipitation: makeNoise("abc2"),
+    drainage: makeNoise("abc6"),
     light: makeNoise("abc3"),
     altitude: makeNoise("abc4"),
     seasonality: makeNoise("abc5"),

@@ -24,9 +24,13 @@ export function classifyTile(
       tile.temperature,
       biome.temperatureRange,
     );
-    const moistureConfidence = calculateConfidence(
-      tile.moisture,
-      biome.moistureRange,
+    const precipitationConfidence = calculateConfidence(
+      tile.precipitation,
+      biome.precipitationRange,
+    );
+    const drainageConfidence = calculateConfidence(
+      tile.drainage,
+      biome.drainageRange,
     );
     const lightConfidence = calculateConfidence(tile.light, biome.lightRange);
     const altitudeConfidence = calculateConfidence(
@@ -40,7 +44,8 @@ export function classifyTile(
 
     const overallConfidence =
       tempConfidence *
-      moistureConfidence *
+      precipitationConfidence *
+      drainageConfidence *
       lightConfidence *
       altitudeConfidence *
       seasonalityConfidence;

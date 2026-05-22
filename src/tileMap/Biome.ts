@@ -3,7 +3,8 @@ export interface Biome {
   id: number;
   textureColor: string;
   temperatureRange: [number, number];
-  moistureRange: [number, number];
+  precipitationRange: [number, number];
+  drainageRange: [number, number];
   lightRange: [number, number];
   altitudeRange: [number, number];
   seasonalityRange: [number, number];

@@ -31,7 +31,8 @@ export class BiomeClassifier {
     const scores = this.biomes.map((biome) => {
       const confidenceScores = [
         this.calculateFitScore(tile.temperature, biome.temperatureRange),
-        this.calculateFitScore(tile.moisture, biome.moistureRange),
+        this.calculateFitScore(tile.precipitation, biome.precipitationRange),
+        this.calculateFitScore(tile.drainage, biome.drainageRange),
         this.calculateFitScore(tile.light, biome.lightRange),
         this.calculateFitScore(tile.altitude, biome.altitudeRange),
         this.calculateFitScore(tile.seasonality, biome.seasonalityRange),

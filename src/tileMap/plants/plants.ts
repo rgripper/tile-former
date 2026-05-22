@@ -1,5 +1,13 @@
 import plantsJson from "./plants.json"; // with { type: 'application/json'};
-import { biomes, scaleRange } from "../biomes";
+import { biomes } from "../biomes";
+
+function scaleRange(
+  range: [number, number],
+  min: number = 1,
+  max: number = 4,
+): [number, number] {
+  return range.map((x) => (x - min) / (max - min)) as [number, number];
+}
 
 export const plants = plantsJson.map((x) => ({
   ...x,
