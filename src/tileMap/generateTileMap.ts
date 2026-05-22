@@ -40,7 +40,7 @@ function generateBaseTileMap() {
           ...baseTileProperties,
           ...applyModifiers(index, baseTileProperties),
         }))
-        .toArray()
+        .toArray(),
     )
     .toArray();
 }
@@ -48,7 +48,7 @@ function generateBaseTileMap() {
 export function generateTileMap() {
   const baseTileMap = generateBaseTileMap();
 
-  const rand = createRand("hahaha");
+  const rand = createRand("hahaha22");
 
   const numberOfPoints = 20;
   const minimalDistance =
@@ -72,7 +72,7 @@ export function generateTileMap() {
     (index) =>
       classifyTile(biomes, baseTileMap[index.x][index.y], numberOfGuesses),
     () => rand.next(),
-    startIndexes
+    startIndexes,
   );
 
   return baseTileMap as unknown as Tile[][];

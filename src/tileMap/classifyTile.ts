@@ -8,43 +8,42 @@ interface BiomeGuess {
 export function classifyTile(
   biomes: Biome[],
   tile: TileProperties,
-  topN: number
+  topN: number,
 ): BiomeGuess[] {
   // Helper function to calculate confidence for one parameter
   function calculateConfidence(value: number, range: [number, number]): number {
     const [min, max] = range;
-    if (value < min || value > max) return 0; // Out of range
-    return (value - min) / (max - min);
+    if (value < min || value > max) return 0;
+    const mid = (min + max) / 2;
+    return 1 - Math.abs(value - mid) / (mid - min);
   }
 
   // Compute confidence levels for each biome
   const biomeConfidences = biomes.map((biome) => {
     const tempConfidence = calculateConfidence(
       tile.temperature,
-      biome.temperatureRange
+      biome.temperatureRange,
     );
     const moistureConfidence = calculateConfidence(
       tile.moisture,
-      biome.moistureRange
+      biome.moistureRange,
     );
     const lightConfidence = calculateConfidence(tile.light, biome.lightRange);
     const altitudeConfidence = calculateConfidence(
       tile.altitude,
-      biome.altitudeRange
+      biome.altitudeRange,
     );
     const seasonalityConfidence = calculateConfidence(
       tile.seasonality,
-      biome.seasonalityRange
+      biome.seasonalityRange,
     );
 
-    // Average the confidence levels to get an overall confidence
     const overallConfidence =
-      (tempConfidence +
-        moistureConfidence +
-        lightConfidence +
-        altitudeConfidence +
-        seasonalityConfidence) /
-      5;
+      tempConfidence *
+      moistureConfidence *
+      lightConfidence *
+      altitudeConfidence *
+      seasonalityConfidence;
 
     return { biomeId: biomes.indexOf(biome), confidence: overallConfidence };
   });

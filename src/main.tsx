@@ -10,9 +10,9 @@ import TreeRenderer from "./tree/lSystem/TreeRenderer.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* <App /> */}
-    <TreeRenderer />
-  </React.StrictMode>
+    <App />
+    {/* <TreeRenderer /> */}
+  </React.StrictMode>,
 );
 
 // Example plant

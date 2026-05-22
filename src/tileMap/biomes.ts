@@ -1,106 +1,114 @@
 import { Biome } from "./Biome.ts";
 
-export const biomes: Biome[] = (
-  [
-    {
-      name: "Tropical Rainforest",
-      temperatureRange: [20, 30],
-      moistureRange: [3, 4],
-      lightRange: [2, 4],
-      altitudeRange: [1, 2],
-      seasonalityRange: [1, 2],
-      textureColor: "#228B22", // ForestGreen
-    },
-    {
-      name: "Tropical Dry Forest",
-      temperatureRange: [20, 30],
-      moistureRange: [2, 3],
-      lightRange: [2, 3],
-      altitudeRange: [1, 2],
-      seasonalityRange: [2, 3],
-      textureColor: "#A0522D", // Sienna
-    },
-    {
-      name: "Savanna",
-      temperatureRange: [20, 30],
-      moistureRange: [1.5, 2.5],
-      lightRange: [2, 4],
-      altitudeRange: [1, 2],
-      seasonalityRange: [2, 3],
-      textureColor: "#FFD700", // Gold
-    },
-    {
-      name: "Desert",
-      temperatureRange: [15, 35],
-      moistureRange: [1, 1.5],
-      lightRange: [3, 4],
-      altitudeRange: [1, 2],
-      seasonalityRange: [1, 3],
-      textureColor: "#EDC9AF", // DesertSand
-    },
-    {
-      name: "Temperate Forest",
-      temperatureRange: [5, 20],
-      moistureRange: [2.5, 4],
-      lightRange: [2, 3],
-      altitudeRange: [1, 3],
-      seasonalityRange: [2, 4],
-      textureColor: "#6B8E23", // OliveDrab
-    },
-    {
-      name: "Grassland",
-      temperatureRange: [5, 25],
-      moistureRange: [1.5, 2.5],
-      lightRange: [2, 4],
-      altitudeRange: [1, 3],
-      seasonalityRange: [3, 4],
-      textureColor: "#7CFC00", // LawnGreen
-    },
-    {
-      name: "Mediterranean",
-      temperatureRange: [15, 25],
-      moistureRange: [1.5, 2.5],
-      lightRange: [3, 4],
-      altitudeRange: [1, 2],
-      seasonalityRange: [3, 4],
-      textureColor: "#FF6347", // Tomato
-    },
-    {
-      name: "Taiga (Boreal Forest)",
-      temperatureRange: [-5, 5],
-      moistureRange: [2, 3],
-      lightRange: [1, 2],
-      altitudeRange: [2, 4],
-      seasonalityRange: [3, 4],
-      textureColor: "#4682B4", // SteelBlue
-    },
-    {
-      name: "Tundra",
-      temperatureRange: [-10, 5],
-      moistureRange: [1.5, 2.5],
-      lightRange: [2, 4],
-      altitudeRange: [3, 4],
-      seasonalityRange: [3, 4],
-      textureColor: "#B0E0E6", // PowderBlue
-    },
-    {
-      name: "Alpine",
-      temperatureRange: [-5, 10],
-      moistureRange: [2, 3],
-      lightRange: [2, 4],
-      altitudeRange: [3, 4],
-      seasonalityRange: [3, 4],
-      textureColor: "#ADD8E6", // LightBlue
-    },
-  ] satisfies Omit<Biome, "id">[]
-).map((biome, index) => ({
-  ...biome,
-  moistureRange: scaleRange(biome.moistureRange as [number, number]),
-  lightRange: scaleRange(biome.lightRange as [number, number]),
-  altitudeRange: scaleRange(biome.altitudeRange as [number, number]),
-  seasonalityRange: scaleRange(biome.seasonalityRange as [number, number]),
-  id: index + 1,
-}));
+// Dimension scales:
+//   temperature  — degrees Celsius, unbounded
+//   moisture     — 0: bone dry  →  1: saturated
+//   light        — 0: polar/minimal insolation  →  1: equatorial/peak insolation
+//   altitude     — 0: sea level  →  1: extreme high mountain
+//   seasonality  — 0: stable year-round  →  1: extreme seasonal swing
+
+export const biomes: Biome[] = [
+  {
+    id: 1,
+    name: "Tropical Rainforest",
+    temperatureRange: [20, 35],
+    moistureRange: [0.65, 1],
+    lightRange: [0.5, 1],      // high insolation, near-equatorial
+    altitudeRange: [0, 0.3],   // lowland basins
+    seasonalityRange: [0, 0.25], // near-constant climate year-round
+    textureColor: "#228B22",
+  },
+  {
+    id: 2,
+    name: "Tropical Dry Forest",
+    temperatureRange: [20, 35],
+    moistureRange: [0.35, 0.65],
+    lightRange: [0.5, 1],
+    altitudeRange: [0, 0.3],
+    seasonalityRange: [0.2, 0.55], // distinct wet/dry seasons
+    textureColor: "#A0522D",
+  },
+  {
+    id: 3,
+    name: "Savanna",
+    temperatureRange: [18, 35],
+    moistureRange: [0.1, 0.4],
+    lightRange: [0.5, 1],
+    altitudeRange: [0, 0.4],
+    seasonalityRange: [0.3, 0.7],
+    textureColor: "#FFD700",
+  },
+  {
+    id: 4,
+    name: "Desert",
+    temperatureRange: [15, 45],
+    moistureRange: [0, 0.15],
+    lightRange: [0.65, 1],     // intense, cloudless sun
+    altitudeRange: [0, 0.5],
+    seasonalityRange: [0, 0.6],
+    textureColor: "#EDC9AF",
+  },
+  {
+    id: 5,
+    name: "Temperate Forest",
+    temperatureRange: [4, 20],
+    moistureRange: [0.45, 0.9],
+    lightRange: [0.3, 0.7],    // mid-latitude, partial canopy
+    altitudeRange: [0, 0.6],
+    seasonalityRange: [0.35, 0.8],
+    textureColor: "#6B8E23",
+  },
+  {
+    id: 6,
+    name: "Grassland",
+    temperatureRange: [3, 26],
+    moistureRange: [0.1, 0.45],
+    lightRange: [0.4, 0.85],   // open, mid-latitude
+    altitudeRange: [0, 0.5],
+    seasonalityRange: [0.4, 0.85],
+    textureColor: "#7CFC00",
+  },
+  {
+    id: 7,
+    name: "Mediterranean",
+    temperatureRange: [10, 24],
+    moistureRange: [0.15, 0.45],
+    lightRange: [0.55, 1],     // sunny coasts
+    altitudeRange: [0, 0.35],
+    seasonalityRange: [0.35, 0.75],
+    textureColor: "#FF6347",
+  },
+  {
+    id: 8,
+    name: "Taiga (Boreal Forest)",
+    temperatureRange: [-15, 5],
+    moistureRange: [0.3, 0.65],
+    lightRange: [0.1, 0.45],   // high latitude, low sun angle
+    altitudeRange: [0, 0.35],
+    seasonalityRange: [0.6, 1],
+    textureColor: "#4682B4",
+  },
+  {
+    id: 9,
+    name: "Tundra",
+    temperatureRange: [-20, 4],
+    moistureRange: [0.1, 0.5],
+    lightRange: [0.05, 0.3],   // polar, minimal insolation
+    altitudeRange: [0, 0.3],
+    seasonalityRange: [0.65, 1],
+    textureColor: "#B0E0E6",
+  },
+  {
+    id: 10,
+    name: "Alpine",
+    temperatureRange: [-20, 8],
+    moistureRange: [0.25, 0.65],
+    lightRange: [0.5, 1],      // above cloud layer, intense UV
+    altitudeRange: [0.45, 1],
+    seasonalityRange: [0.5, 1],
+    textureColor: "#ADD8E6",
+  },
+];
 
 export function scaleRange(
   range: [number, number],
