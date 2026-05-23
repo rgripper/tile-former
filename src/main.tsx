@@ -5,8 +5,8 @@ import App from "./App.tsx";
 import "./index.css";
 import { classifyPlantBiome } from "./tileMap/plants/plantBiomeClassifier.ts";
 import { biomes } from "./tileMap/biomes.ts";
-import { parseLSystem } from "./tree/lSystem/l-system-parser.ts";
-import TreeRenderer from "./tree/lSystem/TreeRenderer.tsx";
+// import { parseLSystem } from "./tree/lSystem/l-system-parser.ts";
+// import TreeRenderer from "./tree/lSystem/TreeRenderer.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

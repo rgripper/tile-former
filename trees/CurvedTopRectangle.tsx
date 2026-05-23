@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { generateCurvedTopShape } from "./generateCurvedTopShape";
-import { renderBranch } from "./randerBranch";
+import { renderBranch } from "./trees/renderBranch";
 
 const CurvedTopRectangle = () => {
   // Canvas ref

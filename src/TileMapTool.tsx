@@ -4,11 +4,10 @@ import { Spritesheet } from "pixi.js";
 import { Biome } from "./tileMap/Biome.ts";
 import {
   generateTileMap,
-  MapGenParams,
-  defaultMapGenParams,
-} from "./tileMap/generateTileMap.ts";
-import { TileProperties } from "./tileMap/TileProperties.ts";
-import { ParamsPanel } from "./ParamsPanel.tsx";
+  PipelineConfig,
+  defaultPipelineConfig,
+} from "./tileGenerator/pipeline.ts";
+import { PipelinePanel } from "./PipelinePanel.tsx";
 import { TileInfo } from "./TileInfo.tsx";
 
 export function TileMapTool({
@@ -18,34 +17,38 @@ export function TileMapTool({
   biomes: Biome[];
   tileSpritesheet: Spritesheet;
 }) {
-  const [params, setParams] = useState<MapGenParams>(defaultMapGenParams);
-  const [genParams, setGenParams] = useState<MapGenParams>(defaultMapGenParams);
+  const [config, setConfig] = useState<PipelineConfig>({
+    ...defaultPipelineConfig,
+    biomes,
+  });
+  const [genConfig, setGenConfig] = useState<PipelineConfig>({
+    ...defaultPipelineConfig,
+    biomes,
+  });
   const [hoveredTileIndex, setHoveredTileIndex] = useState<{
     x: number;
     y: number;
   }>();
 
   useEffect(() => {
-    const timer = setTimeout(() => setGenParams(params), 250);
+    const timer = setTimeout(() => setGenConfig(config), 250);
     return () => clearTimeout(timer);
-  }, [params]);
+  }, [config]);
 
-  const tileMap = useMemo(() => generateTileMap(genParams), [genParams]);
+  const tileMap = useMemo(() => generateTileMap(genConfig), [genConfig]);
 
-  const setBase = (key: keyof TileProperties, value: number) =>
-    setParams((p) => ({ ...p, base: { ...p.base, [key]: value } }));
-
-  const setSwing = (key: keyof TileProperties, value: number) =>
-    setParams((p) => ({ ...p, swing: { ...p.swing, [key]: value } }));
+  const setParam = (key: keyof PipelineConfig, value: number | string) =>
+    setConfig((c) => ({ ...c, [key]: value }));
 
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex flex-row gap-4 p-2">
-        <ParamsPanel params={params} onBaseChange={setBase} onSwingChange={setSwing} />
+        <PipelinePanel config={config} onChange={setParam} />
         <TileInfo
           biomes={biomes}
           tile={
-            hoveredTileIndex && tileMap[hoveredTileIndex.x]![hoveredTileIndex.y]
+            hoveredTileIndex &&
+            tileMap[hoveredTileIndex.x]?.[hoveredTileIndex.y]
           }
         />
       </div>

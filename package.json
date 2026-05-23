@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "type-check": "tsgo --noEmit",
+    "build": "tsgo && vite build",
     "@tailwindcss/cli": "@tailwindcss/cli",
     "generate": "@tailwindcss/cli -i input.css -o output.css",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -50,6 +51,7 @@
     "@types/three": "^0.174.0",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
+    "@typescript/native-preview": "7.0.0-dev.20260523.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.21.0",
