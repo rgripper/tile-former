@@ -45,7 +45,7 @@ export const biomes: Biome[] = [
   {
     id: 4,
     name: "Desert",
-    temperatureRange: [15, 45],
+    temperatureRange: [15, 35],
     precipitationRange: [0, 0.15], // <250mm/yr
     drainageRange: [0.6, 1], // sand/rock, water disappears immediately
     lightRange: [0.65, 1], // intense, cloudless sun
@@ -162,5 +162,38 @@ export const biomes: Biome[] = [
     altitudeRange: [0, 0.3],
     seasonalityRange: [0.5, 1],
     textureColor: "#5C7A4E",
+  },
+  {
+    id: 16,
+    name: "Cold Desert",
+    temperatureRange: [-15, 15],   // Gobi, Patagonian, Great Basin
+    precipitationRange: [0, 0.15],
+    drainageRange: [0.5, 0.90],    // rocky/gravelly, frost-cracked substrate
+    lightRange: [0.3, 0.75],       // mid-latitude, less intense than hot deserts
+    altitudeRange: [0, 0.7],       // can be high-altitude (Tibetan plateau)
+    seasonalityRange: [0.3, 0.85], // cold winters, warm summers
+    textureColor: "#C4B99A",
+  },
+  {
+    id: 17,
+    name: "Hot Desert",
+    temperatureRange: [35, 55],    // Rub' al Khali, Danakil Depression
+    precipitationRange: [0, 0.10],
+    drainageRange: [0.7, 1],
+    lightRange: [0.8, 1],          // extreme insolation
+    altitudeRange: [0, 0.3],
+    seasonalityRange: [0, 0.4],
+    textureColor: "#F4A460",
+  },
+  {
+    id: 15,
+    name: "Semi-arid Scrub",
+    temperatureRange: [5, 30],
+    precipitationRange: [0.05, 0.20], // 50–300mm/yr, between Desert and Grassland
+    drainageRange: [0.45, 0.80],      // rocky/sandy soils, fast runoff
+    lightRange: [0.45, 0.90],         // open, sunny
+    altitudeRange: [0, 0.5],
+    seasonalityRange: [0.3, 0.8],
+    textureColor: "#BDB76B",
   },
 ];
