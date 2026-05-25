@@ -76,13 +76,17 @@ Where a local world borders a different segment (different biome family), blend 
 
 Blending happens at the property level so that downstream derived values and biome classification operate on already-blended inputs. Patches in the blend zone may produce a transitional biome naturally from this.
 
-### Stage 5 — Biome selection and CA `[patch scale]`
+### Stage 5 — Biome selection `[patch scale]`
 
-Select a biome for each patch and run CA smoothing. See [Biome Selection: Hierarchical Noise](#biome-selection-hierarchical-noise) and [Cellular Automata Post-Processing](#cellular-automata-post-processing) for full specs.
+Select a biome for each patch. See [Biome Selection: Hierarchical Noise](#biome-selection-hierarchical-noise) for the full spec.
+
+### Stage 6 — CA smoothing `[patch scale]`
+
+Run CA post-processing on the patch grid. See [Cellular Automata Post-Processing](#cellular-automata-post-processing) for the full spec.
 
 Each patch exits this stage with a stable biome assignment.
 
-### Stage 6 — Tile-level modifier pass `[tile scale]`
+### Stage 7 — Tile-level modifier pass `[tile scale]`
 
 Generate full-resolution terrain geometry and apply local modifiers per tile:
 
@@ -146,7 +150,7 @@ A low-frequency noise field samples the temperature zone for each patch. Its mea
 | Warm      | 18               |
 | Hot       | 35               |
 
-Thresholds are derived from `temperatureRange` midpoints in `biomes.ts` (e.g. −5 °C separates Taiga/Boreal Bog from Tundra; 18 °C is Savanna's lower bound; 35 °C is Hot Desert's lower bound).
+Thresholds are derived from `temperatureRange` midpoints in `biomes.ts` (e.g. −5 °C is the Taiga/Boreal Bog midpoint, separating them from Tundra's midpoint of −8; 18 °C falls between the highest temperate midpoint (Mediterranean: 17) and the lowest warm midpoint (Desert: 25); 35 °C falls between the highest warm midpoint (Savanna: 26.5) and Hot Desert's midpoint of 45).
 
 At segment borders (Stage 4 blend zone), the coarse noise transitions toward the neighboring segment's zone. The output is:
 
@@ -199,7 +203,7 @@ Two ecotone types emerge without special handling:
 
 ## Cellular Automata Post-Processing `[patch scale]`
 
-CA runs on the ~100 × 100 patch grid after biome selection (Stage 5), before the tile-level modifier pass. The goal is not to homogenize the map — isolated patches with a terrain reason should survive. The goal is to eliminate artifacts where noise happened to land on a boundary and produced a single patch or tiny cluster that has no ecological cause.
+CA (Stage 6) runs on the ~100 × 100 patch grid after biome selection (Stage 5), before the tile-level modifier pass (Stage 7). The goal is not to homogenize the map — isolated patches with a terrain reason should survive. The goal is to eliminate artifacts where noise happened to land on a boundary and produced a single patch or tiny cluster that has no ecological cause.
 
 ### Two-level rule
 
@@ -227,7 +231,7 @@ Concretely: a cluster survives if its mean axis values fall closer (in the varia
 
 ### Pass order
 
-CA runs after patch-level axis values are computed (post-Stage 3) and after biome selection (post-Stage 5), but before the tile-level modifier pass (Stage 6). The justification check reads Stage 3 patch axes, which are available at this point.
+CA runs after patch-level axis values are computed (post-Stage 3) and after biome selection (Stage 5), before the tile-level modifier pass (Stage 7). The justification check reads Stage 3 patch axes, which are available at this point.
 
 ## Other Notes
 
