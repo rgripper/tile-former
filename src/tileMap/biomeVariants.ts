@@ -32,6 +32,24 @@ export type BiomeCascade = {
   lowland:  readonly TemperatureNode[];
 };
 
+// --- Temperature zone adjacency ---
+
+// Zones ordered cold→hot. Adjacent entries are the only pairs that can share a segment border.
+// Level 1 coarse noise uses this to constrain which second zone a border patch may blend toward:
+// a border between Cold and Warm is impossible without Temperate in between.
+export const TEMP_ZONE_ORDER: readonly TemperatureZoneLabel[] = [
+  "arctic", "cold", "temperate", "warm", "hot",
+];
+
+// For each zone: which zones it can directly border (itself + immediate neighbours in TEMP_ZONE_ORDER).
+export const TEMP_ZONE_ADJACENCY: Readonly<Record<TemperatureZoneLabel, readonly TemperatureZoneLabel[]>> = {
+  arctic:    ["arctic", "cold"],
+  cold:      ["arctic", "cold", "temperate"],
+  temperate: ["cold",   "temperate", "warm"],
+  warm:      ["temperate", "warm", "hot"],
+  hot:       ["warm",  "hot"],
+};
+
 // --- Thresholds ---
 
 // altitude (0–1) above which a patch is routed to the montane branch.

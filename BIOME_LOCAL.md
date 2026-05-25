@@ -237,6 +237,15 @@ CA runs after patch-level axis values are computed (post-Stage 3) and after biom
 
 ---
 
-## Unresolved TODOs
+## Temperature Zone Adjacency
 
-- **Temperature zone adjacency graph** — Level 1 (coarse noise) needs to know which zones can border which others to constrain the blend at segment edges. Not yet defined.
+Level 1 coarse noise at a segment border may only blend toward a zone that is directly adjacent in the temperature order. This prevents ecologically impossible transitions (e.g. Cold blending into Hot without Temperate in between).
+
+The order and adjacency map are exported from `src/tileMap/biomeVariants.ts`:
+
+```
+TEMP_ZONE_ORDER:     arctic → cold → temperate → warm → hot
+TEMP_ZONE_ADJACENCY: each zone may blend only with itself and its immediate neighbours
+```
+
+At a segment edge the blend logic reads the dominant zone from both segments, verifies the pair appears in `TEMP_ZONE_ADJACENCY`, and interpolates only if they are adjacent. If two non-adjacent segments share an edge (only possible if the global map generated them that way), the blend is skipped and a hard cut is used instead.
