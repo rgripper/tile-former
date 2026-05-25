@@ -8,7 +8,27 @@ import { Biome } from "./Biome.ts";
 //   altitude      — 0: sea level  →  1: extreme high mountain
 //   seasonality   — 0: stable year-round  →  1: extreme seasonal swing
 
-export const biomes: Biome[] = [
+type RawBiome = Omit<Biome, "paramDist">;
+
+function d(lo: number, hi: number) {
+  return { mean: (lo + hi) / 2, stddev: (hi - lo) / 6 };
+}
+
+function withDist(b: RawBiome): Biome {
+  return {
+    ...b,
+    paramDist: {
+      temperature:   d(b.temperatureRange[0],   b.temperatureRange[1]),
+      precipitation: d(b.precipitationRange[0], b.precipitationRange[1]),
+      drainage:      d(b.drainageRange[0],      b.drainageRange[1]),
+      light:         d(b.lightRange[0],         b.lightRange[1]),
+      altitude:      d(b.altitudeRange[0],      b.altitudeRange[1]),
+      seasonality:   d(b.seasonalityRange[0],   b.seasonalityRange[1]),
+    },
+  };
+}
+
+const rawBiomes: RawBiome[] = [
   {
     id: 1,
     name: "Tropical Rainforest",
@@ -512,3 +532,5 @@ export const biomes: Biome[] = [
     textureColor: "#1E5A30",
   },
 ];
+
+export const biomes: Biome[] = rawBiomes.map(withDist);

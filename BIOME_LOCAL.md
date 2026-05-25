@@ -113,14 +113,14 @@ These collapse the axis space into dimensions that map more cleanly onto biome c
 
 Apply axes in dependency order during local generation:
 
-| Order | Axis | Contagion | Depends on |
-|---|---|---|---|
-| 1 | Elevation | — | base altitude + local noise |
-| 2 | Temperature | low (local) | base temperature + elevation |
-| 3 | Precipitation | very high | base precipitation + local noise |
-| 4 | Drainage | medium | elevation gradient (slope) |
-| 5 | Light | none | base: segment.baseLight; local: slope aspect + canopy |
-| 6 | Effective moisture | — | derived from precip + drainage |
+| Order | Axis               | Contagion   | Depends on                                            |
+| ----- | ------------------ | ----------- | ----------------------------------------------------- |
+| 1     | Elevation          | —           | base altitude + local noise                           |
+| 2     | Temperature        | low (local) | base temperature + elevation                          |
+| 3     | Precipitation      | very high   | base precipitation + local noise                      |
+| 4     | Drainage           | medium      | elevation gradient (slope)                            |
+| 5     | Light              | none        | base: segment.baseLight; local: slope aspect + canopy |
+| 6     | Effective moisture | —           | derived from precip + drainage                        |
 
 Axes 1–4 are computed at both resolutions: coarsely at patch scale for biome selection and CA, then at full resolution at tile scale for gameplay. CA runs between the two passes, reading patch-scale axis values.
 
@@ -138,13 +138,13 @@ Before temperature or moisture analysis, check altitude. If **altitude > 0.40**,
 
 A low-frequency noise field samples the temperature zone for each patch. Its mean is anchored to the parent segment's base temperature, so the dominant zone is almost always the parent's — coarse noise only causes zone shifts at high amplitude, which naturally concentrates at segment borders.
 
-| Zone | Lower bound (°C) |
-|---|---|
-| Arctic | < −5 |
-| Cold | −5 |
-| Temperate | 5 |
-| Warm | 18 |
-| Hot | 35 |
+| Zone      | Lower bound (°C) |
+| --------- | ---------------- |
+| Arctic    | < −5             |
+| Cold      | −5               |
+| Temperate | 5                |
+| Warm      | 18               |
+| Hot       | 35               |
 
 Thresholds are derived from `temperatureRange` midpoints in `biomes.ts` (e.g. −5 °C separates Taiga/Boreal Bog from Tundra; 18 °C is Savanna's lower bound; 35 °C is Hot Desert's lower bound).
 
@@ -157,12 +157,12 @@ At segment borders (Stage 4 blend zone), the coarse noise transitions toward the
 
 Within each temperature zone, a second noise field separates moisture regimes. The **same four buckets apply in every zone and in both branches** (montane and lowland), making the axis uniform across the whole cascade:
 
-| Regime | Precipitation lower bound | Derived from |
-|---|---|---|
-| Arid | 0.00 | — |
-| Semi-arid | 0.15 | Desert / Cold Desert `precipitationRange` upper bound |
-| Mesic | 0.35 | Alpine `precipitationRange` lower bound |
-| Wet | 0.60 | Tropical Swamp `precipitationRange` lower bound |
+| Regime    | Precipitation lower bound | Derived from                                          |
+| --------- | ------------------------- | ----------------------------------------------------- |
+| Arid      | 0.00                      | —                                                     |
+| Semi-arid | 0.15                      | Desert / Cold Desert `precipitationRange` upper bound |
+| Mesic     | 0.35                      | Alpine `precipitationRange` lower bound               |
+| Wet       | 0.60                      | Tropical Swamp `precipitationRange` lower bound       |
 
 The output is a **moisture regime** (or a blend weight between two adjacent regimes when fine noise lands near a boundary).
 
@@ -170,12 +170,12 @@ The output is a **moisture regime** (or a blend weight between two adjacent regi
 
 Where two biomes share the same temperature zone and moisture regime, drainage distinguishes the remaining variants. Only four moisture buckets require a split; all others contain a single biome or stub:
 
-| Branch | Temperature | Moisture | Drainage threshold | Low → High drainage |
-|---|---|---|---|---|
-| Lowland | Cold | Mesic | 0.15 | Boreal Bog → Taiga |
-| Lowland | Temperate | Semi-arid | 0.50 | Mediterranean → Grassland |
-| Lowland | Temperate | Wet | 0.25 | Temperate Wetland → Temperate Forest |
-| Lowland | Warm | Wet | 0.20 | Tropical Swamp → Tropical Rainforest |
+| Branch  | Temperature | Moisture  | Drainage threshold | Low → High drainage                  |
+| ------- | ----------- | --------- | ------------------ | ------------------------------------ |
+| Lowland | Cold        | Mesic     | 0.15               | Boreal Bog → Taiga                   |
+| Lowland | Temperate   | Semi-arid | 0.50               | Mediterranean → Grassland            |
+| Lowland | Temperate   | Wet       | 0.25               | Temperate Wetland → Temperate Forest |
+| Lowland | Warm        | Wet       | 0.20               | Tropical Swamp → Tropical Rainforest |
 
 Thresholds are derived from `drainageRange` upper bounds in `biomes.ts` (e.g. 0.15 = Boreal Bog upper; 0.25 = Temperate Wetland upper; 0.20 = Tropical Swamp upper). The Temperate/Semi-arid threshold (0.50) is the midpoint of the overlap zone between Mediterranean [0.30, 0.65] and Grassland [0.35, 0.70].
 
@@ -212,6 +212,7 @@ Run 1–2 passes of plurality-rule: each patch tentatively adopts the biome of t
 Before committing a reassignment from Level 1, check whether the patch's axis values (from Stage 3) actually support its current biome better than the proposed replacement. If the axis values justify the anomaly, suppress the reassignment.
 
 The relevant axes are those already computed in Stage 3:
+
 - **Drainage** — a low-drainage hollow inside a Taiga justifies a Boreal Bog cluster
 - **Slope aspect / light** — a shaded north-facing patch justifies a cooler variant
 - **Elevation** — a local high point justifies an Alpine variant inside a Temperate Forest
@@ -228,10 +229,14 @@ Concretely: a cluster survives if its mean axis values fall closer (in the varia
 
 CA runs after patch-level axis values are computed (post-Stage 3) and after biome selection (post-Stage 5), but before the tile-level modifier pass (Stage 6). The justification check reads Stage 3 patch axes, which are available at this point.
 
+## Other Notes
+
+- **Cascade thresholds** — all thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
+
+`Biome.paramDist` (`BiomeParamDist`) is computed from each biome's ranges via `withDist()` in `biomes.ts`: `mean = (lo + hi) / 2`, `stddev = (hi - lo) / 6` (3σ containment within range). Override per-biome in `rawBiomes` when ecological character warrants a tighter or asymmetric distribution.
+
 ---
 
 ## Unresolved TODOs
 
 - **Temperature zone adjacency graph** — Level 1 (coarse noise) needs to know which zones can border which others to constrain the blend at segment edges. Not yet defined.
-- **Cascade thresholds** — all thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
-- **Parameter distribution values** — each leaf slot needs `{ mean, stddev }` per axis. The cascade structure implies relative values but exact numbers are not yet defined.
