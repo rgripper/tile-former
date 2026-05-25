@@ -130,29 +130,54 @@ Axes 1–4 are computed at both resolutions: coarsely at patch scale for biome s
 
 Noise selects the biome; the biome generates the parameters. This eliminates the classifier entirely — parameters are always in-range by construction, so score aggregation and zero-floor failure modes do not exist.
 
-### Level 1 — Family selection (coarse noise)
+### Altitude pre-check
 
-A low-frequency noise field covers the local world. Its mean is anchored to the parent segment's biome family, so the dominant family is almost always the parent's — coarse noise only causes family shifts at high amplitude, which naturally concentrates at segment borders.
+Before temperature or moisture analysis, check altitude. If **altitude > 0.40**, route the patch to the **montane branch** of the cascade regardless of temperature. The montane cascade uses the same three-level structure (Levels 1–3 below) but targets high-altitude biomes (Alpine, Cloud Forest). Patches with altitude ≤ 0.40 use the lowland branch.
 
-At segment borders (Stage 4 blend zone), the coarse noise transitions toward the neighboring segment's family. The output is:
+### Level 1 — Temperature zone (coarse noise)
 
-- a **dominant family**
-- a **blend weight** toward a second family (non-zero only in the border zone)
+A low-frequency noise field samples the temperature zone for each patch. Its mean is anchored to the parent segment's base temperature, so the dominant zone is almost always the parent's — coarse noise only causes zone shifts at high amplitude, which naturally concentrates at segment borders.
 
-### Level 2 — Variant selection (fine noise)
+| Zone | Lower bound (°C) |
+|---|---|
+| Arctic | < −5 |
+| Cold | −5 |
+| Temperate | 5 |
+| Warm | 18 |
+| Hot | 35 |
 
-Within each family, variants are ordered along a **primary variation axis** — the axis that most differentiates members of that family. High-frequency noise samples a position along this axis:
+Thresholds are derived from `temperatureRange` midpoints in `biomes.ts` (e.g. −5 °C separates Taiga/Boreal Bog from Tundra; 18 °C is Savanna's lower bound; 35 °C is Hot Desert's lower bound).
 
-| Family | Primary axis | Variants (low → high) |
+At segment borders (Stage 4 blend zone), the coarse noise transitions toward the neighboring segment's zone. The output is:
+
+- a **dominant zone**
+- a **blend weight** toward a second zone (non-zero only in the border zone)
+
+### Level 2 — Moisture regime (fine noise)
+
+Within each temperature zone, a second noise field separates moisture regimes. The **same four buckets apply in every zone and in both branches** (montane and lowland), making the axis uniform across the whole cascade:
+
+| Regime | Precipitation lower bound | Derived from |
 |---|---|---|
-| Cold Forests | drainage | Boreal Bog → Taiga → Subalpine Forest |
-| Temperate Forests | effective moisture | Dry Oak Woodland → Temperate Forest → Temperate Rainforest |
-| Grasslands | aridity | Prairie → Steppe → Semi-arid Scrub |
-| Deserts | temperature | Cold Desert → Desert → Hot Desert |
-| Wetlands | salinity | Freshwater Marsh → Brackish Marsh → Salt Marsh |
-| Tundra | elevation | Alpine Meadow → Tundra → Polar Desert |
+| Arid | 0.00 | — |
+| Semi-arid | 0.15 | Desert / Cold Desert `precipitationRange` upper bound |
+| Mesic | 0.35 | Alpine `precipitationRange` lower bound |
+| Wet | 0.60 | Tropical Swamp `precipitationRange` lower bound |
 
-The output is a **variant** (or a blend weight between two adjacent variants when the fine noise lands near a boundary).
+The output is a **moisture regime** (or a blend weight between two adjacent regimes when fine noise lands near a boundary).
+
+### Level 3 — Drainage tiebreaker
+
+Where two biomes share the same temperature zone and moisture regime, drainage distinguishes the remaining variants. Only four moisture buckets require a split; all others contain a single biome or stub:
+
+| Branch | Temperature | Moisture | Drainage threshold | Low → High drainage |
+|---|---|---|---|---|
+| Lowland | Cold | Mesic | 0.15 | Boreal Bog → Taiga |
+| Lowland | Temperate | Semi-arid | 0.50 | Mediterranean → Grassland |
+| Lowland | Temperate | Wet | 0.25 | Temperate Wetland → Temperate Forest |
+| Lowland | Warm | Wet | 0.20 | Tropical Swamp → Tropical Rainforest |
+
+Thresholds are derived from `drainageRange` upper bounds in `biomes.ts` (e.g. 0.15 = Boreal Bog upper; 0.25 = Temperate Wetland upper; 0.20 = Tropical Swamp upper). The Temperate/Semi-arid threshold (0.50) is the midpoint of the overlap zone between Mediterranean [0.30, 0.65] and Grassland [0.35, 0.70].
 
 ### Parameter generation
 
@@ -207,6 +232,7 @@ CA runs after patch-level axis values are computed (post-Stage 3) and after biom
 
 ## Unresolved TODOs
 
-- **Biome family adjacency graph** — Level 1 (coarse noise) needs to know which families can border which others to constrain the blend at segment edges. Not yet defined.
-- **Variant primary-axis thresholds** — resolved in `src/tileMap/biomeVariants.ts` for all six families. Note: Deserts and Wetlands use temperature in °C as their primary axis; all other families use 0–1 axes.
-- **Parameter distribution values** — each variant needs `{ mean, stddev }` per axis. The orderings imply relative values but exact numbers are not yet defined.
+- **Temperature zone adjacency graph** — Level 1 (coarse noise) needs to know which zones can border which others to constrain the blend at segment edges. Not yet defined.
+- **Cascade thresholds** — all thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
+- **Stub biomes** — the montane branch and several lowland slots (Polar Desert, Arctic Heath, Arctic Marsh, Cold Steppe, Cold Rainforest, Temperate Shrubland, and all Hot zone non-arid slots) have `biomeId: null` and need corresponding entries added to `biomes.ts`.
+- **Parameter distribution values** — each leaf slot needs `{ mean, stddev }` per axis. The cascade structure implies relative values but exact numbers are not yet defined.
