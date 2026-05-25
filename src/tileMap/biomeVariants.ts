@@ -6,7 +6,7 @@ export type MoistureLabel = "arid" | "semi-arid" | "mesic" | "wet";
 
 // Leaf in the cascade. Covers from drainageLowerBound up to the next slot's bound (or 1.0).
 export type DrainageSlot = {
-  biomeId: number | null;     // null = stub, no matching biome in biomes.ts yet
+  biomeId: number;
   drainageLowerBound: number; // 0–1
 };
 
@@ -63,8 +63,6 @@ export const PRECIP_WET_LB       = 0.60;
 
 // --- Helpers (module-private) ---
 
-const STUB: readonly DrainageSlot[] = [{ biomeId: null, drainageLowerBound: 0.00 }];
-
 function single(id: number): readonly DrainageSlot[] {
   return [{ biomeId: id, drainageLowerBound: 0.00 }];
 }
@@ -90,28 +88,38 @@ export const biomeCascade: BiomeCascade = {
     {
       label: "arctic", tempLowerBound: -30,
       moisture: [
-        arid(STUB),
-        semiArid(STUB),
+        arid(single(27)),     // Alpine Desert
+        semiArid(single(28)), // Alpine Fell
         // Alpine (id 10): altitudeRange [0.45, 1], precip [0.35, 0.75], temp [−20, 8]
         // midpoint altitude 0.725 > 0.40 → montane; precip midpoint 0.55 → mesic
         mesic(single(10)),
-        wet(STUB),
+        wet(single(29)),      // Alpine Bog
       ],
     },
     {
       label: "cold", tempLowerBound: TEMP_COLD_LB,
-      moisture: [arid(STUB), semiArid(STUB), mesic(STUB), wet(STUB)],
+      moisture: [
+        arid(single(30)),     // Subalpine Steppe
+        semiArid(single(31)), // Subalpine Heath
+        mesic(single(32)),    // Subalpine Forest
+        wet(single(33)),      // Subalpine Bog
+      ],
     },
     {
       label: "temperate", tempLowerBound: TEMP_TEMPERATE_LB,
-      moisture: [arid(STUB), semiArid(STUB), mesic(STUB), wet(STUB)],
+      moisture: [
+        arid(single(34)),     // Montane Steppe
+        semiArid(single(35)), // Montane Scrub
+        mesic(single(36)),    // Montane Forest
+        wet(single(37)),      // Montane Rainforest
+      ],
     },
     {
       label: "warm", tempLowerBound: TEMP_WARM_LB,
       moisture: [
-        arid(STUB),
-        semiArid(STUB),
-        mesic(STUB),
+        arid(single(38)),     // Tropical Alpine Desert
+        semiArid(single(39)), // Montane Dry Scrub
+        mesic(single(40)),    // Subtropical Montane Forest
         // Cloud Forest (id 11): altitudeRange [0.30, 0.65], precip [0.55, 1], temp [15, 28]
         // altitude midpoint 0.475 > 0.40 → montane; precip midpoint 0.775 → wet
         wet(single(11)),
@@ -119,7 +127,12 @@ export const biomeCascade: BiomeCascade = {
     },
     {
       label: "hot", tempLowerBound: TEMP_HOT_LB,
-      moisture: [arid(STUB), semiArid(STUB), mesic(STUB), wet(STUB)],
+      moisture: [
+        arid(single(41)),     // Highland Desert
+        semiArid(single(42)), // Montane Thorn Scrub
+        mesic(single(43)),    // Afromontane Forest
+        wet(single(44)),      // Montane Tropical Forest
+      ],
     },
   ],
 
@@ -128,11 +141,11 @@ export const biomeCascade: BiomeCascade = {
     {
       label: "arctic", tempLowerBound: -30,
       moisture: [
-        arid(STUB),    // Polar Desert — not yet in biomes.ts
+        arid(single(18)),  // Polar Desert
         // Tundra (id 9): precip midpoint 0.25 → semi-arid; drainage [0, 0.20] → single slot
         semiArid(single(9)),
-        mesic(STUB),   // Arctic Heath — not yet in biomes.ts
-        wet(STUB),     // Arctic Marsh — not yet in biomes.ts
+        mesic(single(19)), // Arctic Heath
+        wet(single(20)),   // Arctic Marsh
       ],
     },
     {
@@ -140,7 +153,7 @@ export const biomeCascade: BiomeCascade = {
       moisture: [
         // Cold Desert (id 16): precip midpoint 0.075 → arid
         arid(single(16)),
-        semiArid(STUB),  // Cold Steppe — not yet in biomes.ts
+        semiArid(single(21)), // Cold Steppe
         // Boreal Bog (id 14): drainageRange [0, 0.15] midpoint 0.075 → lower slot
         // Taiga      (id  8): drainageRange [0.05, 0.35] midpoint 0.20  → upper slot
         // Threshold 0.15 = Boreal Bog drainageRange upper bound.
@@ -148,7 +161,7 @@ export const biomeCascade: BiomeCascade = {
           { biomeId: 14, drainageLowerBound: 0.00 },
           { biomeId: 8,  drainageLowerBound: 0.15 },
         ]),
-        wet(STUB),  // Cold Rainforest — not yet in biomes.ts
+        wet(single(22)),  // Cold Rainforest
       ],
     },
     {
@@ -163,7 +176,7 @@ export const biomeCascade: BiomeCascade = {
           { biomeId: 7, drainageLowerBound: 0.00 },
           { biomeId: 6, drainageLowerBound: 0.50 },
         ]),
-        mesic(STUB),  // Temperate Shrubland — not yet in biomes.ts
+        mesic(single(23)), // Temperate Shrubland
         // Temperate Wetland (id 13): drainageRange [0, 0.25] midpoint 0.125 → lower slot
         // Temperate Forest  (id  5): drainageRange [0.20, 0.55] midpoint 0.375 → upper slot
         // Threshold 0.25 = Temperate Wetland drainageRange upper bound.
@@ -196,9 +209,9 @@ export const biomeCascade: BiomeCascade = {
       moisture: [
         // Hot Desert (id 17): precip midpoint 0.05 → arid
         arid(single(17)),
-        semiArid(STUB),
-        mesic(STUB),
-        wet(STUB),
+        semiArid(single(24)), // Thorn Scrub
+        mesic(single(25)),    // Tropical Monsoon Forest
+        wet(single(26)),      // Tropical Monsoon Rainforest
       ],
     },
   ],

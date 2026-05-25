@@ -234,5 +234,4 @@ CA runs after patch-level axis values are computed (post-Stage 3) and after biom
 
 - **Temperature zone adjacency graph** — Level 1 (coarse noise) needs to know which zones can border which others to constrain the blend at segment edges. Not yet defined.
 - **Cascade thresholds** — all thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
-- **Stub biomes** — the montane branch and several lowland slots (Polar Desert, Arctic Heath, Arctic Marsh, Cold Steppe, Cold Rainforest, Temperate Shrubland, and all Hot zone non-arid slots) have `biomeId: null` and need corresponding entries added to `biomes.ts`.
 - **Parameter distribution values** — each leaf slot needs `{ mean, stddev }` per axis. The cascade structure implies relative values but exact numbers are not yet defined.
