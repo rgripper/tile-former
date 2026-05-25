@@ -39,6 +39,7 @@ segment base biome
             → full-resolution elevation + terrain geometry
               → apply local modifiers (slope → drainage, aspect → light)
                 → compute derived values (effectiveMoisture, continentality)
+                  → water feature pass (ponds, rivers)
 ```
 
 ### Stage 1 — Base anchoring `[patch scale]`
@@ -97,6 +98,10 @@ Generate full-resolution terrain geometry and apply local modifiers per tile:
 Tiles inherit their biome from the parent patch. The modifier pass adjusts per-tile axis values for gameplay purposes (which tile effects apply, what grows here) but does not reassign biomes.
 
 Compute derived values (`effectiveMoisture`, `continentality`) last, after all modifiers.
+
+### Stage 8 — Water feature pass `[tile scale]`
+
+Stamp pond and river tile flags using the tile-scale elevation and drainage data produced by Stage 7. Biome assignments are never modified. See [BIOME_LOCAL_WATER.md](BIOME_LOCAL_WATER.md) for the full spec.
 
 ---
 
