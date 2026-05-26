@@ -1,0 +1,39 @@
+import { createNoise2D } from "simplex-noise";
+import { createRand } from "../rand";
+import type { PatchCell, PipelineConfig } from "./types";
+import { clamp } from "./utils";
+
+export function stage2_noiseAxes(grid: PatchCell[][], config: PipelineConfig): void {
+  const { seed, localNoiseScale: scale, segmentBase } = config;
+  const makeNoise = (s: string) => createNoise2D(createRand(s).next);
+
+  const altNoise = makeNoise(seed + "_alt");
+  const tmpNoise = makeNoise(seed + "_tmp");
+  const prcNoise = makeNoise(seed + "_prc");
+
+  for (const col of grid) {
+    for (const cell of col) {
+      const { x, y } = cell.index;
+
+      cell.altitude = clamp(
+        segmentBase.altitude + altNoise(x * scale, y * scale) * 0.15,
+        0,
+        1,
+      );
+
+      // Temperature: base + local variation ± 3°C − altitude lapse rate.
+      // Lapse rate: ~6°C per 1000 m elevation ≈ 30°C per unit altitude.
+      const altLapse = (cell.altitude - segmentBase.altitude) * 30;
+      cell.temperature =
+        segmentBase.temperature +
+        tmpNoise(x * scale, y * scale) * 3 -
+        altLapse;
+
+      cell.precipitation = clamp(
+        segmentBase.precipitation + prcNoise(x * scale, y * scale) * 0.08,
+        0,
+        1,
+      );
+    }
+  }
+}

@@ -60,6 +60,7 @@ Sample noise at patch centers within the constrained envelope:
 localAltitude      = segment.baseAltitude + localElevationNoise(x, y)
 localTemperature   = segment.baseTemperature + f(altitude, localTempNoise)
 localPrecipitation = segment.basePrecipitation + localPrecipNoise(x, y)
+seasonality        = segment.baseSeasonality   -- constant across the local world
 ```
 
 ### Stage 3 — Patch-level secondary axes `[patch scale]`
@@ -132,3 +133,25 @@ Apply axes in dependency order during local generation:
 | 6     | Effective moisture | —           | derived from precip + drainage                        |
 
 Axes 1–4 are computed at both resolutions: coarsely at patch scale for biome selection and CA, then at full resolution at tile scale for gameplay. CA runs between the two passes, reading patch-scale axis values.
+
+---
+
+## Implementation Notes
+
+All 8 stages are implemented. Deviations from spec:
+
+**Stage 2 — noise amplitudes (not constrained by spec)**
+- altitude ±0.15, temperature ±3 °C (plus lapse rate −30 °C/unit altitude), precipitation ±0.08
+
+**Stage 4 — drainage not blended**
+- Drainage is gradient-derived and has no segment base value. It is not blended at borders — Stage 3 recomputes it from the blended elevation that Stage 4 produces, so it will naturally reflect the flatter terrain at segment edges.
+
+**Stage 5 — cascade inputs**
+- Temperature zone and moisture regime are resolved from the axis values produced by Stage 2 (no separate coarse/fine noise layer). Stage 2 noise anchored to the segment base already serves that role. Hard cuts at thresholds are intentional: Stage 4 blends the input axes continuously, so biome transitions at borders are smooth even without explicit blend weights.
+
+**Stage 7 — seasonality is a segment constant**
+- `seasonality` is copied directly from `segmentBase.seasonality` — it does not vary across the local world. Seasonality is a global-scale property set by the world map; local terrain variation does not affect it.
+- `continentality` is the normalized temperature std-dev across all patches: `clamp(sqrt(variance) / 20, 0, 1)`.
+
+**`paramDist` on biomes**
+- Each biome in `biomes.ts` carries a `paramDist` (`{ mean, stddev }` per axis, computed via `withDist()`). The pipeline does not yet sample from these distributions — tile parameter values come directly from noise layers. Variant-distribution sampling is an open gap.

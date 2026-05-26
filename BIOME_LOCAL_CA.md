@@ -35,3 +35,14 @@ Concretely: a cluster survives if its mean axis values fall closer (in the varia
 ### Pass order
 
 CA runs after patch-level axis values are computed (post-Stage 3) and after biome selection (Stage 5), before the tile-level modifier pass (Stage 7). The justification check reads Stage 3 patch axes, which are available at this point.
+
+---
+
+## Implementation Notes
+
+Fully implemented in `stage6_caSmoothing()` in `src/tileGenerator/pipeline.ts`.
+
+- 2 passes of 8-neighbor (Moore) plurality-rule followed by terrain-justification check.
+- Cluster size measured by BFS with early exit once the count reaches 7 (`CLUSTER_SURVIVAL_MIN`). Uses von Neumann (4-neighbor) connectivity for cluster measurement.
+- Justification check compares out-of-range distance on drainage, altitude, and light axes.
+- The spec says "only boundary patches are candidates for reassignment." The implementation runs the plurality vote on all patches — interior patches of large clusters are not reassigned because their 8 neighbors are all the same biome, so no replacement is ever proposed. Boundary-only behavior emerges without an explicit interior check.

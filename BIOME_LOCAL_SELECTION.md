@@ -95,3 +95,15 @@ At a segment edge the blend logic reads the dominant zone from both segments, ve
 All thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
 
 `Biome.paramDist` (`BiomeParamDist`) is computed from each biome's ranges via `withDist()` in `biomes.ts`: `mean = (lo + hi) / 2`, `stddev = (hi - lo) / 6` (3σ containment within range). Override per-biome in `rawBiomes` when ecological character warrants a tighter or asymmetric distribution.
+
+---
+
+## Implementation Notes
+
+**Cascade** — fully implemented in `selectBiomeId()` in `src/tileGenerator/pipeline.ts`. The cascade reads altitude, temperature, precipitation, and drainage values produced by Stages 2–3 and routes them through the three-level hierarchy.
+
+**Level 1/2 noise fields** — not implemented as separate noise layers. Temperature zone and moisture regime are resolved from the axis values already computed by Stage 2 noise, which is anchored to the segment base temperature. The distinction between "coarse" and "fine" noise fields is collapsed — Stage 2 covers both.
+
+**Level 1/2 blend weights** — not implemented. The cascade makes a hard cut at each threshold. Inter-family ecotones emerge from Stage 4 axis blending (the blended axis values feed naturally into the cascade). Intra-family blend weights (a tile near the drainage threshold drawing from two adjacent variants' distributions) are an open gap.
+
+**Parameter generation from `paramDist`** — not yet implemented. Tile parameters come from noise layers (Stages 2 and 7), not from variant distributions. The `paramDist` fields exist on all biomes but are not consumed by the pipeline.

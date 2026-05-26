@@ -63,3 +63,17 @@ Rivers are always passable. Width is always 1 tile — no branching, no confluen
 Stage 8 runs after Stage 7 (tile modifier pass) because it needs tile-scale elevation and drainage. It reads only; it does not modify axis values or biome assignments.
 
 Pond placement runs before river placement so rivers can terminate correctly at pond edges.
+
+---
+
+## Implementation Notes
+
+Implemented in `stage8_waterFeatures()`, `placePonds()`, and `placeRivers()` in `src/tileGenerator/pipeline.ts`. Pass order matches spec: ponds first, then rivers.
+
+**Ponds** — fully match spec. Flood-fill uses von Neumann (4-neighbor) expansion. Separation check scans in cardinal directions up to `POND_MIN_SEPARATION` tiles from every fill tile.
+
+**Rivers — intentionally simple placement**
+- Each qualifying patch contributes exactly 1 river tile: the lowest-altitude tile within the patch's tile footprint. This is intentional — rivers mark where water naturally collects, not a continuous geometric path. Adjacent river tiles are not guaranteed to be 4-connected; that is acceptable for the current use case (tile flags for gameplay effects). A path-tracing step can be added later if a continuous line is needed for rendering.
+
+**River termination at pond**
+- Checks `waterType === "pond"` on the center tile of the candidate next patch. May miss cases where the pond does not overlap the patch center tile.
