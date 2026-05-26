@@ -1,7 +1,7 @@
 import type { PipelineConfig } from "./tileGenerator/pipeline";
 
 type SliderParam = {
-  key: "seedCount" | "ecotoneBlendRadius" | "localNoiseScale";
+  key: "borderBlendWidth" | "localNoiseScale" | "tilesPerPatch";
   label: string;
   min: number;
   max: number;
@@ -11,15 +11,7 @@ type SliderParam = {
 
 const sliderParams: SliderParam[] = [
   {
-    key: "seedCount",
-    label: "Seeds",
-    min: 5,
-    max: 60,
-    step: 1,
-    format: (v) => String(v),
-  },
-  {
-    key: "ecotoneBlendRadius",
+    key: "borderBlendWidth",
     label: "Blend",
     min: 0,
     max: 8,
@@ -33,6 +25,14 @@ const sliderParams: SliderParam[] = [
     max: 0.5,
     step: 0.01,
     format: (v) => v.toFixed(2),
+  },
+  {
+    key: "tilesPerPatch",
+    label: "t/patch",
+    min: 2,
+    max: 16,
+    step: 1,
+    format: (v) => String(v),
   },
 ];
 

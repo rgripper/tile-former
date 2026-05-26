@@ -1,1 +1,1 @@
-For type-checknig typescript use `bun type-check`
+For type-checking Typescript use `bun type-check`

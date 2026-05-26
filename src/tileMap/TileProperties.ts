@@ -1,8 +1,12 @@
 export type TileProperties = {
-  temperature: number;    // global
-  precipitation: number;  // global
-  drainage: number;       // global
-  light: number;          // global
-  altitude: number;       // global
-  seasonality: number;    // global
+  temperature: number;
+  precipitation: number;
+  drainage: number;
+  light: number;
+  altitude: number;
+  seasonality: number;
+  effectiveMoisture: number;
+  continentality: number;
+  water: boolean;
+  waterType: "pond" | "river" | undefined;
 };

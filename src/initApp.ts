@@ -73,7 +73,7 @@ function createTileGridSprites(
       tileGraphics.height = tileSide;
 
       tileGraphics.rect(0, 0, tileSide, tileSide);
-      tileGraphics.fill(biomes[tile.biomeId].textureColor);
+      tileGraphics.fill(biomes.find((b) => b.id === tile.biomeId)?.textureColor ?? "#888888");
       tileGraphics.interactive = true;
       tileGraphics.on("click", () => onTileClick(tile));
       container.addChild(tileGraphics);

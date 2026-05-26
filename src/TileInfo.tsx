@@ -12,10 +12,10 @@ export function TileInfo({
     <div className="h-60">
       {tile && (
         <>
-          ({tile.index.x},{tile.index.y}) {biomes[tile.biomeId].name}
+          ({tile.index.x},{tile.index.y}) {biomes.find((b) => b.id === tile.biomeId)?.name}
           {Object.entries(tile).map(([key, value]) => (
             <div key={key}>
-              {key}: {value.toString()}
+              {key}: {value?.toString() ?? "—"}
             </div>
           ))}
         </>
