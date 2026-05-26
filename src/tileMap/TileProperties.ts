@@ -8,5 +8,6 @@ export type TileProperties = {
   effectiveMoisture: number;
   continentality: number;
   water: boolean;
-  waterType: "pond" | "river" | undefined;
+  waterType: "pond" | undefined;
+  surfaceType: "rocky" | "sandy" | undefined;
 };

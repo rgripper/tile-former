@@ -8,7 +8,7 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Documents
 
-- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–8, derived values, axis hierarchy
+- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–9, derived values, axis hierarchy
 - [BIOME_LOCAL_SELECTION.md](BIOME_LOCAL_SELECTION.md) — biome selection cascade (altitude, temperature, moisture, drainage), parameter generation, ecotones, temperature zone adjacency, constants
 - [BIOME_LOCAL_CA.md](BIOME_LOCAL_CA.md) — CA post-processing: majority-rule smoothing + terrain-justification check
 - [BIOME_LOCAL_WATER.md](BIOME_LOCAL_WATER.md) — water features (ponds, rivers) as tile flags, placed opportunistically post-Stage 7
@@ -17,7 +17,7 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Implementation Status
 
-All 8 stages are implemented in `src/tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
+All 9 stages are implemented in `src/tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
 
 | Stage | Status | File |
 | ----- | ------ | ---- |
@@ -29,3 +29,4 @@ All 8 stages are implemented in `src/tileGenerator/pipeline.ts`. See each sub-do
 | 6 CA smoothing | ✅ | `stage6_caSmoothing` |
 | 7 Tile modifier pass | ✅ | `stage7_expandTiles` |
 | 8 Water features | ✅ | `stage8_waterFeatures` |
+| 9 Surface patches | ✅ | `stage9_surfacePatches` |

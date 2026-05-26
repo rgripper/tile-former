@@ -73,7 +73,21 @@ function createTileGridSprites(
       tileGraphics.height = tileSide;
 
       tileGraphics.rect(0, 0, tileSide, tileSide);
-      tileGraphics.fill(biomes.find((b) => b.id === tile.biomeId)?.textureColor ?? "#888888");
+
+      if (tile.water) {
+        tileGraphics.fill({ color: 0x2E6DB4 });
+      } else {
+        tileGraphics.fill(biomes.find((b) => b.id === tile.biomeId)?.textureColor ?? "#888888");
+
+        if (tile.surfaceType === "rocky") {
+          tileGraphics.rect(0, 0, tileSide, tileSide);
+          tileGraphics.fill({ color: 0x888888, alpha: 0.45 });
+        } else if (tile.surfaceType === "sandy") {
+          tileGraphics.rect(0, 0, tileSide, tileSide);
+          tileGraphics.fill({ color: 0xD4A86A, alpha: 0.45 });
+        }
+      }
+
       tileGraphics.interactive = true;
       tileGraphics.on("click", () => onTileClick(tile));
       container.addChild(tileGraphics);

@@ -38,8 +38,9 @@ segment base biome
                                                       [tile scale]
             → full-resolution elevation + terrain geometry
               → apply local modifiers (slope → drainage, aspect → light)
-                → compute derived values (effectiveMoisture, continentality)
+                → compute derived values (effectiveMoisture)
                   → water feature pass (ponds, rivers)
+                    → surface patch pass (rocky/sandy overlays)
 ```
 
 ### Stage 1 — Base anchoring `[patch scale]`
@@ -98,11 +99,36 @@ Generate full-resolution terrain geometry and apply local modifiers per tile:
 
 Tiles inherit their biome from the parent patch. The modifier pass adjusts per-tile axis values for gameplay purposes (which tile effects apply, what grows here) but does not reassign biomes.
 
-Compute derived values (`effectiveMoisture`, `continentality`) last, after all modifiers.
+Compute derived values (`effectiveMoisture`) last, after all modifiers.
 
 ### Stage 8 — Water feature pass `[tile scale]`
 
 Stamp pond and river tile flags using the tile-scale elevation and drainage data produced by Stage 7. Biome assignments are never modified. See [BIOME_LOCAL_WATER.md](BIOME_LOCAL_WATER.md) for the full spec.
+
+### Stage 9 — Surface patch pass `[tile scale]`
+
+Stamp `surfaceType` flags (`"rocky"` or `"sandy"`) on eligible tiles using two independent low-frequency simplex noise maps. This introduces minor terrain-surface variation within biomes without reassigning biomes.
+
+- **Rocky patches** — larger blobs (~10-tile noise wavelength). Represents exposed bedrock, scree, or rocky outcrops breaking through otherwise vegetated ground. Drainage is pushed toward 0.85 (`max(drainage, 0.70) × 1.15`) — bare rock sheds water immediately.
+- **Sandy patches** — slightly smaller blobs (~7-tile noise wavelength). Represents sandy clearings, dune-like pockets, or wind-deposited sand within otherwise non-sandy terrain. Drainage is pushed toward 0.75 (`max(drainage, 0.55) × 1.10`) — sand drains quickly but less extremely than bare rock.
+
+In both cases `effectiveMoisture` is recomputed from the updated drainage value.
+
+**Exclusion rules:**
+
+- Water tiles (`tile.water === true`) are always skipped.
+- Biomes where `precipitationRange[1] ≤ 0.20` are skipped — these are already naturally bare/rocky/sandy (deserts, polar deserts, alpine deserts, subalpine steppe, montane steppe, etc.) and adding patches there would be redundant.
+
+**Coverage and tuning:**
+
+The single parameter `surfacePatchChance` on `PipelineConfig` (default `0.07`) controls density. Rocky uses 60 % of that budget, sandy uses 40 %. At the default value roughly 4 % of eligible tiles become rocky and 3 % become sandy. The parameter scales continuously — `0.03` gives near-pristine biomes, `0.20` gives heavily disrupted terrain.
+
+```
+rockyThreshold = 0.75 − (surfacePatchChance × 0.6 × 3.0)
+sandyThreshold = 0.75 − (surfacePatchChance × 0.4 × 3.0)
+```
+
+If a tile would qualify for both (independent noise maps, so possible), rocky wins.
 
 ---
 
@@ -112,7 +138,6 @@ Rather than scoring tiles against 6 independent axes, compute ecologically meani
 
 ```
 effectiveMoisture  = precipitation × (1 - drainage)
-continentality     = temperature variance across the local world
 ```
 
 These collapse the axis space into dimensions that map more cleanly onto biome character.
@@ -138,20 +163,20 @@ Axes 1–4 are computed at both resolutions: coarsely at patch scale for biome s
 
 ## Implementation Notes
 
-All 8 stages are implemented. Deviations from spec:
+All 9 stages are implemented. Deviations from spec:
 
 **Stage 2 — noise amplitudes (not constrained by spec)**
+
 - altitude ±0.15, temperature ±3 °C (plus lapse rate −30 °C/unit altitude), precipitation ±0.08
 
 **Stage 4 — drainage not blended**
+
 - Drainage is gradient-derived and has no segment base value. It is not blended at borders — Stage 3 recomputes it from the blended elevation that Stage 4 produces, so it will naturally reflect the flatter terrain at segment edges.
 
 **Stage 5 — cascade inputs**
+
 - Temperature zone and moisture regime are resolved from the axis values produced by Stage 2 (no separate coarse/fine noise layer). Stage 2 noise anchored to the segment base already serves that role. Hard cuts at thresholds are intentional: Stage 4 blends the input axes continuously, so biome transitions at borders are smooth even without explicit blend weights.
 
-**Stage 7 — seasonality is a segment constant**
-- `seasonality` is copied directly from `segmentBase.seasonality` — it does not vary across the local world. Seasonality is a global-scale property set by the world map; local terrain variation does not affect it.
-- `continentality` is the normalized temperature std-dev across all patches: `clamp(sqrt(variance) / 20, 0, 1)`.
-
 **`paramDist` on biomes**
+
 - Each biome in `biomes.ts` carries a `paramDist` (`{ mean, stddev }` per axis, computed via `withDist()`). The pipeline does not yet sample from these distributions — tile parameter values come directly from noise layers. Variant-distribution sampling is an open gap.

@@ -78,6 +78,7 @@ export function stage7_expandTiles(
         continentality,
         water: false,
         waterType: undefined,
+        surfaceType: undefined,
       };
     }
   }

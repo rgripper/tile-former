@@ -37,6 +37,8 @@ export type PipelineConfig = {
   localNoiseScale: number;
   borderBlendWidth: number; // blend band width in patches
   biomes: Biome[];
+  surfacePatchChance: number; // [0, 1] base probability for rocky/sandy patch tiles
+  pondDensity: number;        // [0, 1] controls pond count and size (0 = none, 1 = maximum)
 };
 
 export const defaultSegmentBase: SegmentBase = {
@@ -56,4 +58,6 @@ export const defaultPipelineConfig: PipelineConfig = {
   localNoiseScale: 0.15,
   borderBlendWidth: 3,
   biomes: defaultBiomes,
+  surfacePatchChance: 0.07,
+  pondDensity: 0.5,
 };

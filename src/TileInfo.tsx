@@ -9,7 +9,7 @@ export function TileInfo({
   biomes: Biome[];
 }) {
   return (
-    <div className="h-60">
+    <div className="h-60 text-xs">
       {tile && (
         <>
           ({tile.index.x},{tile.index.y}) {biomes.find((b) => b.id === tile.biomeId)?.name}

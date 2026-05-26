@@ -11,6 +11,7 @@ import { stage5_selectBiomes } from "./stage5";
 import { stage6_caSmoothing } from "./stage6";
 import { stage7_expandTiles } from "./stage7";
 import { stage8_waterFeatures } from "./stage8";
+import { stage9_surfacePatches } from "./stage9_surfacePatches";
 
 export function generateTileMap(config: PipelineConfig): Tile[][] {
   const grid = stage1_initGrid(config);
@@ -21,5 +22,6 @@ export function generateTileMap(config: PipelineConfig): Tile[][] {
   stage6_caSmoothing(grid, config.biomes);
   const tiles = stage7_expandTiles(grid, config);
   stage8_waterFeatures(tiles, grid, config);
+  stage9_surfacePatches(tiles, config);
   return tiles;
 }
