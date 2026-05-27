@@ -86,6 +86,11 @@ function createTileGridSprites(
           tileGraphics.rect(0, 0, tileSide, tileSide);
           tileGraphics.fill({ color: 0xD4A86A, alpha: 0.45 });
         }
+
+        if (tile.riparian) {
+          tileGraphics.rect(0, 0, tileSide, tileSide);
+          tileGraphics.fill({ color: 0x4A90B8, alpha: 0.30 });
+        }
       }
 
       tileGraphics.interactive = true;

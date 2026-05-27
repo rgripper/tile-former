@@ -1,6 +1,10 @@
+import { createNoise2D } from "simplex-noise";
+import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
 import type { PatchCell, PipelineConfig } from "./types";
 import { clamp, MOORE8, VON4 } from "./utils";
+
+const RIPARIAN_NOISE_SCALE = 0.18;
 
 const POND_DEPTH_TOLERANCE = 0.03;
 const POND_MIN_AREA = 4;
@@ -14,6 +18,7 @@ export function stage8_waterFeatures(
 ): void {
   placePonds(tiles, grid, config);
   smoothPonds(tiles, config);
+  placeRiparian(tiles, config);
 }
 
 // Two CA iterations to clean up pond shapes:
@@ -140,6 +145,63 @@ function placePonds(
       claimed.add(tKey(fx, fy));
       tiles[fx][fy].water = true;
       tiles[fx][fy].waterType = "pond";
+    }
+  }
+}
+
+// BFS from water tiles to mark adjacent land tiles as riparian (fringe zone).
+// Width is 1–2 tiles; distance-2 tiles are gated by tile drainage + noise so
+// the band is naturally wider in boggy terrain and narrower on well-drained ground.
+function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
+  const { width, height, seed } = config;
+  const noise = createNoise2D(createRand(seed + "_riparian").next);
+
+  // BFS up to Chebyshev distance 2 from every water tile.
+  const dist: number[][] = Array.from({ length: width }, () =>
+    new Array(height).fill(Infinity),
+  );
+  const queue: Array<[number, number]> = [];
+
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      if (tiles[x][y].water) {
+        dist[x][y] = 0;
+        queue.push([x, y]);
+      }
+    }
+  }
+
+  let qi = 0;
+  while (qi < queue.length) {
+    const [cx, cy] = queue[qi++];
+    if (dist[cx][cy] >= 2) continue;
+    for (const [dx, dy] of MOORE8) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      if (dist[nx][ny] === Infinity) {
+        dist[nx][ny] = dist[cx][cy] + 1;
+        queue.push([nx, ny]);
+      }
+    }
+  }
+
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      const d = dist[x][y];
+      if (d === 0 || d === Infinity) continue; // water tile or out of range
+
+      const tile = tiles[x][y];
+
+      if (d === 1) {
+        tile.riparian = true;
+      } else {
+        // d === 2: include if drainage is low enough (bog = always, rock = rarely).
+        // threshold = drainage * 1.5 - 1.0 → at drainage 0: always; at drainage 1: ~25% chance
+        const threshold = tile.drainage * 1.5 - 1.0;
+        if (noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold) {
+          tile.riparian = true;
+        }
+      }
     }
   }
 }

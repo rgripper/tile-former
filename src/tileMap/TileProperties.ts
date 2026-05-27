@@ -10,4 +10,5 @@ export type TileProperties = {
   water: boolean;
   waterType: "pond" | undefined;
   surfaceType: "rocky" | "sandy" | undefined;
+  riparian: boolean;
 };

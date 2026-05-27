@@ -79,6 +79,7 @@ export function stage7_expandTiles(
         water: false,
         waterType: undefined,
         surfaceType: undefined,
+        riparian: false,
       };
     }
   }
