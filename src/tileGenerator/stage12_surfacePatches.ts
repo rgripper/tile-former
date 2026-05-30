@@ -1,30 +1,29 @@
-import { createNoise2D } from "simplex-noise";
-import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
+import type { RockTypeId } from "../tileMap/rockTypes";
 import type { PipelineConfig } from "./types";
 
-// Rocky patches use larger blobs (~10-tile wavelength), sandy patches smaller (~7-tile wavelength).
-const ROCKY_SCALE = 0.10;
-const SANDY_SCALE = 0.14;
+// Sediment-forming rocks weather into granular/sandy surface material.
+const SANDY_ROCK_TYPES = new Set<RockTypeId>(["sedimentary", "limestone"]);
 
+// Fraction of the surfacePatchChance budget allocated to each type.
 const ROCKY_FRACTION = 0.6;
 const SANDY_FRACTION = 0.4;
-
-function noiseThreshold(chance: number): number {
-  return Math.max(-0.9, 0.75 - chance * 3.0);
-}
 
 export function stage12_surfacePatches(
   tiles: Tile[][],
   config: PipelineConfig,
 ): void {
-  const { seed, surfacePatchChance, biomes } = config;
+  const { surfacePatchChance, biomes } = config;
 
-  const rockyNoise = createNoise2D(createRand(seed + "_rocky").next);
-  const sandyNoise = createNoise2D(createRand(seed + "_sandy").next);
+  // Rocky: exposed bedrock score = low fertility (thin soil) + drainage contribution.
+  // Threshold at chance=0.5 → 0.65, calibrated so cold/dry granite qualifies,
+  // warm/moist basalt does not.
+  const rockyThreshold = 0.80 - surfacePatchChance * ROCKY_FRACTION * 0.5;
 
-  const rockyThreshold = noiseThreshold(surfacePatchChance * ROCKY_FRACTION);
-  const sandyThreshold = noiseThreshold(surfacePatchChance * SANDY_FRACTION);
+  // Sandy: sedimentary/limestone + well-drained + not waterlogged.
+  // surfacePatchChance widens both bounds to include gentler slopes and wetter tiles.
+  const sandyDrainageFloor = 0.45 - surfacePatchChance * SANDY_FRACTION * 0.25;
+  const sandyMoistureCeiling = 0.25 + surfacePatchChance * SANDY_FRACTION * 0.60;
 
   const aridBiomeIds = new Set(
     biomes.filter((b) => b.precipitationRange[1] <= 0.20).map((b) => b.id),
@@ -35,13 +34,23 @@ export function stage12_surfacePatches(
       if (tile.water) continue;
       if (aridBiomeIds.has(tile.biomeId)) continue;
 
-      const tx = tile.index.x;
-      const ty = tile.index.y;
-
-      if (rockyNoise(tx * ROCKY_SCALE, ty * ROCKY_SCALE) > rockyThreshold) {
-        tile.surfaceType = "rocky";
-      } else if (sandyNoise(tx * SANDY_SCALE, ty * SANDY_SCALE) > sandyThreshold) {
+      // Sandy-forming rocks are checked first: sedimentary/limestone that is
+      // well-drained and not waterlogged weathers into granular surface material.
+      // (Checking after rocky would misclassify these tiles — their low fertility
+      // from dry/cold conditions pushes the rocky score above threshold too.)
+      if (
+        SANDY_ROCK_TYPES.has(tile.rockType) &&
+        tile.drainage > sandyDrainageFloor &&
+        tile.effectiveMoisture < sandyMoistureCeiling
+      ) {
         tile.surfaceType = "sandy";
+        continue;
+      }
+
+      // Rocky: hard/impermeable rock with thin or absent soil cover.
+      const rockyScore = (1 - tile.fertility) * 0.7 + tile.drainage * 0.3;
+      if (rockyScore > rockyThreshold) {
+        tile.surfaceType = "rocky";
       }
     }
   }
