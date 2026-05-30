@@ -9,15 +9,20 @@ export function TileInfo({
   biomes: Biome[];
 }) {
   return (
-    <div className="h-60 text-xs">
+    <div className="h-60 text-xs overflow-y-auto">
       {tile && (
         <>
-          ({tile.index.x},{tile.index.y}) {biomes.find((b) => b.id === tile.biomeId)?.name}
-          {Object.entries(tile).map(([key, value]) => (
-            <div key={key}>
-              {key}: {value?.toString() ?? "—"}
-            </div>
-          ))}
+          <div className="mb-1">
+            ({tile.index.x},{tile.index.y}){" "}
+            {biomes.find((b) => b.id === tile.biomeId)?.name}
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4">
+            {Object.entries(tile).map(([key, value]) => (
+              <div key={key} className="truncate">
+                <span className="opacity-60">{key}:</span> {value?.toString() ?? "—"}
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
