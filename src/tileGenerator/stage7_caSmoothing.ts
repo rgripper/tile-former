@@ -4,7 +4,7 @@ import { MOORE8, VON4 } from "./utils";
 
 const CLUSTER_SURVIVAL_MIN = 7;
 
-export function stage6_caSmoothing(grid: PatchCell[][], biomes: Biome[]): void {
+export function stage7_caSmoothing(grid: PatchCell[][], biomes: Biome[]): void {
   const pw = grid.length;
   const ph = grid[0].length;
 

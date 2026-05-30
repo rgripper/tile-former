@@ -27,7 +27,7 @@ function isAridBiome(biome: Biome): boolean {
   return biome.precipitationRange[1] <= 0.20;
 }
 
-export function stage9_surfacePatches(
+export function stage10_surfacePatches(
   tiles: Tile[][],
   config: PipelineConfig,
 ): void {
@@ -39,7 +39,6 @@ export function stage9_surfacePatches(
   const rockyThreshold = noiseThreshold(surfacePatchChance * ROCKY_FRACTION);
   const sandyThreshold = noiseThreshold(surfacePatchChance * SANDY_FRACTION);
 
-  // Build a fast biome lookup by id.
   const biomeById = new Map<number, Biome>(biomes.map((b) => [b.id, b]));
 
   for (const col of tiles) {

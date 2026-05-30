@@ -3,8 +3,9 @@ import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
 import type { PatchCell, PipelineConfig } from "./types";
 import { clamp } from "./utils";
+import { getRockType } from "../tileMap/rockTypes";
 
-export function stage7_expandTiles(
+export function stage8_expandTiles(
   grid: PatchCell[][],
   config: PipelineConfig,
 ): Tile[][] {
@@ -50,12 +51,13 @@ export function stage7_expandTiles(
 
       const altitude = tileAltitude(tx, ty);
 
-      // Drainage from tile-level gradient.
       const gx = tileAltitude(tx + 1, ty) - tileAltitude(tx - 1, ty);
       const gy = tileAltitude(tx, ty + 1) - tileAltitude(tx, ty - 1);
-      const drainage = clamp(Math.sqrt(gx * gx + gy * gy) / 0.3, 0, 1);
 
-      // Light from tile slope aspect (south-facing → more light).
+      const slopeDrainage = clamp(Math.sqrt(gx * gx + gy * gy) / 0.3, 0, 1);
+      const { permeability } = getRockType(patch.rockType);
+      const drainage = clamp(slopeDrainage * 0.7 + permeability * 0.3, 0, 1);
+
       const light = clamp(0.5 + gy * 1.5, 0.1, 1.0);
 
       const precipitation = clamp(
@@ -76,6 +78,9 @@ export function stage7_expandTiles(
         seasonality: config.segmentBase.seasonality,
         effectiveMoisture,
         continentality,
+        rockType: patch.rockType,
+        fertility: 0,
+        ore: undefined,
         water: false,
         waterType: undefined,
         surfaceType: undefined,

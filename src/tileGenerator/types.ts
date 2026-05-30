@@ -1,12 +1,14 @@
 import type { Biome } from "../tileMap/Biome";
 import { biomes as defaultBiomes } from "../tileMap/biomes";
+import type { RockTypeId } from "../tileMap/rockTypes";
 
 export type SegmentBase = {
-  altitude: number;       // [0, 1]
-  temperature: number;    // °C
-  precipitation: number;  // [0, 1]
-  light: number;          // [0, 1]
-  seasonality: number;    // [0, 1] — fixed for the entire local world, set by global map
+  altitude: number;             // [0, 1]
+  temperature: number;          // °C
+  precipitation: number;        // [0, 1]
+  light: number;                // [0, 1]
+  seasonality: number;          // [0, 1] — fixed for the entire local world, set by global map
+  dominantRockType: RockTypeId; // regional geology anchor, minor patches vary from this
 };
 
 export type SegmentNeighbors = {
@@ -24,7 +26,8 @@ export type PatchCell = {
   precipitation: number;
   drainage: number;
   light: number;
-  biomeId: number; // biome.id (1-based), set in Stage 5
+  rockType: RockTypeId; // set in Stage 3
+  biomeId: number;      // biome.id (1-based), set in Stage 6
 };
 
 export type PipelineConfig = {
@@ -35,10 +38,13 @@ export type PipelineConfig = {
   segmentBase: SegmentBase;
   neighbors?: SegmentNeighbors;
   localNoiseScale: number;
-  borderBlendWidth: number; // blend band width in patches
+  borderBlendWidth: number;          // blend band width in patches
   biomes: Biome[];
-  surfacePatchChance: number; // [0, 1] base probability for rocky/sandy patch tiles
-  pondDensity: number;        // [0, 1] controls pond count and size (0 = none, 1 = maximum)
+  surfacePatchChance: number;        // [0, 1] base probability for rocky/sandy patch tiles
+  drainageClusterChance: number;     // [0, 1] fraction of qualifying drainage minima that activate
+  drainageClusterBreadth: number;    // tiles — max flood-fill radius from cluster seed
+  drainageClusterDepth: number;      // [0, 1] drainage suppression intensity at cluster center
+  oreRates: Partial<Record<string, number>>; // base occurrence rate per ore type [0, 1]
 };
 
 export const defaultSegmentBase: SegmentBase = {
@@ -47,6 +53,7 @@ export const defaultSegmentBase: SegmentBase = {
   precipitation: 0.45,
   light: 0.55,
   seasonality: 0.25,
+  dominantRockType: 'sedimentary',
 };
 
 export const defaultPipelineConfig: PipelineConfig = {
@@ -59,5 +66,8 @@ export const defaultPipelineConfig: PipelineConfig = {
   borderBlendWidth: 3,
   biomes: defaultBiomes,
   surfacePatchChance: 0.07,
-  pondDensity: 0.5,
+  drainageClusterChance: 0.5,
+  drainageClusterBreadth: 4,
+  drainageClusterDepth: 0.6,
+  oreRates: {},
 };

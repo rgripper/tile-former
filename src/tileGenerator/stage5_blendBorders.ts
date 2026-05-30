@@ -3,7 +3,7 @@ import type { PatchCell, PipelineConfig, SegmentBase } from "./types";
 import { lerp } from "./utils";
 import { getTemperatureZone } from "./cascade";
 
-export function stage4_blendBorders(
+export function stage5_blendBorders(
   grid: PatchCell[][],
   config: PipelineConfig,
 ): void {

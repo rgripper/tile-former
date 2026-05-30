@@ -16,6 +16,7 @@ export function stage1_initGrid(config: PipelineConfig): PatchCell[][] {
         precipitation: segmentBase.precipitation,
         drainage: 0.5,
         light: segmentBase.light,
+        rockType: segmentBase.dominantRockType,
         biomeId: 0,
       };
     }
