@@ -3,7 +3,7 @@ import type { PipelineConfig } from "./types";
 import { clamp, lerp } from "./utils";
 import { getRockType } from "../tileMap/rockTypes";
 
-export function stage11_fertility(tiles: Tile[][], _config: PipelineConfig): void {
+export function stage10_fertility(tiles: Tile[][], _config: PipelineConfig): void {
   for (const col of tiles) {
     for (const tile of col) {
       if (tile.water) {
@@ -24,10 +24,6 @@ export function stage11_fertility(tiles: Tile[][], _config: PipelineConfig): voi
 
       // Riparian zones receive regular sediment and nutrient deposition.
       if (tile.riparian) fertility *= 1.3;
-
-      // Surface overrides: exposed rock and sand have little to no soil.
-      if (tile.surfaceType === "rocky") fertility *= 0.25;
-      else if (tile.surfaceType === "sandy") fertility *= 0.45;
 
       tile.fertility = clamp(fertility, 0, 1);
     }

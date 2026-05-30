@@ -13,7 +13,7 @@ function noiseThreshold(chance: number): number {
   return Math.max(-0.9, 0.75 - chance * 3.0);
 }
 
-export function stage12_ore(tiles: Tile[][], config: PipelineConfig): void {
+export function stage11_ore(tiles: Tile[][], config: PipelineConfig): void {
   const { seed, oreRates } = config;
   const entries = Object.entries(oreRates) as Array<[string, number]>;
   if (entries.length === 0) return;

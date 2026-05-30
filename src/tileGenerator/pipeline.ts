@@ -12,9 +12,9 @@ import { stage6_selectBiomes } from "./stage6_selectBiomes";
 import { stage7_caSmoothing } from "./stage7_caSmoothing";
 import { stage8_expandTiles } from "./stage8_expandTiles";
 import { stage9_drainageCluster } from "./stage9_drainageCluster";
-import { stage10_surfacePatches } from "./stage10_surfacePatches";
-import { stage11_fertility } from "./stage11_fertility";
-import { stage12_ore } from "./stage12_ore";
+import { stage10_fertility } from "./stage10_fertility";
+import { stage11_ore } from "./stage11_ore";
+import { stage12_surfacePatches } from "./stage12_surfacePatches";
 
 export function generateTileMap(config: PipelineConfig): Tile[][] {
   const grid = stage1_initGrid(config);
@@ -26,8 +26,8 @@ export function generateTileMap(config: PipelineConfig): Tile[][] {
   stage7_caSmoothing(grid, config.biomes);
   const tiles = stage8_expandTiles(grid, config);
   stage9_drainageCluster(tiles, config);
-  stage10_surfacePatches(tiles, config);
-  stage11_fertility(tiles, config);
-  stage12_ore(tiles, config);
+  stage10_fertility(tiles, config);
+  stage11_ore(tiles, config);
+  stage12_surfacePatches(tiles, config);
   return tiles;
 }

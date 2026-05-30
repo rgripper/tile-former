@@ -40,9 +40,9 @@ segment base biome
               → full-resolution elevation + terrain geometry
                   (drainage = slope × rock permeability, rock type inherited from patch)
                 → drainage cluster pass (ponds from geology-driven accumulation zones)
-                  → surface patch pass (rocky/sandy overlays)
-                    → fertility (rock + climate + moisture → soil quality)
-                      → ore placement (rock affinities × configured rates)
+                  → fertility  (rock + climate + moisture → soil quality)
+                    → ore placement  (rock affinities × configured rates)
+                      → surface patch pass  (rocky/sandy visual overlay, presentational)
 ```
 
 ### Stage 1 — Base anchoring `[patch scale]`
@@ -134,32 +134,7 @@ Identify geology-driven water accumulation zones and stamp them as ponds. Water 
 
 A tile is a candidate seed if its drainage (post rock-permeability) is below `0.35` and it is a local altitude minimum. Activated seeds flood-fill outward; the fill suppresses drainage and marks tiles as water where `drainage < 0.15` after suppression. Two CA passes clean up cluster shapes. Riparian fringe is then BFS-stamped from all water tiles.
 
-### Stage 10 — Surface patch pass `[tile scale]`
-
-Stamp `surfaceType` flags (`"rocky"` or `"sandy"`) on eligible tiles using two independent low-frequency simplex noise maps. This introduces minor terrain-surface variation within biomes without reassigning biomes.
-
-- **Rocky patches** — larger blobs (~10-tile noise wavelength). Represents exposed bedrock, scree, or rocky outcrops breaking through otherwise vegetated ground. Drainage is pushed toward 0.85 (`max(drainage, 0.70) × 1.15`) — bare rock sheds water immediately.
-- **Sandy patches** — slightly smaller blobs (~7-tile noise wavelength). Represents sandy clearings, dune-like pockets, or wind-deposited sand within otherwise non-sandy terrain. Drainage is pushed toward 0.75 (`max(drainage, 0.55) × 1.10`) — sand drains quickly but less extremely than bare rock.
-
-In both cases `effectiveMoisture` is recomputed from the updated drainage value.
-
-**Exclusion rules:**
-
-- Water tiles (`tile.water === true`) are always skipped.
-- Biomes where `precipitationRange[1] ≤ 0.20` are skipped — these are already naturally bare/rocky/sandy (deserts, polar deserts, alpine deserts, subalpine steppe, montane steppe, etc.) and adding patches there would be redundant.
-
-**Coverage and tuning:**
-
-The single parameter `surfacePatchChance` on `PipelineConfig` (default `0.07`) controls density. Rocky uses 60 % of that budget, sandy uses 40 %. At the default value roughly 4 % of eligible tiles become rocky and 3 % become sandy. The parameter scales continuously — `0.03` gives near-pristine biomes, `0.20` gives heavily disrupted terrain.
-
-```
-rockyThreshold = 0.75 − (surfacePatchChance × 0.6 × 3.0)
-sandyThreshold = 0.75 − (surfacePatchChance × 0.4 × 3.0)
-```
-
-If a tile would qualify for both (independent noise maps, so possible), rocky wins.
-
-### Stage 11 — Fertility `[tile scale]`
+### Stage 10 — Fertility `[tile scale]`
 
 Derive `tile.fertility ∈ [0, 1]` from rock type, climate, and moisture. Water tiles receive `fertility = 0`.
 
@@ -170,11 +145,9 @@ moistureFactor = lerp(0.3, 1.0, min(1, effectiveMoisture × 2))
 fertility = rockType.fertilityBase × tempFactor × moistureFactor
 
 if riparian:    fertility × 1.3   (sediment and nutrient deposition)
-if rocky:       fertility × 0.25  (no soil over exposed bedrock)
-if sandy:       fertility × 0.45  (low mineral content)
 ```
 
-### Stage 12 — Ore placement `[tile scale]`
+### Stage 11 — Ore placement `[tile scale]`
 
 Place ore deposits using `PipelineConfig.oreRates` (base occurrence rate per ore type) multiplied by each rock type's affinity for that ore. Each ore type gets an independent simplex noise map; tiles exceeding the threshold for the rarest qualifying ore are stamped with `tile.ore`.
 
@@ -185,6 +158,15 @@ tile.ore      = rarest ore whose noise(x, y) > threshold
 ```
 
 Ore affinities are defined per rock type (see Stage 3 table). Water tiles are skipped. When multiple ores would qualify on the same tile, the rarest (lowest base rate) wins.
+
+### Stage 12 — Surface patch pass `[tile scale]` *(presentational)*
+
+Stamp `surfaceType` flags (`"rocky"` or `"sandy"`) as a purely visual overlay using two independent low-frequency simplex noise maps. Runs last so it has no effect on any mechanical values (drainage, fertility, ore). Used for debugging and rendering variation within biomes.
+
+- **Rocky patches** — larger blobs (~10-tile noise wavelength).
+- **Sandy patches** — slightly smaller blobs (~7-tile noise wavelength).
+
+Water tiles and naturally bare biomes (`precipitationRange[1] ≤ 0.20`) are excluded. `surfacePatchChance` controls density; rocky uses 60 % of the budget, sandy 40 %.
 
 ---
 
