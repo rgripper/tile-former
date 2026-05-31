@@ -1,4 +1,4 @@
-import type { PipelineConfig } from "./tileGenerator/pipeline";
+import type { PipelineConfig } from "@tile-former/tilegen";
 
 type SliderParam = {
   key: "borderBlendWidth" | "localNoiseScale" | "tilesPerPatch";

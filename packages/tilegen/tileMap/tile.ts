@@ -1,4 +1,4 @@
-import { TileProperties } from "./TileProperties";
+import type { TileProperties } from "./TileProperties";
 
 export type Tile = TileProperties & {
   biomeId: number;

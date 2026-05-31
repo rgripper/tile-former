@@ -3,8 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { classifyPlantBiome } from "./tileMap/plants/plantBiomeClassifier.ts";
-import { biomes } from "./tileMap/biomes.ts";
+import { biomes } from "@tile-former/tilegen";
 // import { parseLSystem } from "./tree/lSystem/l-system-parser.ts";
 // import TreeRenderer from "./tree/lSystem/TreeRenderer.tsx";
 

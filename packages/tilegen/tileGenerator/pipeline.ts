@@ -1,6 +1,3 @@
-export type { SegmentBase, SegmentNeighbors, PipelineConfig } from "./types";
-export { defaultSegmentBase, defaultPipelineConfig } from "./types";
-
 import type { PipelineConfig } from "./types";
 import type { Tile } from "../tileMap/tile";
 import { stage1_initGrid } from "./stage1";

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { TileMapView } from "./TileMapView.tsx";
 import { Spritesheet } from "pixi.js";
-import { Biome } from "./tileMap/Biome.ts";
 import {
   generateTileMap,
-  PipelineConfig,
+  type Biome,
+  type PipelineConfig,
   defaultPipelineConfig,
-} from "./tileGenerator/pipeline.ts";
+} from "@tile-former/tilegen";
 import { PipelinePanel } from "./PipelinePanel.tsx";
 import { TileInfo } from "./TileInfo.tsx";
 

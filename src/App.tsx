@@ -4,7 +4,7 @@ import { Assets, Spritesheet, Texture } from "pixi.js";
 import atlasUrl from "./assets/grass.png";
 import { WeatherTool } from "./temperature/WeatherTool.tsx";
 import { AnnualDateTime } from "./temperature/AnnualDateTime.ts";
-import { biomes } from "./tileMap/biomes.ts";
+import { biomes } from "@tile-former/tilegen";
 // import CurvedTopRectangle from "./CurvedTopRectangle.tsx";
 
 const texture = await Assets.load<Texture>(atlasUrl);
@@ -32,10 +32,7 @@ function App() {
     <>
       {/* <CurvedTopRectangle /> */}
       {/* <WeatherTool dateTime={dateTime} onDateTimeChange={setDateTime} /> */}
-      <TileMapTool
-        biomes={biomes}
-        tileSpritesheet={tileSpritesheet}
-      />
+      <TileMapTool biomes={biomes} tileSpritesheet={tileSpritesheet} />
     </>
   );
 }

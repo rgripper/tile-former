@@ -161,12 +161,10 @@ Ore affinities are defined per rock type (see Stage 3 table). Water tiles are sk
 
 ### Stage 12 — Surface patch pass `[tile scale]` *(presentational)*
 
-Stamp `surfaceType` flags (`"rocky"` or `"sandy"`) as a purely visual overlay using two independent low-frequency simplex noise maps. Runs last so it has no effect on any mechanical values (drainage, fertility, ore). Used for debugging and rendering variation within biomes.
+Stamps `surfaceType` flags (`"rocky"` or `"sandy"`) based on rock type, drainage, and fertility. Runs last so it has no effect on any mechanical values. Water tiles and arid biomes (`precipitationRange[1] ≤ 0.20`) are excluded. `surfacePatchChance` controls overall density; rocky uses 60 % of the budget, sandy 40 %.
 
-- **Rocky patches** — larger blobs (~10-tile noise wavelength).
-- **Sandy patches** — slightly smaller blobs (~7-tile noise wavelength).
-
-Water tiles and naturally bare biomes (`precipitationRange[1] ≤ 0.20`) are excluded. `surfacePatchChance` controls density; rocky uses 60 % of the budget, sandy 40 %.
+- **Sandy patches** — checked first. Tile must have a sediment-forming rock type (`"sedimentary"` or `"limestone"`), drainage above a floor threshold, and effective moisture below a ceiling. The drainage floor and moisture ceiling both widen as `surfacePatchChance` increases.
+- **Rocky patches** — checked second. Score = `(1 − fertility) × 0.7 + drainage × 0.3`. Tiles above the threshold (`0.80 − surfacePatchChance × 0.30`) are marked rocky. Low fertility (thin soil) and high drainage (impermeable bedrock) both contribute; cold/dry granite typically qualifies while warm/moist basalt does not.
 
 ---
 

@@ -1,9 +1,7 @@
 import { Viewport } from "pixi-viewport";
 import { Container, Application, Spritesheet, Sprite, Graphics } from "pixi.js";
 import { gridSize, tileSide } from "./config.ts";
-import { Tile } from "./tileMap/tile.ts";
-import { Biome } from "./tileMap/Biome.ts";
-import { biomes } from "./tileMap/biomes.ts";
+import { Tile, Biome, biomes } from "@tile-former/tilegen";
 
 export async function initApp({
   tileMap,
@@ -40,7 +38,7 @@ export async function initApp({
     tileMap,
     biomes,
     tileSpritesheet,
-    onTileClick
+    onTileClick,
   );
   viewport.addChild(tileGridContainer);
 
@@ -57,7 +55,7 @@ function createTileGridSprites(
   tileMap: Tile[][],
   biomes: Biome[],
   tileSpritesheet: Spritesheet,
-  onTileClick: (tile: Tile) => void
+  onTileClick: (tile: Tile) => void,
 ) {
   const container = new Container();
 
@@ -75,21 +73,23 @@ function createTileGridSprites(
       tileGraphics.rect(0, 0, tileSide, tileSide);
 
       if (tile.water) {
-        tileGraphics.fill({ color: 0x2E6DB4 });
+        tileGraphics.fill({ color: 0x2e6db4 });
       } else {
-        tileGraphics.fill(biomes.find((b) => b.id === tile.biomeId)?.textureColor ?? "#888888");
+        tileGraphics.fill(
+          biomes.find((b) => b.id === tile.biomeId)?.textureColor ?? "#888888",
+        );
 
         if (tile.surfaceType === "rocky") {
           tileGraphics.rect(0, 0, tileSide, tileSide);
           tileGraphics.fill({ color: 0x888888, alpha: 0.45 });
         } else if (tile.surfaceType === "sandy") {
           tileGraphics.rect(0, 0, tileSide, tileSide);
-          tileGraphics.fill({ color: 0xD4A86A, alpha: 0.45 });
+          tileGraphics.fill({ color: 0xd4a86a, alpha: 0.45 });
         }
 
         if (tile.riparian) {
           tileGraphics.rect(0, 0, tileSide, tileSide);
-          tileGraphics.fill({ color: 0x4A90B8, alpha: 0.30 });
+          tileGraphics.fill({ color: 0x4a90b8, alpha: 0.3 });
         }
       }
 

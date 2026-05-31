@@ -13,6 +13,11 @@
     "preview": "vite preview",
     "test": "vitest"
   },
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ]
+  },
   "dependencies": {
     "@radix-ui/react-slider": "^1.2.3",
     "@radix-ui/react-slot": "^1.1.2",
@@ -38,7 +43,8 @@
     "temporal-polyfill": "^0.2.5",
     "three": "^0.174.0",
     "transformation-matrix": "^3.0.0",
-    "value-noise-js": "^1.2.6"
+    "value-noise-js": "^1.2.6",
+    "@tile-former/tilegen": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.0.9",

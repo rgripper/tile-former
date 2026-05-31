@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { initApp } from "./initApp.ts";
 import { Application, Spritesheet, Texture } from "pixi.js";
-import { Tile } from "./tileMap/tile.ts";
+import type { Tile } from "@tile-former/tilegen";
 import { Viewport } from "pixi-viewport";
 
 export function TileMapView({

@@ -1,5 +1,4 @@
-import { Biome } from "./tileMap/Biome.ts";
-import { Tile } from "./tileMap/tile.ts";
+import type { Biome, Tile } from "@tile-former/tilegen";
 
 export function TileInfo({
   tile,
@@ -19,7 +18,8 @@ export function TileInfo({
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4">
             {Object.entries(tile).map(([key, value]) => (
               <div key={key} className="truncate">
-                <span className="opacity-60">{key}:</span> {value?.toString() ?? "—"}
+                <span className="opacity-60">{key}:</span>{" "}
+                {value?.toString() ?? "—"}
               </div>
             ))}
           </div>
