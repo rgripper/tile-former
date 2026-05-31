@@ -1,3 +1,6 @@
+import { createNoise2D } from "simplex-noise";
+import { createRand } from "../rand";
+
 export function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
@@ -20,4 +23,26 @@ export const VON4: ReadonlyArray<[number, number]> = [
 export function sampleNormal(mean: number, stddev: number, u1: number, u2: number): number {
   const z = Math.sqrt(-2 * Math.log(Math.max(u1, 1e-10))) * Math.cos(2 * Math.PI * u2);
   return mean + stddev * z;
+}
+
+export function makeNoise2D(seed: string) {
+  return createNoise2D(createRand(seed).next);
+}
+
+// Drainage from terrain slope and rock permeability.
+// gx/gy are altitude differences (east−west, south−north); permeability ∈ [0, 1].
+export function computeDrainage(gx: number, gy: number, permeability: number): number {
+  const slopeDrainage = clamp(Math.sqrt(gx * gx + gy * gy) / 0.3, 0, 1);
+  return clamp(slopeDrainage * 0.7 + permeability * 0.3, 0, 1);
+}
+
+// Light from south-facing slope aspect. gy > 0 means terrain rises southward.
+export function computeLight(gy: number): number {
+  return clamp(0.5 + gy * 1.5, 0.1, 1.0);
+}
+
+// Encodes (x, y) as a single integer for use in Set/Map.
+// width must be provided so the encoding is collision-free for the grid dimensions.
+export function tileKey(x: number, y: number, width: number): number {
+  return x * width + y;
 }

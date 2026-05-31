@@ -11,11 +11,9 @@
 //
 // Rock-type affinities are defined in tileMap/rockTypes.ts.
 
-import { createNoise2D } from "simplex-noise";
-import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
 import type { PipelineConfig } from "./types";
-import { clamp } from "./utils";
+import { clamp, makeNoise2D } from "./utils";
 import { getRockType } from "../tileMap/rockTypes";
 
 const ORE_TILE_SCALE = 0.12;
@@ -35,10 +33,7 @@ export function stage11_ore(tiles: Tile[][], config: PipelineConfig): void {
   const sorted = [...entries].sort(([, a], [, b]) => a - b);
 
   const noiseByOre = new Map(
-    sorted.map(([oreId]) => [
-      oreId,
-      createNoise2D(createRand(seed + "_ore_" + oreId).next),
-    ]),
+    sorted.map(([oreId]) => [oreId, makeNoise2D(seed + "_ore_" + oreId)]),
   );
 
   for (const col of tiles) {

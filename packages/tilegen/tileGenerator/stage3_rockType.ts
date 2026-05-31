@@ -7,9 +7,8 @@
 // Rock-type properties (permeability, fertilityBase, oreAffinities) live in
 // tileMap/rockTypes.ts.
 
-import { createNoise2D } from "simplex-noise";
-import { createRand } from "../rand";
 import type { PatchCell, PipelineConfig } from "./types";
+import { makeNoise2D } from "./utils";
 import { ALL_ROCK_TYPE_IDS } from "../tileMap/rockTypes";
 
 // Low-frequency noise — geology changes slowly across a local world.
@@ -20,7 +19,7 @@ const MINORITY_THRESHOLD = 0.50;
 
 export function stage3_rockType(grid: PatchCell[][], config: PipelineConfig): void {
   const { seed, segmentBase } = config;
-  const noise = createNoise2D(createRand(seed + "_rock").next);
+  const noise = makeNoise2D(seed + "_rock");
 
   const dominant = segmentBase.dominantRockType;
   const others = ALL_ROCK_TYPE_IDS.filter((id) => id !== dominant);

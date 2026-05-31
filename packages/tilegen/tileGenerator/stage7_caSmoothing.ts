@@ -10,7 +10,7 @@
 
 import type { Biome } from "../tileMap/Biome";
 import type { PatchCell } from "./types";
-import { MOORE8, VON4 } from "./utils";
+import { MOORE8, tileKey, VON4 } from "./utils";
 
 const CLUSTER_SURVIVAL_MIN = 7;
 
@@ -88,7 +88,7 @@ function measureCluster(
 
   while (stack.length > 0) {
     const [cx, cy] = stack.pop()!;
-    const k = cx * 10000 + cy;
+    const k = tileKey(cx, cy, pw);
     if (visited.has(k)) continue;
     visited.add(k);
     if (visited.size >= CLUSTER_SURVIVAL_MIN) return visited.size;

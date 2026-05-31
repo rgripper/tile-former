@@ -15,11 +15,10 @@
 //   drainageClusterBreadth — flood-fill radius (tiles)
 //   drainageClusterDepth   — drainage suppression intensity at cluster centre
 
-import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
 import type { PipelineConfig } from "./types";
-import { clamp, MOORE8, VON4 } from "./utils";
+import { clamp, makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
 
 const RIPARIAN_NOISE_SCALE = 0.18;
 
@@ -59,7 +58,7 @@ function placeClusters(tiles: Tile[][], config: PipelineConfig): void {
 
   const rand = createRand(seed + "_clusters");
   const tileAlt = (x: number, y: number) => tiles[x]?.[y]?.altitude ?? Infinity;
-  const tKey = (x: number, y: number) => x * 10000 + y;
+  const tKey = (x: number, y: number) => tileKey(x, y, width);
 
   // Altitude tolerance: deeper depth allows the fill to climb higher from the minimum.
   const altTolerance = ALT_TOLERANCE_BASE * (0.5 + drainageClusterDepth);
@@ -187,7 +186,7 @@ function smoothClusters(tiles: Tile[][], config: PipelineConfig): void {
 // the band is naturally wider in boggy terrain and narrower on well-drained ground.
 function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
   const { width, height, seed } = config;
-  const noise = createNoise2D(createRand(seed + "_riparian").next);
+  const noise = makeNoise2D(seed + "_riparian");
 
   const dist: number[][] = Array.from({ length: width }, () =>
     new Array(height).fill(Infinity),

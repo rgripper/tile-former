@@ -8,12 +8,11 @@
 // tile parameters in biome character rather than raw noise.
 // effectiveMoisture = precipitation × (1 − drainage) is derived last.
 
-import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
 import type { Biome } from "../tileMap/Biome";
 import type { PatchCell, PipelineConfig } from "./types";
-import { clamp, sampleNormal } from "./utils";
+import { clamp, computeDrainage, computeLight, makeNoise2D, sampleNormal } from "./utils";
 import { getRockType } from "../tileMap/rockTypes";
 
 export function stage8_expandTiles(
@@ -24,8 +23,7 @@ export function stage8_expandTiles(
   const pw = grid.length;
   const ph = grid[0].length;
 
-  const makeNoise = (s: string) => createNoise2D(createRand(s).next);
-  const fineAlt = makeNoise(seed + "_falt");
+  const fineAlt = makeNoise2D(seed + "_falt");
   const tileScale = localNoiseScale * tilesPerPatch;
 
   const biomeById = new Map<number, Biome>(config.biomes.map(b => [b.id, b]));
@@ -66,11 +64,9 @@ export function stage8_expandTiles(
       const gx = tileAltitude(tx + 1, ty) - tileAltitude(tx - 1, ty);
       const gy = tileAltitude(tx, ty + 1) - tileAltitude(tx, ty - 1);
 
-      const slopeDrainage = clamp(Math.sqrt(gx * gx + gy * gy) / 0.3, 0, 1);
       const { permeability } = getRockType(patch.rockType);
-      const drainage = clamp(slopeDrainage * 0.7 + permeability * 0.3, 0, 1);
-
-      const light = clamp(0.5 + gy * 1.5, 0.1, 1.0);
+      const drainage = computeDrainage(gx, gy, permeability);
+      const light = computeLight(gy);
 
       const biome = biomeById.get(patch.biomeId);
       let temperature: number;

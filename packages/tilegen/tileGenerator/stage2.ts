@@ -8,18 +8,15 @@
 //   precipitation: base ± 0.08
 // Seasonality is not perturbed — it is constant across the whole local world.
 
-import { createNoise2D } from "simplex-noise";
-import { createRand } from "../rand";
 import type { PatchCell, PipelineConfig } from "./types";
-import { clamp } from "./utils";
+import { clamp, makeNoise2D } from "./utils";
 
 export function stage2_noiseAxes(grid: PatchCell[][], config: PipelineConfig): void {
   const { seed, localNoiseScale: scale, segmentBase } = config;
-  const makeNoise = (s: string) => createNoise2D(createRand(s).next);
 
-  const altNoise = makeNoise(seed + "_alt");
-  const tmpNoise = makeNoise(seed + "_tmp");
-  const prcNoise = makeNoise(seed + "_prc");
+  const altNoise = makeNoise2D(seed + "_alt");
+  const tmpNoise = makeNoise2D(seed + "_tmp");
+  const prcNoise = makeNoise2D(seed + "_prc");
 
   for (const col of grid) {
     for (const cell of col) {

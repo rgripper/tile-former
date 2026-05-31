@@ -1,10 +1,5 @@
 # TODO:
 
-## Refactoring:
-- maybe introduce x,y helper to cycle through each tile instead of nested cycles - would that be easier when converting ot rust. Some repetitive indexed calls to grid[x][y].
-- refactor each stage to constain meaningfully named helpers instead of a single sheet of code
-
-
 ## Vegetation pregen:
 - Classify vegetation of a tile on 3 levels - floor, bushes, trees
 
