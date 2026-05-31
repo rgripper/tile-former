@@ -1,3 +1,13 @@
+// Stage 2 — Local noise layers [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Samples three simplex noise maps at patch centres and adds local variation
+// on top of the segment base values:
+//   altitude:      base ± 0.15
+//   temperature:   base ± 3 °C, then adjusted by altitude lapse rate (−30 °C/unit)
+//   precipitation: base ± 0.08
+// Seasonality is not perturbed — it is constant across the whole local world.
+
 import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { PatchCell, PipelineConfig } from "./types";

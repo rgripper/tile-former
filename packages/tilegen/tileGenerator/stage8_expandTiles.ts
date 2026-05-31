@@ -1,8 +1,19 @@
+// Stage 8 — Tile-level modifier pass [tile scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Expands the patch grid to full tile resolution. Each tile inherits its biome
+// from the parent patch. Elevation, drainage, and light are recomputed from
+// terrain geometry. Temperature and precipitation are sampled from the biome's
+// paramDist distributions (N(mean,stddev), clamped to biome range), grounding
+// tile parameters in biome character rather than raw noise.
+// effectiveMoisture = precipitation × (1 − drainage) is derived last.
+
 import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
+import type { Biome } from "../tileMap/Biome";
 import type { PatchCell, PipelineConfig } from "./types";
-import { clamp } from "./utils";
+import { clamp, sampleNormal } from "./utils";
 import { getRockType } from "../tileMap/rockTypes";
 
 export function stage8_expandTiles(
@@ -15,8 +26,9 @@ export function stage8_expandTiles(
 
   const makeNoise = (s: string) => createNoise2D(createRand(s).next);
   const fineAlt = makeNoise(seed + "_falt");
-  const finePrc = makeNoise(seed + "_fprc");
   const tileScale = localNoiseScale * tilesPerPatch;
+
+  const biomeById = new Map<number, Biome>(config.biomes.map(b => [b.id, b]));
 
   // Continentality: temperature std-dev across all patches, normalized.
   let tempSum = 0, tempSumSq = 0, patchCount = 0;
@@ -60,10 +72,24 @@ export function stage8_expandTiles(
 
       const light = clamp(0.5 + gy * 1.5, 0.1, 1.0);
 
-      const precipitation = clamp(
-        patch.precipitation + finePrc(tx * tileScale, ty * tileScale) * 0.03,
-        0, 1,
-      );
+      const biome = biomeById.get(patch.biomeId);
+      let temperature: number;
+      let precipitation: number;
+
+      if (biome) {
+        const r = createRand(`${seed}_pd_${tx}_${ty}`);
+        temperature = clamp(
+          sampleNormal(biome.paramDist.temperature.mean, biome.paramDist.temperature.stddev, r.next(), r.next()),
+          biome.temperatureRange[0], biome.temperatureRange[1],
+        );
+        precipitation = clamp(
+          sampleNormal(biome.paramDist.precipitation.mean, biome.paramDist.precipitation.stddev, r.next(), r.next()),
+          biome.precipitationRange[0], biome.precipitationRange[1],
+        );
+      } else {
+        temperature = patch.temperature;
+        precipitation = patch.precipitation;
+      }
 
       const effectiveMoisture = precipitation * (1 - drainage);
 
@@ -71,7 +97,7 @@ export function stage8_expandTiles(
         index: { x: tx, y: ty },
         biomeId: patch.biomeId,
         altitude,
-        temperature: patch.temperature,
+        temperature,
         precipitation,
         drainage,
         light,

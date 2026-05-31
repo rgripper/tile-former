@@ -1,3 +1,13 @@
+// Stage 7 — CA smoothing [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md  Full CA spec: BIOME_LOCAL_CA.md
+//
+// Two-pass cellular automaton on the patch biome grid. Each pass:
+//   1. Plurality rule — proposes the modal biome among Moore-8 neighbours.
+//   2. Terrain-justification check — commits the replacement only when the
+//      cluster is smaller than CLUSTER_SURVIVAL_MIN AND the proposed biome fits
+//      the patch's terrain axes at least as well as the current one.
+// Each patch exits this stage with a stable biome assignment and rock type.
+
 import type { Biome } from "../tileMap/Biome";
 import type { PatchCell } from "./types";
 import { MOORE8, VON4 } from "./utils";

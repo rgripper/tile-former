@@ -1,3 +1,16 @@
+// Stage 11 — Ore placement [tile scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Places ore deposits using per-ore base rates scaled by rock-type affinity.
+// Each ore type gets an independent simplex noise map. When multiple ores
+// qualify on the same tile, the rarest (lowest base rate) wins.
+//
+//   effectiveRate = oreRates[ore] × rockType.oreAffinities[ore]
+//   threshold     = 0.75 − (effectiveRate × 3.0)
+//   tile.ore      = rarest ore whose noise(x, y) > threshold
+//
+// Rock-type affinities are defined in tileMap/rockTypes.ts.
+
 import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";

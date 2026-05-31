@@ -106,4 +106,4 @@ All thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as na
 
 **Level 1/2 blend weights** — not implemented. The cascade makes a hard cut at each threshold. Inter-family ecotones emerge from Stage 4 axis blending (the blended axis values feed naturally into the cascade). Intra-family blend weights (a tile near the drainage threshold drawing from two adjacent variants' distributions) are an open gap.
 
-**Parameter generation from `paramDist`** — not yet implemented. Tile parameters come from noise layers (Stages 2 and 7), not from variant distributions. The `paramDist` fields exist on all biomes but are not consumed by the pipeline.
+**Parameter generation from `paramDist`** — implemented in Stage 8. Temperature and precipitation are sampled from the tile's assigned biome's `paramDist` distributions (Box-Muller, clamped to biome range). Altitude, drainage, and light remain geophysically derived.

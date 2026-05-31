@@ -1,3 +1,12 @@
+// Stage 3 — Rock type [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Assigns a rock type to each patch. The segment's dominantRockType anchors
+// the local geology; a single low-frequency noise map introduces minority patches
+// (~16 % total coverage split across two minority types) for gameplay variety.
+// Rock-type properties (permeability, fertilityBase, oreAffinities) live in
+// tileMap/rockTypes.ts.
+
 import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { PatchCell, PipelineConfig } from "./types";

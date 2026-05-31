@@ -1,3 +1,17 @@
+// Stage 12 — Surface patch pass [tile scale] (presentational)
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Stamps surfaceType ("rocky" or "sandy") based on rock type, drainage, and
+// fertility. Runs last so it cannot affect any mechanical values.
+// Water tiles and arid biomes (precipitationRange[1] ≤ 0.20) are excluded.
+//
+// Sandy (checked first): sedimentary/limestone rock, drainage above floor,
+//   effectiveMoisture below ceiling. Both bounds widen with surfacePatchChance.
+// Rocky (checked second): score = (1−fertility)×0.7 + drainage×0.3.
+//   Tiles above threshold (0.80 − surfacePatchChance×0.30) are marked rocky.
+//   Low fertility (thin soil) and high drainage (impermeable bedrock) both
+//   contribute; cold/dry granite typically qualifies, warm/moist basalt does not.
+
 import type { Tile } from "../tileMap/tile";
 import type { RockTypeId } from "../tileMap/rockTypes";
 import type { PipelineConfig } from "./types";

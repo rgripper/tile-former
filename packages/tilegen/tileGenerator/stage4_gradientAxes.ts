@@ -1,3 +1,15 @@
+// Stage 4 — Patch-level secondary axes [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Derives drainage and light from terrain geometry and rock type; both are
+// used by biome selection (Stage 6) and CA (Stage 7).
+//
+// Drainage combines slope gradient with rock permeability:
+//   slopeDrainage = clamp(gradient / 0.3, 0, 1)
+//   drainage      = slopeDrainage × 0.7 + rockPermeability × 0.3
+// Convention: 0 = fully waterlogged, 1 = fully free-draining.
+// Light = slope aspect (south-facing slope → higher value).
+
 import type { PatchCell } from "./types";
 import { clamp } from "./utils";
 import { getRockType } from "../tileMap/rockTypes";

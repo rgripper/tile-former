@@ -1,3 +1,12 @@
+// Stage 1 — Base anchoring [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Initialises every patch cell to the parent segment's stable base values.
+// These values set the mean of all local distributions — noise layers add
+// variation around them but the mean is fixed, so the local world stays
+// ecologically coherent with its parent segment. A Taiga segment will not
+// accidentally generate a Desert patch at its centre.
+
 import type { PatchCell, PipelineConfig } from "./types";
 
 export function stage1_initGrid(config: PipelineConfig): PatchCell[][] {

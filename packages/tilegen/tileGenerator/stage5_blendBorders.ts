@@ -1,3 +1,17 @@
+// Stage 5 — Ecotone blending at segment borders [patch scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Blends altitude, temperature, precipitation, and light from adjacent segment
+// bases across a transition band (borderBlendWidth patches wide) where the
+// neighbour belongs to an adjacent temperature zone (TEMP_ZONE_ADJACENCY).
+// Blending at the property level lets downstream biome selection and CA work on
+// already-blended inputs, naturally producing transitional biomes at borders.
+//
+// Drainage is intentionally left unblended: it is gradient-derived and has no
+// segment base value. Stage 4 recomputes it from the blended elevation, so it
+// will naturally reflect flatter terrain near segment edges.
+// Climatically incompatible neighbours use a hard cut instead of blending.
+
 import { TEMP_ZONE_ADJACENCY } from "../tileMap/biomeVariants";
 import type { PatchCell, PipelineConfig, SegmentBase } from "./types";
 import { lerp } from "./utils";

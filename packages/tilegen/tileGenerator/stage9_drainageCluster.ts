@@ -1,3 +1,20 @@
+// Stage 9 — Drainage cluster pass [tile scale]
+// Spec: BIOME_LOCAL_PIPELINE.md
+//
+// Stamps geology-driven water accumulation zones as ponds. Water placement is
+// emergent from the drainage field (already shaped by rock type) rather than
+// independently noise-placed.
+//
+// Candidate seeds: tiles with drainage < 0.35 that are local altitude minima.
+// Activated seeds BFS flood-fill outward; the fill suppresses drainage and marks
+// tiles as water where drainage < 0.15 after suppression. Two CA passes clean
+// cluster shapes; BFS then stamps riparian fringe.
+//
+// Three config parameters control output:
+//   drainageClusterChance  — fraction of qualifying minima that activate
+//   drainageClusterBreadth — flood-fill radius (tiles)
+//   drainageClusterDepth   — drainage suppression intensity at cluster centre
+
 import { createNoise2D } from "simplex-noise";
 import { createRand } from "../rand";
 import type { Tile } from "../tileMap/tile";
