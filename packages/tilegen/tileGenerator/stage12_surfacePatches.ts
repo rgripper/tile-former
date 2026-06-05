@@ -12,8 +12,8 @@
 //   Low fertility (thin soil) and high drainage (impermeable bedrock) both
 //   contribute; cold/dry granite typically qualifies, warm/moist basalt does not.
 
-import type { Tile } from "../tileMap/tile";
-import type { RockTypeId } from "../tileMap/rockTypes";
+import type { Tile } from "../tile/tile";
+import type { RockTypeId } from "../tile/rockTypes";
 import type { PipelineConfig } from "./types";
 
 // Sediment-forming rocks weather into granular/sandy surface material.
@@ -32,15 +32,15 @@ export function stage12_surfacePatches(
   // Rocky: exposed bedrock score = low fertility (thin soil) + drainage contribution.
   // Threshold at chance=0.5 → 0.65, calibrated so cold/dry granite qualifies,
   // warm/moist basalt does not.
-  const rockyThreshold = 0.80 - surfacePatchChance * ROCKY_FRACTION * 0.5;
+  const rockyThreshold = 0.8 - surfacePatchChance * ROCKY_FRACTION * 0.5;
 
   // Sandy: sedimentary/limestone + well-drained + not waterlogged.
   // surfacePatchChance widens both bounds to include gentler slopes and wetter tiles.
   const sandyDrainageFloor = 0.45 - surfacePatchChance * SANDY_FRACTION * 0.25;
-  const sandyMoistureCeiling = 0.25 + surfacePatchChance * SANDY_FRACTION * 0.60;
+  const sandyMoistureCeiling = 0.25 + surfacePatchChance * SANDY_FRACTION * 0.6;
 
   const aridBiomeIds = new Set(
-    biomes.filter((b) => b.precipitationRange[1] <= 0.20).map((b) => b.id),
+    biomes.filter((b) => b.precipitationRange[1] <= 0.2).map((b) => b.id),
   );
 
   for (const col of tiles) {

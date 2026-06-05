@@ -1,5 +1,5 @@
 import type { PipelineConfig } from "./types";
-import type { Tile } from "../tileMap/tile";
+import type { Tile } from "../tile/tile";
 import { stage1_initGrid } from "./stage1";
 import { stage2_noiseAxes } from "./stage2";
 import { stage3_rockType } from "./stage3_rockType";
@@ -10,7 +10,7 @@ import { stage7_caSmoothing } from "./stage7_caSmoothing";
 import { stage8_expandTiles } from "./stage8_expandTiles";
 import { stage9_drainageCluster } from "./stage9_drainageCluster";
 import { stage10_fertility } from "./stage10_fertility";
-import { stage11_ore } from "./stage11_ore";
+import { stage11_mineableResource } from "./stage11_mineableResource";
 import { stage12_surfacePatches } from "./stage12_surfacePatches";
 
 export function generateTileMap(config: PipelineConfig): Tile[][] {
@@ -24,7 +24,7 @@ export function generateTileMap(config: PipelineConfig): Tile[][] {
   const tiles = stage8_expandTiles(grid, config);
   stage9_drainageCluster(tiles, config);
   stage10_fertility(tiles, config);
-  stage11_ore(tiles, config);
+  stage11_mineableResource(tiles, config);
   stage12_surfacePatches(tiles, config);
   return tiles;
 }

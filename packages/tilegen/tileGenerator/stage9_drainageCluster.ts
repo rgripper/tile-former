@@ -16,7 +16,7 @@
 //   drainageClusterDepth   — drainage suppression intensity at cluster centre
 
 import { createRand } from "../rand";
-import type { Tile } from "../tileMap/tile";
+import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "./types";
 import { clamp, makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
 
@@ -73,9 +73,13 @@ function placeClusters(tiles: Tile[][], config: PipelineConfig): void {
       const alt = tileAlt(x, y);
       let isMin = true;
       for (const [dx, dy] of MOORE8) {
-        const nx = x + dx, ny = y + dy;
+        const nx = x + dx,
+          ny = y + dy;
         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          if (tileAlt(nx, ny) <= alt) { isMin = false; break; }
+          if (tileAlt(nx, ny) <= alt) {
+            isMin = false;
+            break;
+          }
         }
       }
       if (isMin) candidates.push([x, y]);
@@ -83,7 +87,9 @@ function placeClusters(tiles: Tile[][], config: PipelineConfig): void {
   }
 
   // Sort by drainage ascending so the most waterlogged candidates are tried first.
-  candidates.sort(([ax, ay], [bx, by]) => tiles[ax][ay].drainage - tiles[bx][by].drainage);
+  candidates.sort(
+    ([ax, ay], [bx, by]) => tiles[ax][ay].drainage - tiles[bx][by].drainage,
+  );
 
   const maxArea = Math.max(
     CLUSTER_MIN_AREA,
@@ -110,7 +116,8 @@ function placeClusters(tiles: Tile[][], config: PipelineConfig): void {
       fill.push([cx, cy, dist]);
       if (dist >= drainageClusterBreadth) continue;
       for (const [dx, dy] of VON4) {
-        const nx = cx + dx, ny = cy + dy;
+        const nx = cx + dx,
+          ny = cy + dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
         const nk = tKey(nx, ny);
         if (seen.has(nk) || claimed.has(nk)) continue;
@@ -207,7 +214,8 @@ function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
     const [cx, cy] = queue[qi++];
     if (dist[cx][cy] >= 2) continue;
     for (const [dx, dy] of MOORE8) {
-      const nx = cx + dx, ny = cy + dy;
+      const nx = cx + dx,
+        ny = cy + dy;
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
       if (dist[nx][ny] === Infinity) {
         dist[nx][ny] = dist[cx][cy] + 1;
@@ -228,7 +236,9 @@ function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
       } else {
         // d === 2: include if drainage is low (bog = always, rock = rarely).
         const threshold = tile.drainage * 1.5 - 1.0;
-        if (noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold) {
+        if (
+          noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold
+        ) {
           tile.riparian = true;
         }
       }

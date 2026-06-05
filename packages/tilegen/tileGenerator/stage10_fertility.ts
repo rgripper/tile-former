@@ -9,12 +9,15 @@
 //   fertility      = rockFertilityBase × tempFactor × moistureFactor
 //                    × 1.3  if riparian (sediment and nutrient deposition)
 
-import type { Tile } from "../tileMap/tile";
+import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "./types";
 import { clamp, lerp } from "./utils";
-import { getRockType } from "../tileMap/rockTypes";
+import { getRockType } from "../tile/rockTypes";
 
-export function stage10_fertility(tiles: Tile[][], _config: PipelineConfig): void {
+export function stage10_fertility(
+  tiles: Tile[][],
+  _config: PipelineConfig,
+): void {
   for (const col of tiles) {
     for (const tile of col) {
       if (tile.water) {
@@ -29,7 +32,11 @@ export function stage10_fertility(tiles: Tile[][], _config: PipelineConfig): voi
       const tempFactor = Math.exp(-tNorm * tNorm);
 
       // More moisture → faster nutrient cycling, up to a saturation point.
-      const moistureFactor = lerp(0.3, 1.0, Math.min(1, tile.effectiveMoisture * 2));
+      const moistureFactor = lerp(
+        0.3,
+        1.0,
+        Math.min(1, tile.effectiveMoisture * 2),
+      );
 
       let fertility = fertilityBase * tempFactor * moistureFactor;
 

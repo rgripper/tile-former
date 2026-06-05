@@ -79,7 +79,7 @@ Two ecotone types emerge without special handling:
 
 Level 1 coarse noise at a segment border may only blend toward a zone that is directly adjacent in the temperature order. This prevents ecologically impossible transitions (e.g. Cold blending into Hot without Temperate in between).
 
-The order and adjacency map are exported from `src/tileMap/biomeVariants.ts`:
+The order and adjacency map are exported from `src/tile/biomeVariants.ts`:
 
 ```
 TEMP_ZONE_ORDER:     arctic → cold → temperate → warm → hot
@@ -92,7 +92,7 @@ At a segment edge the blend logic reads the dominant zone from both segments, ve
 
 ## Constants
 
-All thresholds are resolved in `src/tileMap/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
+All thresholds are resolved in `src/tile/biomeVariants.ts` and exported as named constants (`TEMP_*_LB`, `PRECIP_*_LB`, `ALTITUDE_MONTANE_THRESHOLD`).
 
 `Biome.paramDist` (`BiomeParamDist`) is computed from each biome's ranges via `withDist()` in `biomes.ts`: `mean = (lo + hi) / 2`, `stddev = (hi - lo) / 6` (3σ containment within range). Override per-biome in `rawBiomes` when ecological character warrants a tighter or asymmetric distribution.
 

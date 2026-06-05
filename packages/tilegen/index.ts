@@ -1,5 +1,5 @@
-export type { Biome } from "./tileMap/Biome.ts";
-export type { Tile } from "./tileMap/tile.ts";
+export type { Biome } from "./tile/Biome.ts";
+export type { Tile } from "./tile/tile.ts";
 export type {
   SegmentBase,
   SegmentNeighbors,
@@ -10,4 +10,4 @@ export {
   defaultPipelineConfig,
 } from "./tileGenerator/types.ts";
 export { generateTileMap } from "./tileGenerator/pipeline.ts";
-export { biomes } from "./tileMap/biomes.ts";
+export { biomes } from "./tile/biomes.ts";

@@ -8,7 +8,7 @@
 //      the patch's terrain axes at least as well as the current one.
 // Each patch exits this stage with a stable biome assignment and rock type.
 
-import type { Biome } from "../tileMap/Biome";
+import type { Biome } from "../tile/Biome";
 import type { PatchCell } from "./types";
 import { MOORE8, tileKey, VON4 } from "./utils";
 
@@ -23,23 +23,26 @@ export function stage7_caSmoothing(grid: PatchCell[][], biomes: Biome[]): void {
 
   for (let pass = 0; pass < 2; pass++) {
     // Level 1: plurality-rule — collect proposed replacements
-    const proposed: number[][] = grid.map((col) =>
-      col.map((c) => c.biomeId),
-    );
+    const proposed: number[][] = grid.map((col) => col.map((c) => c.biomeId));
 
     for (let x = 0; x < pw; x++) {
       for (let y = 0; y < ph; y++) {
         const counts = new Map<number, number>();
         for (const [dx, dy] of MOORE8) {
-          const nx = x + dx, ny = y + dy;
+          const nx = x + dx,
+            ny = y + dy;
           if (nx >= 0 && nx < pw && ny >= 0 && ny < ph) {
             const id = grid[nx][ny].biomeId;
             counts.set(id, (counts.get(id) ?? 0) + 1);
           }
         }
-        let best = grid[x][y].biomeId, bestCount = 0;
+        let best = grid[x][y].biomeId,
+          bestCount = 0;
         for (const [id, count] of counts) {
-          if (count > bestCount) { bestCount = count; best = id; }
+          if (count > bestCount) {
+            bestCount = count;
+            best = id;
+          }
         }
         proposed[x][y] = best;
       }
@@ -54,13 +57,28 @@ export function stage7_caSmoothing(grid: PatchCell[][], biomes: Biome[]): void {
 
         const curBiome = biomeById.get(cur);
         const repBiome = biomeById.get(rep);
-        if (!curBiome || !repBiome) { grid[x][y].biomeId = rep; continue; }
+        if (!curBiome || !repBiome) {
+          grid[x][y].biomeId = rep;
+          continue;
+        }
 
         const cell = grid[x][y];
         const distTo = (b: Biome) => {
-          const dd = Math.max(0, b.drainageRange[0] - cell.drainage, cell.drainage - b.drainageRange[1]);
-          const da = Math.max(0, b.altitudeRange[0] - cell.altitude, cell.altitude - b.altitudeRange[1]);
-          const dl = Math.max(0, b.lightRange[0] - cell.light, cell.light - b.lightRange[1]);
+          const dd = Math.max(
+            0,
+            b.drainageRange[0] - cell.drainage,
+            cell.drainage - b.drainageRange[1],
+          );
+          const da = Math.max(
+            0,
+            b.altitudeRange[0] - cell.altitude,
+            cell.altitude - b.altitudeRange[1],
+          );
+          const dl = Math.max(
+            0,
+            b.lightRange[0] - cell.light,
+            cell.light - b.lightRange[1],
+          );
           return dd + da + dl;
         };
 
@@ -93,9 +111,13 @@ function measureCluster(
     visited.add(k);
     if (visited.size >= CLUSTER_SURVIVAL_MIN) return visited.size;
     for (const [dx, dy] of VON4) {
-      const nx = cx + dx, ny = cy + dy;
+      const nx = cx + dx,
+        ny = cy + dy;
       if (
-        nx >= 0 && nx < pw && ny >= 0 && ny < ph &&
+        nx >= 0 &&
+        nx < pw &&
+        ny >= 0 &&
+        ny < ph &&
         grid[nx][ny].biomeId === targetId
       ) {
         stack.push([nx, ny]);

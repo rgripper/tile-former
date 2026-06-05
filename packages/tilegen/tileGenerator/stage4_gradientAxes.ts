@@ -12,7 +12,7 @@
 
 import type { PatchCell } from "./types";
 import { clamp, computeDrainage, computeLight } from "./utils";
-import { getRockType } from "../tileMap/rockTypes";
+import { getRockType } from "../tile/rockTypes";
 
 export function stage4_gradientAxes(grid: PatchCell[][]): void {
   const pw = grid.length;

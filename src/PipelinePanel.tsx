@@ -1,4 +1,5 @@
 import type { PipelineConfig } from "@tile-former/tilegen";
+import { Fragment } from "react";
 
 type SliderParam = {
   key: "borderBlendWidth" | "localNoiseScale" | "tilesPerPatch";
@@ -54,12 +55,9 @@ export function PipelinePanel({
         <div />
 
         {sliderParams.map(({ key, label, min, max, step, format }) => (
-          <>
-            <div key={key + "-label"} className="text-right text-gray-300">
-              {label}
-            </div>
+          <Fragment key={key}>
+            <div className="text-right text-gray-300">{label}</div>
             <input
-              key={key + "-slider"}
               type="range"
               min={min}
               max={max}
@@ -68,13 +66,10 @@ export function PipelinePanel({
               onChange={(e) => onChange(key, parseFloat(e.target.value))}
               className="w-full"
             />
-            <div
-              key={key + "-val"}
-              className="text-center text-gray-200 tabular-nums"
-            >
+            <div className="text-center text-gray-200 tabular-nums">
               {format(config[key] as number)}
             </div>
-          </>
+          </Fragment>
         ))}
 
         <div className="text-right text-gray-300">seed</div>

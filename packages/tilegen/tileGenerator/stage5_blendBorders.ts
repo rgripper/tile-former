@@ -12,7 +12,7 @@
 // will naturally reflect flatter terrain near segment edges.
 // Climatically incompatible neighbours use a hard cut instead of blending.
 
-import { TEMP_ZONE_ADJACENCY } from "../tileMap/biomeVariants";
+import { TEMP_ZONE_ADJACENCY } from "../tile/biomeVariants";
 import type { PatchCell, PipelineConfig, SegmentBase } from "./types";
 import { lerp } from "./utils";
 import { getTemperatureZone } from "./cascade";

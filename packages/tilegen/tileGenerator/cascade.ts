@@ -2,7 +2,7 @@ import {
   biomeCascade,
   ALTITUDE_MONTANE_THRESHOLD,
   type TemperatureZoneLabel,
-} from "../tileMap/biomeVariants";
+} from "../tile/biomeVariants";
 
 export function getTemperatureZone(temp: number): TemperatureZoneLabel {
   if (temp >= 35) return "hot";

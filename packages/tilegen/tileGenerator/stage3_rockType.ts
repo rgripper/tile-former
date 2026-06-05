@@ -4,20 +4,23 @@
 // Assigns a rock type to each patch. The segment's dominantRockType anchors
 // the local geology; a single low-frequency noise map introduces minority patches
 // (~16 % total coverage split across two minority types) for gameplay variety.
-// Rock-type properties (permeability, fertilityBase, oreAffinities) live in
+// Rock-type properties (permeability, fertilityBase, mineableResourceAffinities) live in
 // tileMap/rockTypes.ts.
 
 import type { PatchCell, PipelineConfig } from "./types";
 import { makeNoise2D } from "./utils";
-import { ALL_ROCK_TYPE_IDS } from "../tileMap/rockTypes";
+import { ALL_ROCK_TYPE_IDS } from "../tile/rockTypes";
 
 // Low-frequency noise — geology changes slowly across a local world.
 const ROCK_SCALE = 0.08;
 
 // Simplex noise stddev ≈ 0.35; threshold of 0.50 gives ~8% per minority type.
-const MINORITY_THRESHOLD = 0.50;
+const MINORITY_THRESHOLD = 0.5;
 
-export function stage3_rockType(grid: PatchCell[][], config: PipelineConfig): void {
+export function stage3_rockType(
+  grid: PatchCell[][],
+  config: PipelineConfig,
+): void {
   const { seed, segmentBase } = config;
   const noise = makeNoise2D(seed + "_rock");
 

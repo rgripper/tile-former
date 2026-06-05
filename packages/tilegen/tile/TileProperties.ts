@@ -11,7 +11,7 @@ export type TileProperties = {
   continentality: number;
   rockType: RockTypeId;
   fertility: number; // [0, 1] — derived in Stage "fertility" from rock + climate + moisture
-  ore: string | undefined; // ore type id from oreRates, set in Stage "Ore"
+  mineableResource: string | undefined; // resource type id from mineableResourceRates, set in Stage "Mineable Resource"
   water: boolean;
   waterType: "pond" | undefined;
   surfaceType: "rocky" | "sandy" | undefined;

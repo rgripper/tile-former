@@ -9,11 +9,17 @@
 // effectiveMoisture = precipitation × (1 − drainage) is derived last.
 
 import { createRand } from "../rand";
-import type { Tile } from "../tileMap/tile";
-import type { Biome } from "../tileMap/Biome";
+import type { Tile } from "../tile/tile";
+import type { Biome } from "../tile/Biome";
 import type { PatchCell, PipelineConfig } from "./types";
-import { clamp, computeDrainage, computeLight, makeNoise2D, sampleNormal } from "./utils";
-import { getRockType } from "../tileMap/rockTypes";
+import {
+  clamp,
+  computeDrainage,
+  computeLight,
+  makeNoise2D,
+  sampleNormal,
+} from "./utils";
+import { getRockType } from "../tile/rockTypes";
 
 export function stage8_expandTiles(
   grid: PatchCell[][],
@@ -26,10 +32,12 @@ export function stage8_expandTiles(
   const fineAlt = makeNoise2D(seed + "_falt");
   const tileScale = localNoiseScale * tilesPerPatch;
 
-  const biomeById = new Map<number, Biome>(config.biomes.map(b => [b.id, b]));
+  const biomeById = new Map<number, Biome>(config.biomes.map((b) => [b.id, b]));
 
   // Continentality: temperature std-dev across all patches, normalized.
-  let tempSum = 0, tempSumSq = 0, patchCount = 0;
+  let tempSum = 0,
+    tempSumSq = 0,
+    patchCount = 0;
   for (const col of grid) {
     for (const cell of col) {
       tempSum += cell.temperature;
@@ -46,7 +54,8 @@ export function stage8_expandTiles(
     const py = clamp(Math.floor(ty / tilesPerPatch), 0, ph - 1);
     return clamp(
       grid[px][py].altitude + fineAlt(tx * tileScale, ty * tileScale) * 0.05,
-      0, 1,
+      0,
+      1,
     );
   };
 
@@ -75,12 +84,24 @@ export function stage8_expandTiles(
       if (biome) {
         const r = createRand(`${seed}_pd_${tx}_${ty}`);
         temperature = clamp(
-          sampleNormal(biome.paramDist.temperature.mean, biome.paramDist.temperature.stddev, r.next(), r.next()),
-          biome.temperatureRange[0], biome.temperatureRange[1],
+          sampleNormal(
+            biome.paramDist.temperature.mean,
+            biome.paramDist.temperature.stddev,
+            r.next(),
+            r.next(),
+          ),
+          biome.temperatureRange[0],
+          biome.temperatureRange[1],
         );
         precipitation = clamp(
-          sampleNormal(biome.paramDist.precipitation.mean, biome.paramDist.precipitation.stddev, r.next(), r.next()),
-          biome.precipitationRange[0], biome.precipitationRange[1],
+          sampleNormal(
+            biome.paramDist.precipitation.mean,
+            biome.paramDist.precipitation.stddev,
+            r.next(),
+            r.next(),
+          ),
+          biome.precipitationRange[0],
+          biome.precipitationRange[1],
         );
       } else {
         temperature = patch.temperature;
@@ -102,7 +123,7 @@ export function stage8_expandTiles(
         continentality,
         rockType: patch.rockType,
         fertility: 0,
-        ore: undefined,
+        mineableResource: undefined,
         water: false,
         waterType: undefined,
         surfaceType: undefined,
