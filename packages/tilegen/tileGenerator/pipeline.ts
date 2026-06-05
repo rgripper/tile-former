@@ -11,7 +11,6 @@ import { stage8_expandTiles } from "./stage8_expandTiles";
 import { stage9_drainageCluster } from "./stage9_drainageCluster";
 import { stage10_fertility } from "./stage10_fertility";
 import { stage11_mineableResource } from "./stage11_mineableResource";
-import { stage12_surfacePatches } from "./stage12_surfacePatches";
 
 export function generateTileMap(config: PipelineConfig): Tile[][] {
   const grid = stage1_initGrid(config);
@@ -25,6 +24,5 @@ export function generateTileMap(config: PipelineConfig): Tile[][] {
   stage9_drainageCluster(tiles, config);
   stage10_fertility(tiles, config);
   stage11_mineableResource(tiles, config);
-  stage12_surfacePatches(tiles, config);
   return tiles;
 }

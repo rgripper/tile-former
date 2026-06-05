@@ -10,4 +10,5 @@ export {
   defaultPipelineConfig,
 } from "./tileGenerator/types.ts";
 export { generateTileMap } from "./tileGenerator/pipeline.ts";
+export { dressTileMap } from "./tileDresser/pipeline.ts";
 export { biomes } from "./tile/biomes.ts";

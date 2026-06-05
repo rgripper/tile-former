@@ -1,4 +1,4 @@
-// Stage 12 — Surface patch pass [tile scale] (presentational)
+// Stage 1 — Surface patch pass [tile scale] (presentational)
 // Spec: BIOME_LOCAL_PIPELINE.md
 //
 // Stamps surfaceType ("rocky" or "sandy") based on rock type, drainage, and
@@ -14,7 +14,7 @@
 
 import type { Tile } from "../tile/tile";
 import type { RockTypeId } from "../tile/rockTypes";
-import type { PipelineConfig } from "./types";
+import type { PipelineConfig } from "../tileGenerator/types";
 
 // Sediment-forming rocks weather into granular/sandy surface material.
 const SANDY_ROCK_TYPES = new Set<RockTypeId>(["sedimentary", "limestone"]);
@@ -23,7 +23,7 @@ const SANDY_ROCK_TYPES = new Set<RockTypeId>(["sedimentary", "limestone"]);
 const ROCKY_FRACTION = 0.6;
 const SANDY_FRACTION = 0.4;
 
-export function stage12_surfacePatches(
+export function stage1_surfacePatches(
   tiles: Tile[][],
   config: PipelineConfig,
 ): void {

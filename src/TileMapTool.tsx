@@ -3,6 +3,7 @@ import { TileMapView } from "./TileMapView.tsx";
 import { Spritesheet } from "pixi.js";
 import {
   generateTileMap,
+  dressTileMap,
   type Biome,
   type PipelineConfig,
   defaultPipelineConfig,
@@ -35,7 +36,11 @@ export function TileMapTool({
     return () => clearTimeout(timer);
   }, [config]);
 
-  const tileMap = useMemo(() => generateTileMap(genConfig), [genConfig]);
+  const tileMap = useMemo(() => {
+    const tiles = generateTileMap(genConfig);
+    dressTileMap(tiles, genConfig);
+    return tiles;
+  }, [genConfig]);
 
   const setParam = (key: keyof PipelineConfig, value: number | string) =>
     setConfig((c) => ({ ...c, [key]: value }));

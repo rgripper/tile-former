@@ -51,7 +51,6 @@ segment base biome
                 → drainage cluster pass (ponds from geology-driven accumulation zones)
                   → fertility  (rock + climate + moisture → soil quality)
                     → ore placement  (rock affinities × configured rates)
-                      → surface patch pass  (rocky/sandy visual overlay, presentational)
 ```
 
 ### Stage 1 — Base anchoring `[patch scale]`
@@ -97,10 +96,6 @@ See [tileGenerator/stage10_fertility.ts](tileGenerator/stage10_fertility.ts).
 ### Stage 11 — Ore placement `[tile scale]`
 
 See [tileGenerator/stage11_ore.ts](tileGenerator/stage11_ore.ts).
-
-### Stage 12 — Surface patch pass `[tile scale]` *(presentational)*
-
-See [tileGenerator/stage12_surfacePatches.ts](tileGenerator/stage12_surfacePatches.ts).
 
 ---
 
