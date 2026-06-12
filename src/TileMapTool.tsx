@@ -11,6 +11,8 @@ import {
 import { PipelinePanel } from "./PipelinePanel.tsx";
 import { TileInfo } from "./TileInfo.tsx";
 import { Tile } from "@tile-former/tilegen";
+import { generateLargeVoronoi, generateSmallVoronoi } from "./voronoi.ts";
+
 export function TileMapTool({
   biomes,
   tileSpritesheet,
@@ -30,6 +32,9 @@ export function TileMapTool({
     x: number;
     y: number;
   }>();
+  const [showLargeVoronoi, setShowLargeVoronoi] = useState(true);
+  const [showSmallVoronoi, setShowSmallVoronoi] = useState(true);
+  const [showVoronoiFeatures, setShowVoronoiFeatures] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => setGenConfig(config), 250);
@@ -42,6 +47,16 @@ export function TileMapTool({
     return tiles;
   }, [genConfig]);
 
+  const largeVoronoiData = useMemo(
+    () => generateLargeVoronoi(genConfig.seed),
+    [genConfig.seed],
+  );
+
+  const smallVoronoiData = useMemo(
+    () => generateSmallVoronoi(genConfig.seed),
+    [genConfig.seed],
+  );
+
   const setParam = (key: keyof PipelineConfig, value: number | string) =>
     setConfig((c) => ({ ...c, [key]: value }));
   const handleTileClick = useCallback((tile: Tile) => setHoveredTileIndex(tile.index), []);
@@ -49,7 +64,16 @@ export function TileMapTool({
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex flex-row gap-4 p-2">
-        <PipelinePanel config={config} onChange={setParam} />
+        <PipelinePanel
+          config={config}
+          onChange={setParam}
+          showLargeVoronoi={showLargeVoronoi}
+          showSmallVoronoi={showSmallVoronoi}
+          showVoronoiFeatures={showVoronoiFeatures}
+          onToggleLargeVoronoi={setShowLargeVoronoi}
+          onToggleSmallVoronoi={setShowSmallVoronoi}
+          onToggleVoronoiFeatures={setShowVoronoiFeatures}
+        />
         <TileInfo
           biomes={biomes}
           tile={
@@ -63,6 +87,12 @@ export function TileMapTool({
           tileSpritesheet={tileSpritesheet}
           tileMap={tileMap}
           onTileClick={handleTileClick}
+          largeVoronoiData={largeVoronoiData}
+          smallVoronoiData={smallVoronoiData}
+          seed={genConfig.seed}
+          showLargeVoronoi={showLargeVoronoi}
+          showSmallVoronoi={showSmallVoronoi}
+          showVoronoiFeatures={showVoronoiFeatures}
         />
       </div>
     </div>

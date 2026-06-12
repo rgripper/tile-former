@@ -1,23 +1,39 @@
 import { Viewport } from "pixi-viewport";
-import { Container, Application, Spritesheet, Sprite, Graphics } from "pixi.js";
+import { Container, Application, Spritesheet, Graphics } from "pixi.js";
 import { gridSize, tileSide } from "./config.ts";
 import { Tile, Biome, biomes } from "@tile-former/tilegen";
+import { createLargeVoronoiLayer, createSmallVoronoiLayer, createVoronoiFeaturesLayer } from "./voronoiRenderer.ts";
+import type { VoronoiData } from "./voronoi.ts";
 
 export async function initApp({
   tileMap,
   tileSpritesheet,
   container,
   onTileClick,
+  largeVoronoiData,
+  smallVoronoiData,
+  seed,
+  showLargeVoronoi,
+  showSmallVoronoi,
+  showVoronoiFeatures,
 }: {
   tileMap: Tile[][];
   tileSpritesheet: Spritesheet;
   container: HTMLElement;
   onTileClick: (tile: Tile) => void;
+  largeVoronoiData: VoronoiData;
+  smallVoronoiData: VoronoiData;
+  seed: string;
+  showLargeVoronoi: boolean;
+  showSmallVoronoi: boolean;
+  showVoronoiFeatures: boolean;
 }) {
   const app = new Application();
   await app.init({
     resizeTo: container,
     antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
   });
 
   const viewport = new Viewport({
@@ -29,18 +45,24 @@ export async function initApp({
   });
 
   viewport.drag().pinch().wheel().decelerate();
-  //viewport.moveCenter(450, 250);
   viewport.setZoom(0.2);
 
   app.stage.addChild(viewport);
 
-  const tileGridContainer = createTileGridSprites(
-    tileMap,
-    biomes,
-    tileSpritesheet,
-    onTileClick,
-  );
+  const tileGridContainer = createTileGridSprites(tileMap, biomes, tileSpritesheet, onTileClick);
   viewport.addChild(tileGridContainer);
+
+  const voronoiFeaturesLayer = createVoronoiFeaturesLayer(smallVoronoiData, seed);
+  voronoiFeaturesLayer.visible = showVoronoiFeatures;
+  viewport.addChild(voronoiFeaturesLayer);
+
+  const smallVoronoiLayer = createSmallVoronoiLayer(smallVoronoiData);
+  smallVoronoiLayer.visible = showSmallVoronoi;
+  viewport.addChild(smallVoronoiLayer);
+
+  const largeVoronoiLayer = createLargeVoronoiLayer(largeVoronoiData);
+  largeVoronoiLayer.visible = showLargeVoronoi;
+  viewport.addChild(largeVoronoiLayer);
 
   const soilGridContainer = createSoilGridSprites(tileMap);
   viewport.addChild(soilGridContainer);
@@ -48,6 +70,9 @@ export async function initApp({
   return {
     app,
     viewport,
+    largeVoronoiLayer,
+    smallVoronoiLayer,
+    voronoiFeaturesLayer,
   };
 }
 
@@ -63,7 +88,7 @@ function createTileGridSprites(
     for (let col = 0; col < tileMap[row]!.length; col++) {
       const tile = tileMap[row]![col]!;
 
-      const tileGraphics = new Graphics(); //new Sprite(tileSpritesheet.textures[tile.typeId]);
+      const tileGraphics = new Graphics();
 
       tileGraphics.x = tile.index.x * tileSide;
       tileGraphics.y = tile.index.y * tileSide;
@@ -117,7 +142,6 @@ function createSoilGridSprites(tileMap: Tile[][]) {
       };
       tileBorder.rect(0, 0, tileSide, tileSide);
       tileBorder.stroke();
-      // this sprite will contain 4 bars, each representing a soil component
 
       tileContainer.x = tile.index.x * tileSide;
       tileContainer.y = tile.index.y * tileSide;
