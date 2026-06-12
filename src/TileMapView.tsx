@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { initApp } from "./initApp.ts";
-import { Application, Spritesheet, Texture } from "pixi.js";
+import { Application, Spritesheet } from "pixi.js";
 import type { Tile } from "@tile-former/tilegen";
 import { Viewport } from "pixi-viewport";
 
@@ -38,7 +38,7 @@ export function TileMapView({
 
       return () => unsubscribe();
     }
-  }, [ref, tileSpritesheet, tileMap]);
+  }, [ref, tileSpritesheet, tileMap, onTileClick]);
 
   return <div className="flex-1 flex" ref={setRef}></div>;
 }

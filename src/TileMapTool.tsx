@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TileMapView } from "./TileMapView.tsx";
 import { Spritesheet } from "pixi.js";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@tile-former/tilegen";
 import { PipelinePanel } from "./PipelinePanel.tsx";
 import { TileInfo } from "./TileInfo.tsx";
-
+import { Tile } from "@tile-former/tilegen";
 export function TileMapTool({
   biomes,
   tileSpritesheet,
@@ -44,6 +44,7 @@ export function TileMapTool({
 
   const setParam = (key: keyof PipelineConfig, value: number | string) =>
     setConfig((c) => ({ ...c, [key]: value }));
+  const handleTileClick = useCallback((tile: Tile) => setHoveredTileIndex(tile.index), []);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -61,7 +62,7 @@ export function TileMapTool({
         <TileMapView
           tileSpritesheet={tileSpritesheet}
           tileMap={tileMap}
-          onTileClick={(x) => setHoveredTileIndex(x.index)}
+          onTileClick={handleTileClick}
         />
       </div>
     </div>
