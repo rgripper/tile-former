@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { generateLSystem, TreeTemplates } from "./l-system-generator";
 import { parseLSystem } from "./l-system-parser";
 import LSystemRenderer from "./threejs-lsystem-renderer.tsx";
@@ -12,40 +12,55 @@ const TreeRenderer: React.FC = () => {
   const [iterations, setIterations] = useState<number>(2);
   const [angleParameter, setAngleParameter] = useState<number>(25);
   const [segmentLength, setSegmentLength] = useState<number>(10);
-  const [lSystemString, setLSystemString] = useState<string>("");
   const [tree, setTree] = useState<any>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Debounce params before running the heavy generation
+  const [debouncedParams, setDebouncedParams] = useState({
+    selectedTemplate,
+    iterations,
+    angleParameter,
+    segmentLength,
+  });
 
   useEffect(() => {
-    const timestamp = Date.now();
+    const timer = setTimeout(
+      () =>
+        setDebouncedParams({ selectedTemplate, iterations, angleParameter, segmentLength }),
+      300
+    );
+    return () => clearTimeout(timer);
+  }, [selectedTemplate, iterations, angleParameter, segmentLength]);
+
+  useEffect(() => {
+    const { selectedTemplate, iterations, angleParameter, segmentLength } = debouncedParams;
 
     let template;
     switch (selectedTemplate) {
       case "pine":
         template = TreeTemplates.pineTree();
         break;
+      case "bush":
+        template = TreeTemplates.bushTree();
+        break;
       case "oak":
       default:
         template = TreeTemplates.oakTree();
         break;
-      case "bush":
-        template = TreeTemplates.bushTree();
-        break;
     }
 
-    const generatedString = generateLSystem(template, iterations, () =>
-      rand.next()
-    );
-    setLSystemString(generatedString);
-
-    const parsedTree = parseLSystem(generatedString, {
-      initialPosition: { x: 0, y: 0 },
-      initialAngle: -90,
-      segmentLength: segmentLength,
-      angleDelta: angleParameter,
-      widthFactor: 0.8,
+    startTransition(() => {
+      const generatedString = generateLSystem(template, iterations, () => rand.next());
+      const parsedTree = parseLSystem(generatedString, {
+        initialPosition: { x: 0, y: 0 },
+        initialAngle: -90,
+        segmentLength,
+        angleDelta: angleParameter,
+        widthFactor: 0.8,
+      });
+      setTree({ ...parsedTree, _timestamp: Date.now() });
     });
-    setTree({ ...parsedTree, _timestamp: timestamp });
-  }, [selectedTemplate, iterations, angleParameter, segmentLength]);
+  }, [debouncedParams]);
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
@@ -119,28 +134,30 @@ const TreeRenderer: React.FC = () => {
         </div>
       </div>
 
-      {tree && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <LSystemRenderer_debug
-              tree={tree}
-              width={400}
-              height={600}
-              backgroundColor="#e6f7ff"
-              branchColor="#8B4513"
-            />
+      <div style={{ opacity: isPending ? 0.5 : 1, transition: "opacity 0.2s" }}>
+        {tree && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <LSystemRenderer_debug
+                tree={tree}
+                width={400}
+                height={600}
+                backgroundColor="#e6f7ff"
+                branchColor="#8B4513"
+              />
+            </div>
+            <div>
+              <LSystemRenderer
+                tree={tree}
+                width={400}
+                height={600}
+                backgroundColor="#e6f7ff"
+                branchColor="#8B4513"
+              />
+            </div>
           </div>
-          <div>
-            <LSystemRenderer
-              tree={tree}
-              width={400}
-              height={600}
-              backgroundColor="#e6f7ff"
-              branchColor="#8B4513"
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
