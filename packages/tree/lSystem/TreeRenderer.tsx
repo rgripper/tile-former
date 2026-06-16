@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { generateLSystem, TreeTemplates } from "./l-system-generator";
 import { parseLSystem } from "./l-system-parser";
-import LSystemRenderer from "./threejs-lsystem-renderer.tsx";
-import LSystemRenderer_debug from "./LSystemRenderer_debug.tsx";
+import { LSystemSVGRenderer } from "./LSystemSVGRenderer";
 import Rand from "rand-seed";
 
 const rand = new Rand("random");
@@ -16,10 +15,22 @@ type Template = (typeof TEMPLATES)[number];
 
 const TreeRenderer: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<Template>("oak");
-  const [iterations, setIterations] = useState(2);
+  const [iterations, setIterations] = useState(3);
   const [angleParameter, setAngleParameter] = useState(25);
   const [segmentLength, setSegmentLength] = useState(10);
   const [tree, setTree] = useState<any>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 700, h: 680 });
+
+  useEffect(() => {
+    const obs = new ResizeObserver((entries) => {
+      const { width } = entries[0].contentRect;
+      setCanvasSize({ w: Math.floor(width), h: Math.floor(Math.min(width * 0.9, 750)) });
+    });
+    if (containerRef.current) obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     let template;
@@ -44,14 +55,27 @@ const TreeRenderer: React.FC = () => {
       angleDelta: angleParameter,
       widthFactor: 0.8,
     });
-    setTree({ ...parsedTree, _timestamp: Date.now() });
+    setTree(parsedTree);
   }, [selectedTemplate, iterations, angleParameter, segmentLength]);
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
-      <h1>L-System Tree Generator</h1>
+    <div style={{ maxWidth: "860px", margin: "0 auto", padding: "20px" }}>
+      <h1 style={{ marginBottom: "20px", fontSize: "1.4rem", fontWeight: 700 }}>
+        L-System Tree Generator
+      </h1>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px 24px",
+          marginBottom: "24px",
+          padding: "16px",
+          background: "#f8f9fa",
+          borderRadius: "8px",
+          border: "1px solid #dee2e6",
+        }}
+      >
         <ControlRow label="Tree Type">
           {TEMPLATES.map((t) => (
             <Btn key={t} active={selectedTemplate === t} onClick={() => setSelectedTemplate(t)}>
@@ -85,50 +109,55 @@ const TreeRenderer: React.FC = () => {
         </ControlRow>
       </div>
 
-      {tree && (
-        <div className="grid grid-cols-2 gap-4">
-          <LSystemRenderer_debug
+      <div ref={containerRef} style={{ borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+        {tree && (
+          <LSystemSVGRenderer
             tree={tree}
-            width={400}
-            height={600}
-            backgroundColor="#e6f7ff"
-            branchColor="#8B4513"
+            width={canvasSize.w}
+            height={canvasSize.h}
+            backgroundColor="#d7ecd9"
+            leafColor="#2e7d32"
+            trunkBaseHalfPx={Math.max(18, canvasSize.w * 0.035)}
           />
-          <LSystemRenderer
-            tree={tree}
-            width={400}
-            height={600}
-            backgroundColor="#e6f7ff"
-            branchColor="#8B4513"
-          />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
 
 function ControlRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-      <span style={{ width: "140px", fontSize: "0.9em", color: "#555" }}>{label}</span>
-      <div style={{ display: "flex", gap: "4px" }}>{children}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <span style={{ width: "130px", fontSize: "0.85em", fontWeight: 600, color: "#495057" }}>
+        {label}
+      </span>
+      <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>{children}</div>
     </div>
   );
 }
 
-function Btn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Btn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
       style={{
-        padding: "4px 12px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
+        padding: "5px 13px",
+        border: "1px solid " + (active ? "#1a6dbf" : "#ced4da"),
+        borderRadius: "5px",
         cursor: "pointer",
-        fontSize: "0.85em",
+        fontSize: "0.82em",
         background: active ? "#3b82f6" : "#fff",
-        color: active ? "#fff" : "#333",
+        color: active ? "#fff" : "#343a40",
         fontWeight: active ? 600 : 400,
+        transition: "background 0.12s, color 0.12s",
       }}
     >
       {children}
