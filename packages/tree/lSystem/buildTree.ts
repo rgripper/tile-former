@@ -23,9 +23,9 @@ function buildAbstractTree(
   level: number
 ): AbstractSegmentNode<Segment> {
   const [baseSegment, ...descendantSegments] = segments;
-  const children: AbstractSegmentNode<Segment>[] = baseSegment.branches.map(
-    (branch) => buildAbstractTree(branch.segments, level + 1)
-  );
+  const children: AbstractSegmentNode<Segment>[] = baseSegment.branches
+    .filter((branch) => branch.segments.length > 0)
+    .map((branch) => buildAbstractTree(branch.segments, level + 1));
 
   if (descendantSegments.length > 0) {
     children.push(buildAbstractTree(descendantSegments, level + 1));
