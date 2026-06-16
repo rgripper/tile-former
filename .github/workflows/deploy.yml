@@ -30,12 +30,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
       - name: Install dependencies
-        run: pnpm install
-      - name: Build with pnpm
-        run: pnpm build --base tile-former
+        run: bun install
+      - name: Build with Bun
+        run: bun run build --base tile-former
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
