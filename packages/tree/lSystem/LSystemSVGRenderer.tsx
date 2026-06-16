@@ -234,22 +234,39 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
           );
         })}
 
-      {/* Leaf clusters on all segments in the outer canopy zone (thin branches) */}
+      {/* Leaf clusters distributed along every canopy-zone segment.
+          Clusters are placed every LEAF_SPACING SVG px and alternate
+          slightly to each side of the branch so they overlap into a
+          solid green mass rather than a "beads on string" line. */}
       {shapes
         .filter((s) => s.startNorm / rootNorm < 0.5)
-        .map((shape, i) => {
-          const lx = tx(shape.segment.end.x);
-          const ly = ty(shape.segment.end.y);
-          // Leaves are roughly uniform size — don't scale with branch thickness
-          const r  = Math.max(3, Math.min(7, shape.startNorm * baseHalf * viewScale * 2.5));
-          return (
-            <g key={`leaf-${i}`}>
-              <circle cx={lx}              cy={ly}              r={r * 1.15} fill={leafColor}  opacity={0.50} />
-              <circle cx={lx - r * 0.45}  cy={ly - r * 0.55}  r={r * 0.75} fill="#43a047"   opacity={0.60} />
-              <circle cx={lx + r * 0.50}  cy={ly - r * 0.35}  r={r * 0.65} fill="#388e3c"   opacity={0.55} />
-              <circle cx={lx + r * 0.10}  cy={ly - r * 0.80}  r={r * 0.55} fill="#66bb6a"   opacity={0.50} />
-            </g>
-          );
+        .flatMap((shape, si) => {
+          const { start: s, end: e, angleRad: θ } = shape.segment;
+          const sx = tx(s.x), sy = ty(s.y);
+          const ex = tx(e.x), ey = ty(e.y);
+          const segLenPx = Math.hypot(ex - sx, ey - sy);
+          const LEAF_SPACING = 11; // SVG pixels between cluster centres
+          const count = Math.max(1, Math.round(segLenPx / LEAF_SPACING));
+          // Clusters large enough to overlap adjacent ones (r > spacing/2)
+          const r = Math.max(6, Math.min(11, shape.startNorm * baseHalf * viewScale * 3));
+          // SVG perpendicular direction: (-sinθ, cosθ) — same in SVG as world
+          const perpX = -Math.sin(θ), perpY = Math.cos(θ);
+
+          return Array.from({ length: count }, (_, k) => {
+            const t = (k + 0.5) / count;
+            // Alternate clusters to either side so they form a blob, not a line
+            const side = (k % 2 === 0 ? 1 : -1) * r * 0.35;
+            const lx = sx + t * (ex - sx) + side * perpX;
+            const ly = sy + t * (ey - sy) + side * perpY;
+            return (
+              <g key={`leaf-${si}-${k}`}>
+                <circle cx={lx}             cy={ly}             r={r * 1.1} fill={leafColor} opacity={0.55} />
+                <circle cx={lx - r * 0.4}  cy={ly - r * 0.5}  r={r * 0.7} fill="#43a047"  opacity={0.60} />
+                <circle cx={lx + r * 0.45} cy={ly - r * 0.3}  r={r * 0.6} fill="#388e3c"  opacity={0.55} />
+                <circle cx={lx + r * 0.1}  cy={ly - r * 0.75} r={r * 0.5} fill="#66bb6a"  opacity={0.50} />
+              </g>
+            );
+          });
         })}
     </svg>
   );
