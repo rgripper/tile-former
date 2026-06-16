@@ -7,142 +7,133 @@ import Rand from "rand-seed";
 
 const rand = new Rand("random");
 
+const TEMPLATES = ["pine", "oak", "bush"] as const;
+const ITERATIONS = [1, 2, 3, 4, 5] as const;
+const ANGLES = [15, 20, 25, 30, 35, 45] as const;
+const SEGMENT_LENGTHS = [5, 8, 10, 15, 20] as const;
+
+type Template = (typeof TEMPLATES)[number];
+
 const TreeRenderer: React.FC = () => {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("oak");
-  const [iterations, setIterations] = useState<number>(2);
-  const [angleParameter, setAngleParameter] = useState<number>(25);
-  const [segmentLength, setSegmentLength] = useState<number>(10);
-  const [lSystemString, setLSystemString] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<Template>("oak");
+  const [iterations, setIterations] = useState(2);
+  const [angleParameter, setAngleParameter] = useState(25);
+  const [segmentLength, setSegmentLength] = useState(10);
   const [tree, setTree] = useState<any>(null);
 
   useEffect(() => {
-    const timestamp = Date.now();
-
     let template;
     switch (selectedTemplate) {
       case "pine":
         template = TreeTemplates.pineTree();
         break;
+      case "bush":
+        template = TreeTemplates.bushTree();
+        break;
       case "oak":
       default:
         template = TreeTemplates.oakTree();
         break;
-      case "bush":
-        template = TreeTemplates.bushTree();
-        break;
     }
 
-    const generatedString = generateLSystem(template, iterations, () =>
-      rand.next()
-    );
-    setLSystemString(generatedString);
-
+    const generatedString = generateLSystem(template, iterations, () => rand.next());
     const parsedTree = parseLSystem(generatedString, {
       initialPosition: { x: 0, y: 0 },
       initialAngle: -90,
-      segmentLength: segmentLength,
+      segmentLength,
       angleDelta: angleParameter,
       widthFactor: 0.8,
     });
-    setTree({ ...parsedTree, _timestamp: timestamp });
+    setTree({ ...parsedTree, _timestamp: Date.now() });
   }, [selectedTemplate, iterations, angleParameter, segmentLength]);
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
       <h1>L-System Tree Generator</h1>
 
-      <div style={{ marginBottom: "20px" }}>
-        <div style={{ marginBottom: "10px" }}>
-          <label htmlFor="template-select" style={{ marginRight: "10px" }}>
-            Tree Type:
-          </label>
-          <select
-            id="template-select"
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            style={{ padding: "5px" }}
-          >
-            <option value="pine">Pine Tree</option>
-            <option value="oak">Oak Tree</option>
-            <option value="bush">Bush</option>
-          </select>
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+        <ControlRow label="Tree Type">
+          {TEMPLATES.map((t) => (
+            <Btn key={t} active={selectedTemplate === t} onClick={() => setSelectedTemplate(t)}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </Btn>
+          ))}
+        </ControlRow>
 
-        <div style={{ marginBottom: "10px" }}>
-          <label htmlFor="iterations-input" style={{ marginRight: "10px" }}>
-            Iterations:
-          </label>
-          <input
-            id="iterations-input"
-            type="number"
-            min="1"
-            max="6"
-            value={iterations}
-            onChange={(e) => setIterations(parseInt(e.target.value))}
-            style={{ padding: "5px" }}
-          />
-          <span style={{ marginLeft: "10px", fontSize: "0.8em", color: "#666" }}>
-            (Higher values may affect performance)
-          </span>
-        </div>
+        <ControlRow label="Iterations">
+          {ITERATIONS.map((n) => (
+            <Btn key={n} active={iterations === n} onClick={() => setIterations(n)}>
+              {n}
+            </Btn>
+          ))}
+        </ControlRow>
 
-        <div style={{ marginBottom: "10px" }}>
-          <label htmlFor="angle-input" style={{ marginRight: "10px" }}>
-            Branching Angle:
-          </label>
-          <input
-            id="angle-input"
-            type="number"
-            min="10"
-            max="45"
-            value={angleParameter}
-            onChange={(e) => setAngleParameter(parseInt(e.target.value))}
-            style={{ padding: "5px" }}
-          />
-          <span style={{ marginLeft: "5px" }}>degrees</span>
-        </div>
+        <ControlRow label="Branching Angle">
+          {ANGLES.map((a) => (
+            <Btn key={a} active={angleParameter === a} onClick={() => setAngleParameter(a)}>
+              {a}°
+            </Btn>
+          ))}
+        </ControlRow>
 
-        <div style={{ marginBottom: "10px" }}>
-          <label htmlFor="length-input" style={{ marginRight: "10px" }}>
-            Segment Length:
-          </label>
-          <input
-            id="length-input"
-            type="number"
-            min="5"
-            max="20"
-            value={segmentLength}
-            onChange={(e) => setSegmentLength(parseInt(e.target.value))}
-            style={{ padding: "5px" }}
-          />
-          <span style={{ marginLeft: "5px" }}>units</span>
-        </div>
+        <ControlRow label="Segment Length">
+          {SEGMENT_LENGTHS.map((l) => (
+            <Btn key={l} active={segmentLength === l} onClick={() => setSegmentLength(l)}>
+              {l}
+            </Btn>
+          ))}
+        </ControlRow>
       </div>
 
       {tree && (
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <LSystemRenderer_debug
-              tree={tree}
-              width={400}
-              height={600}
-              backgroundColor="#e6f7ff"
-              branchColor="#8B4513"
-            />
-          </div>
-          <div>
-            <LSystemRenderer
-              tree={tree}
-              width={400}
-              height={600}
-              backgroundColor="#e6f7ff"
-              branchColor="#8B4513"
-            />
-          </div>
+          <LSystemRenderer_debug
+            tree={tree}
+            width={400}
+            height={600}
+            backgroundColor="#e6f7ff"
+            branchColor="#8B4513"
+          />
+          <LSystemRenderer
+            tree={tree}
+            width={400}
+            height={600}
+            backgroundColor="#e6f7ff"
+            branchColor="#8B4513"
+          />
         </div>
       )}
     </div>
   );
 };
+
+function ControlRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <span style={{ width: "140px", fontSize: "0.9em", color: "#555" }}>{label}</span>
+      <div style={{ display: "flex", gap: "4px" }}>{children}</div>
+    </div>
+  );
+}
+
+function Btn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "4px 12px",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontSize: "0.85em",
+        background: active ? "#3b82f6" : "#fff",
+        color: active ? "#fff" : "#333",
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default TreeRenderer;
