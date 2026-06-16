@@ -1,20 +1,21 @@
-import { Point } from "../old/generateCurvedTopShape";
 import { buildNodeWithInlet, NodeWithInlet } from "./buildNodeWithInlet";
-import { Branch, Segment, Tree } from "./l-system-parser";
+import { Branch, Segment } from "./l-system-parser";
+
+type Point = { x: number; y: number };
 
 type AbstractSegment = {
-  level: number; // level of the segment in the tree
+  level: number;
 };
 
 type AbstractSegmentNode<T> = T &
   AbstractSegment & {
-    children: AbstractSegmentNode<T>[]; // children of the segment
+    children: AbstractSegmentNode<T>[];
   };
 
 export type ResolvedSegmentNode<T> = T &
   AbstractSegment & {
-    descendantLevelCount: number; // the longest segment chain from this segment to the leaf
-    children: ResolvedSegmentNode<T>[]; // children of the segment
+    descendantLevelCount: number;
+    children: ResolvedSegmentNode<T>[];
   };
 
 function buildAbstractTree(
@@ -59,7 +60,7 @@ function buildTree(branch: Branch): ResolvedSegmentNode<Segment> {
 
 export function buildShapeTree(branch: Branch, width: number): NodeWithInlet {
   const node = buildTree(branch);
-  const start = branch.segments[0].start;
+  const start: Point = branch.segments[0].start;
   return buildNodeWithInlet(
     node,
     [

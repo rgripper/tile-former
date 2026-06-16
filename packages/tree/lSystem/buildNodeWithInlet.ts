@@ -1,6 +1,7 @@
-import { Point } from "../old/generateCurvedTopShape";
 import { ResolvedSegmentNode } from "./buildTree";
 import { Segment } from "./l-system-parser";
+
+type Point = { x: number; y: number };
 
 export type NodeWithInlet = {
   node: ResolvedSegmentNode<Segment>;
@@ -56,13 +57,11 @@ function getSegmentNodeOutletWidth(
   reductionFactor: number
 ): number {
   const localReductionFactor = 1 - node.level / totalLevels;
-  return reductionFactor * localReductionFactor * inletWidth; // actually should be log or smth
+  return reductionFactor * localReductionFactor * inletWidth;
 }
 
 function getWidthFragment(descendantLevelCount: number, width: number): number {
   const widthSquared = Math.pow(width, 2);
-
-  // thickness of a segment is proportional to the number of levels of descendants
   return Math.sqrt(widthSquared / descendantLevelCount);
 }
 
@@ -71,7 +70,6 @@ function getOutlet(
   width: number
 ): [Point, Point] {
   const { angleRad, start } = node;
-  // we return two points that are perpendicular to the angle of the segment, half `width` away from the node's `start`
   const point1 = {
     x: start.x + Math.sin(angleRad) * width,
     y: start.y - Math.cos(angleRad) * width,

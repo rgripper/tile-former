@@ -1,11 +1,3 @@
-/**
- * L-System Generator
- *
- * A collection of stateless functions for generating L-Systems,
- * particularly focused on creating 2D tree structures.
- */
-
-// Type Definitions
 export type Rule = {
   predecessor: string;
   successors: { successor: string; probability: number }[];
@@ -16,25 +8,11 @@ export type LSystem = {
   rules: Rule[];
 };
 
-/**
- * Creates a new L-System with the specified axiom and rules
- *
- * @param axiom - The starting string
- * @param rules - Array of production rules
- * @returns A new LSystem object
- */
 export const createLSystem = (axiom: string, rules: Rule[]): LSystem => ({
   axiom,
   rules,
 });
 
-/**
- * Applies L-System rules to generate the next iteration
- *
- * @param current - The current string
- * @param rules - Array of production rules
- * @returns The new string after applying the rules
- */
 export const generateNextIteration = (
   current: string,
   rules: Rule[],
@@ -47,7 +25,6 @@ export const generateNextIteration = (
     const rule = rules.find((rule) => rule.predecessor === char);
 
     if (rule) {
-      // Choose a successor based on probability
       const randomValue = random();
       let cumulativeProbability = 0;
 
@@ -65,13 +42,7 @@ export const generateNextIteration = (
 
   return result;
 };
-/**
- * Generates an L-System string after the specified number of iterations
- *
- * @param system - The L-System to use
- * @param iterations - Number of iterations to perform
- * @returns The final L-System string
- */
+
 export const generateLSystem = (
   system: LSystem,
   iterations: number,
@@ -86,14 +57,7 @@ export const generateLSystem = (
   return result;
 };
 
-/**
- * Predefined L-Systems for different tree types
- */
 export const TreeTemplates = {
-  /**
-   * Pine tree
-   * Characterized by a central trunk with symmetric branches
-   */
   pineTree: (): LSystem =>
     createLSystem("F", [
       {
@@ -105,10 +69,6 @@ export const TreeTemplates = {
       },
     ]),
 
-  /**
-   * Oak-like tree
-   * More irregular branching pattern with thicker main branches
-   */
   oakTree: (): LSystem =>
     createLSystem("X", [
       {
@@ -128,10 +88,6 @@ export const TreeTemplates = {
       },
     ]),
 
-  /**
-   * Bush-like structure
-   * Dense branching with shorter segments
-   */
   bushTree: (): LSystem =>
     createLSystem("Y", [
       {
