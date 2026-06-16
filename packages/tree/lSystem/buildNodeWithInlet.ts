@@ -56,13 +56,14 @@ function getSegmentNodeOutletWidth(
   totalLevels: number,
   reductionFactor: number
 ): number {
+  if (totalLevels === 0) return 0;
   const localReductionFactor = 1 - node.level / totalLevels;
   return reductionFactor * localReductionFactor * inletWidth;
 }
 
 function getWidthFragment(descendantLevelCount: number, width: number): number {
-  const widthSquared = Math.pow(width, 2);
-  return Math.sqrt(widthSquared / descendantLevelCount);
+  if (descendantLevelCount === 0) return 0;
+  return Math.sqrt(Math.pow(width, 2) / descendantLevelCount);
 }
 
 function getOutlet(

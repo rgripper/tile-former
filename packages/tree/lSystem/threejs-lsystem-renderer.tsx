@@ -40,6 +40,8 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
     containerRef.current.appendChild(renderer.domElement);
 
     const segments = flattenTreeForRendering(tree);
+    if (segments.length === 0 || tree.root.segments.length === 0) return;
+
     const abstractTree = buildShapeTree(tree.root, 40);
 
     const bounds = calculateTreeBounds(segments);
@@ -47,8 +49,8 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
     const centerY = (bounds.minY + bounds.maxY) / 2;
 
     const marginFactor = 0.8;
-    const scaleX = (width * marginFactor) / bounds.width;
-    const scaleY = (height * marginFactor) / bounds.height;
+    const scaleX = bounds.width > 0 ? (width * marginFactor) / bounds.width : 1;
+    const scaleY = bounds.height > 0 ? (height * marginFactor) / bounds.height : 1;
     const scale = Math.min(scaleX, scaleY);
 
     const camera = new THREE.OrthographicCamera(
