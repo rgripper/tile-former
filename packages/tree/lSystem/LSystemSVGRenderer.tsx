@@ -88,32 +88,42 @@ function gatherShapes(
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the 4 world-space corners of a tapered segment, then maps through
- * (tx, ty) to get SVG-space coordinates.
+ * Builds the SVG path `d` for a tapered segment with a round cap at the
+ * forward (end) tip.
  *
- * Perpendicular to direction (cosθ, sinθ):  left = (−sinθ, cosθ).
- * The parser's world: angle −90° → direction (0, −1) → tree grows upward
- * (y decreases). tx/ty handle the SVG flip.
+ * Shape: trapezoid M start-left → L start-right → L end-right
+ *        → A (semicircle, sweep=1) end-left → Z
+ *
+ * Sweep direction proof: for any angle θ the cross-product
+ *   (center→end-right) × (center→forward-point) = sin²θ + cos²θ = 1 > 0
+ * which is always CW in SVG (y-down) → sweep-flag = 1.
  */
-function trapezoidPoints(
+function segmentPath(
   seg: Segment,
-  h1: number, // world half-width at start
-  h2: number, // world half-width at end
+  h1: number,       // world half-width at start
+  h2: number,       // world half-width at end
   tx: (x: number) => number,
   ty: (y: number) => number,
+  viewScale: number,
 ): string {
   const { angleRad: θ, start: s, end: e } = seg;
   const sinθ = Math.sin(θ);
   const cosθ = Math.cos(θ);
+  const h2px = h2 * viewScale; // end half-width in SVG px (arc radius)
 
-  // World-space corners, then immediately projected to SVG:
-  const pts: [number, number][] = [
-    [s.x - sinθ * h1, s.y + cosθ * h1], // start-left
-    [s.x + sinθ * h1, s.y - cosθ * h1], // start-right
-    [e.x + sinθ * h2, e.y - cosθ * h2], // end-right
-    [e.x - sinθ * h2, e.y + cosθ * h2], // end-left
-  ];
-  return pts.map(([x, y]) => `${tx(x).toFixed(2)},${ty(y).toFixed(2)}`).join(" ");
+  const f = (n: number) => n.toFixed(2);
+  const sLx = tx(s.x - sinθ * h1), sLy = ty(s.y + cosθ * h1); // start-left
+  const sRx = tx(s.x + sinθ * h1), sRy = ty(s.y - cosθ * h1); // start-right
+  const eRx = tx(e.x + sinθ * h2), eRy = ty(e.y - cosθ * h2); // end-right
+  const eLx = tx(e.x - sinθ * h2), eLy = ty(e.y + cosθ * h2); // end-left
+
+  return [
+    `M ${f(sLx)},${f(sLy)}`,
+    `L ${f(sRx)},${f(sRy)}`,
+    `L ${f(eRx)},${f(eRy)}`,
+    `A ${f(h2px)},${f(h2px)} 0 1 1 ${f(eLx)},${f(eLy)}`,
+    "Z",
+  ].join(" ");
 }
 
 /** Linearly interpolate between two RGB triples. t ∈ [0, 1]. */
@@ -216,12 +226,10 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
               : lerpColor(MID_BROWN,  LIGHT_BROWN,  t / 0.6);
 
           return (
-            <polygon
+            <path
               key={i}
-              points={trapezoidPoints(shape.segment, h1, h2, tx, ty)}
+              d={segmentPath(shape.segment, h1, h2, tx, ty, viewScale)}
               fill={fill}
-              stroke={fill}
-              strokeWidth={0.5}
             />
           );
         })}
