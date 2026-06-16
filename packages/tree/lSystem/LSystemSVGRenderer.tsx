@@ -234,13 +234,14 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
           );
         })}
 
-      {/* Leaf clusters at terminal tips */}
+      {/* Leaf clusters on all segments in the outer canopy zone (thin branches) */}
       {shapes
-        .filter((s) => s.isTerminal)
+        .filter((s) => s.startNorm / rootNorm < 0.5)
         .map((shape, i) => {
           const lx = tx(shape.segment.end.x);
           const ly = ty(shape.segment.end.y);
-          const r  = Math.max(4, shape.startNorm * baseHalf * viewScale * 3.5);
+          // Leaves are roughly uniform size — don't scale with branch thickness
+          const r  = Math.max(3, Math.min(7, shape.startNorm * baseHalf * viewScale * 2.5));
           return (
             <g key={`leaf-${i}`}>
               <circle cx={lx}              cy={ly}              r={r * 1.15} fill={leafColor}  opacity={0.50} />
