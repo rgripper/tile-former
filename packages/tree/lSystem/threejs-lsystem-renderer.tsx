@@ -8,7 +8,6 @@ import {
 import { buildShapeTree } from "./buildTree";
 import { NodeWithInlet } from "./buildNodeWithInlet";
 
-// Props for the LSystemRenderer component
 interface LSystemRendererProps {
   tree: Tree;
   width?: number;
@@ -19,50 +18,39 @@ interface LSystemRendererProps {
   showLeaves?: boolean;
 }
 
-/**
- * React component that renders an L-System tree using Three.js in 2D
- */
 const LSystemRenderer: React.FC<LSystemRendererProps> = ({
   tree,
   width = 800,
   height = 600,
   backgroundColor = "#f0f0f0",
-  branchColor = "#8B4513", // SaddleBrown
-  leafColor = "#6B8E23", // OliveDrab
+  branchColor = "#8B4513",
+  leafColor = "#6B8E23",
   showLeaves = true,
 }) => {
-  // Reference to the container div
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Setup and render the Three.js scene
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Create Three.js scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(backgroundColor);
 
-    // Setup renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     containerRef.current.appendChild(renderer.domElement);
 
-    // Flatten the tree into segments
     const segments = flattenTreeForRendering(tree);
     const abstractTree = buildShapeTree(tree.root, 40);
 
-    // Calculate bounds to center and scale the tree
     const bounds = calculateTreeBounds(segments);
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerY = (bounds.minY + bounds.maxY) / 2;
 
-    // Calculate scaling to fit in the view
-    const marginFactor = 0.8; // Add some margin
+    const marginFactor = 0.8;
     const scaleX = (width * marginFactor) / bounds.width;
     const scaleY = (height * marginFactor) / bounds.height;
     const scale = Math.min(scaleX, scaleY);
 
-    // Setup orthographic camera for 2D view
     const camera = new THREE.OrthographicCamera(
       -width / 2,
       width / 2,
@@ -72,37 +60,22 @@ const LSystemRenderer: React.FC<LSystemRendererProps> = ({
       1000
     );
 
-    // Flip the y-axis to make the tree grow upward
     scene.scale.set(1, -1, 1);
     camera.position.z = 100;
 
-    // Render the tree using lines
     renderShapeTree(scene, abstractTree, centerX, centerY, scale, branchColor);
 
-    // Render once
     renderer.render(scene, camera);
 
-    // Cleanup on unmount
     return () => {
       renderer.domElement.remove();
       renderer.dispose();
     };
-  }, [
-    tree,
-    width,
-    height,
-    backgroundColor,
-    branchColor,
-    leafColor,
-    showLeaves,
-  ]);
+  }, [tree, width, height, backgroundColor, branchColor, leafColor, showLeaves]);
 
   return <div ref={containerRef} />;
 };
 
-/**
- * Renders the L-System tree using line segments for a simpler 2D appearance
- */
 const renderShapeTree = (
   scene: THREE.Scene,
   tree: NodeWithInlet,
@@ -115,9 +88,6 @@ const renderShapeTree = (
 
   const drawBranch = (node: NodeWithInlet) => {
     const points = node.inlet;
-    console.log(points);
-
-    // Close the shape by adding the first point to the end
     const closedPoints = [...points, points[0]];
 
     const scaledPoints = closedPoints.map(
@@ -130,8 +100,7 @@ const renderShapeTree = (
     );
 
     const geometry = new THREE.BufferGeometry().setFromPoints(scaledPoints);
-    const line = new THREE.Line(geometry, material);
-    scene.add(line);
+    scene.add(new THREE.Line(geometry, material));
 
     node.children.forEach(drawBranch);
   };
@@ -139,37 +108,6 @@ const renderShapeTree = (
   drawBranch(tree);
 };
 
-/**
- * Find terminating segments (those that don't have any segments continuing from their end point)
- */
-const findTerminatingSegments = (segments: Segment[]): Set<Segment> => {
-  const terminatingSegments = new Set<Segment>();
-  const endPoints = new Set<string>();
-  const startPoints = new Set<string>();
-
-  // Collect all start and end points
-  segments.forEach((segment) => {
-    const startKey = `${segment.start.x},${segment.start.y}`;
-    const endKey = `${segment.end.x},${segment.end.y}`;
-
-    startPoints.add(startKey);
-    endPoints.add(endKey);
-  });
-
-  // Find segments whose end points aren't the start of any other segment
-  segments.forEach((segment) => {
-    const endKey = `${segment.end.x},${segment.end.y}`;
-    if (!startPoints.has(endKey)) {
-      terminatingSegments.add(segment);
-    }
-  });
-
-  return terminatingSegments;
-};
-
-/**
- * Transforms the tree into a flat list of segments for rendering
- */
 const flattenTreeForRendering = (tree: Tree): Segment[] => {
   const segments: Segment[] = [];
 
@@ -179,7 +117,6 @@ const flattenTreeForRendering = (tree: Tree): Segment[] => {
   };
 
   traverseBranch(tree.root);
-
   return segments;
 };
 

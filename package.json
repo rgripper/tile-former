@@ -44,7 +44,8 @@
     "three": "^0.174.0",
     "transformation-matrix": "^3.0.0",
     "value-noise-js": "^1.2.6",
-    "@tile-former/tilegen": "workspace:*"
+    "@tile-former/tilegen": "workspace:*",
+    "@tile-former/tree": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.0.9",

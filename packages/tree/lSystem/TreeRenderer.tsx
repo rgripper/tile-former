@@ -8,7 +8,6 @@ import Rand from "rand-seed";
 const rand = new Rand("random");
 
 const TreeRenderer: React.FC = () => {
-  // State for the L-System parameters
   const [selectedTemplate, setSelectedTemplate] = useState<string>("oak");
   const [iterations, setIterations] = useState<number>(2);
   const [angleParameter, setAngleParameter] = useState<number>(25);
@@ -16,21 +15,16 @@ const TreeRenderer: React.FC = () => {
   const [lSystemString, setLSystemString] = useState<string>("");
   const [tree, setTree] = useState<any>(null);
 
-  // Generate the L-System when parameters change
   useEffect(() => {
-    // Force rerender by adding a timestamp to ensure React detects the change
     const timestamp = Date.now();
 
-    // Get the selected template
     let template;
-
-    // Use a fresh template each time by calling the template function
     switch (selectedTemplate) {
       case "pine":
-      default:
         template = TreeTemplates.pineTree();
         break;
       case "oak":
+      default:
         template = TreeTemplates.oakTree();
         break;
       case "bush":
@@ -38,37 +32,26 @@ const TreeRenderer: React.FC = () => {
         break;
     }
 
-    console.log(
-      `Generating ${selectedTemplate} tree with ${iterations} iterations`
-    );
-
-    // Generate the L-System string
     const generatedString = generateLSystem(template, iterations, () =>
       rand.next()
     );
     setLSystemString(generatedString);
 
-    // Parse the L-System into a tree structure
     const parsedTree = parseLSystem(generatedString, {
       initialPosition: { x: 0, y: 0 },
-      initialAngle: -90, // Start growing upward
+      initialAngle: -90,
       segmentLength: segmentLength,
       angleDelta: angleParameter,
       widthFactor: 0.8,
     });
-    console.log("tree", generatedString, parsedTree);
-    // Add timestamp to ensure React detects the change
     setTree({ ...parsedTree, _timestamp: timestamp });
   }, [selectedTemplate, iterations, angleParameter, segmentLength]);
 
   return (
-    <div
-      className="app-container"
-      style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}
-    >
+    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
       <h1>L-System Tree Generator</h1>
 
-      <div className="controls" style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px" }}>
         <div style={{ marginBottom: "10px" }}>
           <label htmlFor="template-select" style={{ marginRight: "10px" }}>
             Tree Type:
@@ -98,9 +81,7 @@ const TreeRenderer: React.FC = () => {
             onChange={(e) => setIterations(parseInt(e.target.value))}
             style={{ padding: "5px" }}
           />
-          <span
-            style={{ marginLeft: "10px", fontSize: "0.8em", color: "#666" }}
-          >
+          <span style={{ marginLeft: "10px", fontSize: "0.8em", color: "#666" }}>
             (Higher values may affect performance)
           </span>
         </div>
@@ -138,39 +119,28 @@ const TreeRenderer: React.FC = () => {
         </div>
       </div>
 
-      <div
-        className="visualization"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        {tree && (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <LSystemRenderer_debug
-                  tree={tree}
-                  width={400}
-                  height={600}
-                  backgroundColor="#e6f7ff"
-                  branchColor="#8B4513"
-                />
-              </div>
-              <div>
-                <LSystemRenderer
-                  tree={tree}
-                  width={400}
-                  height={600}
-                  backgroundColor="#e6f7ff"
-                  branchColor="#8B4513"
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      {tree && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <LSystemRenderer_debug
+              tree={tree}
+              width={400}
+              height={600}
+              backgroundColor="#e6f7ff"
+              branchColor="#8B4513"
+            />
+          </div>
+          <div>
+            <LSystemRenderer
+              tree={tree}
+              width={400}
+              height={600}
+              backgroundColor="#e6f7ff"
+              branchColor="#8B4513"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
