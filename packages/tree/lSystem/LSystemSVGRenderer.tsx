@@ -11,7 +11,7 @@ interface Props {
   trunkBaseHalfPx?: number;
 }
 
-/** Normalised count stored per segment — width ∝ sqrt(count). */
+/** Per-segment shape data produced by traversal. */
 type SegmentShape = {
   segment: Segment;
   /** Normalised start half-width (multiply by baseHalf to get world units). */
@@ -19,6 +19,8 @@ type SegmentShape = {
   /** Normalised end half-width. */
   endNorm: number;
   isTerminal: boolean;
+  /** Max segment-hops to any terminal below this segment. 0 = terminal. */
+  depth: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -27,7 +29,7 @@ type SegmentShape = {
 
 /**
  * DFS post-order: counts total segment nodes reachable from segments[startIdx]
- * (inclusive). Memoises into `map`.
+ * (inclusive). Used by Leonardo's-rule width calculation.
  */
 function buildCountMap(
   segments: Segment[],
@@ -37,37 +39,65 @@ function buildCountMap(
   if (startIdx >= segments.length) return 0;
   const seg = segments[startIdx];
   let total = 1;
-  for (const br of seg.branches) {
-    total += buildCountMap(br.segments, 0, map);
-  }
+  for (const br of seg.branches) total += buildCountMap(br.segments, 0, map);
   total += buildCountMap(segments, startIdx + 1, map);
   map.set(seg, total);
   return total;
 }
 
 /**
- * Traverses the tree and emits SegmentShapes with normalised widths.
- * Leonardo's rule: endNorm = sqrt(Σ childStartNorm²) so that cross-sectional
- * area is conserved at every branching point.
+ * DFS post-order: records the maximum number of segment-hops from each
+ * segment to the furthest terminal below it. Terminal = 0.
+ *
+ * This is the botanically correct axis for leaf placement: leaves appear
+ * only on segments close to the tips (low depth), mimicking how real trees
+ * concentrate foliage in the outer canopy shell while inner wood is bare.
+ */
+function buildDepthMap(
+  segments: Segment[],
+  startIdx: number,
+  map: Map<Segment, number>,
+): number {
+  if (startIdx >= segments.length) return -1; // nothing here
+  const seg = segments[startIdx];
+
+  let maxChildDepth = -1;
+  for (const br of seg.branches) {
+    const d = buildDepthMap(br.segments, 0, map);
+    if (d > maxChildDepth) maxChildDepth = d;
+  }
+  const fwd = buildDepthMap(segments, startIdx + 1, map);
+  if (fwd > maxChildDepth) maxChildDepth = fwd;
+
+  const depth = maxChildDepth + 1;
+  map.set(seg, depth);
+  return depth;
+}
+
+/**
+ * Traverses the tree and emits SegmentShapes with normalised widths and depth.
+ * Leonardo's rule: endNorm = sqrt(Σ childStartNorm²) — cross-sectional area
+ * is conserved at every branching point.
  */
 function gatherShapes(
   segments: Segment[],
   startIdx: number,
-  map: Map<Segment, number>,
+  countMap: Map<Segment, number>,
+  depthMap: Map<Segment, number>,
   out: SegmentShape[],
 ): void {
   if (startIdx >= segments.length) return;
   const seg = segments[startIdx];
-  const count = map.get(seg)!;
+  const count = countMap.get(seg)!;
   const startNorm = Math.sqrt(count);
 
   const childNorms: number[] = [];
   if (startIdx + 1 < segments.length) {
-    childNorms.push(Math.sqrt(map.get(segments[startIdx + 1])!));
+    childNorms.push(Math.sqrt(countMap.get(segments[startIdx + 1])!));
   }
   for (const br of seg.branches) {
     if (br.segments.length > 0) {
-      childNorms.push(Math.sqrt(map.get(br.segments[0])!));
+      childNorms.push(Math.sqrt(countMap.get(br.segments[0])!));
     }
   }
 
@@ -76,10 +106,10 @@ function gatherShapes(
     ? 0.5
     : Math.sqrt(childNorms.reduce((s, n) => s + n * n, 0));
 
-  out.push({ segment: seg, startNorm, endNorm, isTerminal });
-  gatherShapes(segments, startIdx + 1, map, out);
+  out.push({ segment: seg, startNorm, endNorm, isTerminal, depth: depthMap.get(seg)! });
+  gatherShapes(segments, startIdx + 1, countMap, depthMap, out);
   for (const br of seg.branches) {
-    gatherShapes(br.segments, 0, map, out);
+    gatherShapes(br.segments, 0, countMap, depthMap, out);
   }
 }
 
@@ -88,34 +118,26 @@ function gatherShapes(
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the SVG path `d` for a tapered segment with a round cap at the
- * forward (end) tip.
- *
- * Shape: trapezoid M start-left → L start-right → L end-right
- *        → A (semicircle, sweep=1) end-left → Z
- *
- * Sweep direction proof: for any angle θ the cross-product
- *   (center→end-right) × (center→forward-point) = sin²θ + cos²θ = 1 > 0
- * which is always CW in SVG (y-down) → sweep-flag = 1.
+ * SVG path for a tapered segment with a round cap at the forward tip.
+ * Sweep=1 is correct for any angle θ (cross-product proof in earlier commit).
  */
 function segmentPath(
   seg: Segment,
-  h1: number,       // world half-width at start
-  h2: number,       // world half-width at end
+  h1: number,
+  h2: number,
   tx: (x: number) => number,
   ty: (y: number) => number,
   viewScale: number,
 ): string {
   const { angleRad: θ, start: s, end: e } = seg;
-  const sinθ = Math.sin(θ);
-  const cosθ = Math.cos(θ);
-  const h2px = h2 * viewScale; // end half-width in SVG px (arc radius)
+  const sinθ = Math.sin(θ), cosθ = Math.cos(θ);
+  const h2px = h2 * viewScale;
 
   const f = (n: number) => n.toFixed(2);
-  const sLx = tx(s.x - sinθ * h1), sLy = ty(s.y + cosθ * h1); // start-left
-  const sRx = tx(s.x + sinθ * h1), sRy = ty(s.y - cosθ * h1); // start-right
-  const eRx = tx(e.x + sinθ * h2), eRy = ty(e.y - cosθ * h2); // end-right
-  const eLx = tx(e.x - sinθ * h2), eLy = ty(e.y + cosθ * h2); // end-left
+  const sLx = tx(s.x - sinθ * h1), sLy = ty(s.y + cosθ * h1);
+  const sRx = tx(s.x + sinθ * h1), sRy = ty(s.y - cosθ * h1);
+  const eRx = tx(e.x + sinθ * h2), eRy = ty(e.y - cosθ * h2);
+  const eLx = tx(e.x - sinθ * h2), eLy = ty(e.y + cosθ * h2);
 
   return [
     `M ${f(sLx)},${f(sLy)}`,
@@ -126,14 +148,13 @@ function segmentPath(
   ].join(" ");
 }
 
-/** Linearly interpolate between two RGB triples. t ∈ [0, 1]. */
 function lerpColor(
   a: [number, number, number],
   b: [number, number, number],
   t: number,
 ): string {
-  const r = Math.round(a[0] + (b[0] - a[0]) * t);
-  const g = Math.round(a[1] + (b[1] - a[1]) * t);
+  const r  = Math.round(a[0] + (b[0] - a[0]) * t);
+  const g  = Math.round(a[1] + (b[1] - a[1]) * t);
   const bl = Math.round(a[2] + (b[2] - a[2]) * t);
   return `rgb(${r},${g},${bl})`;
 }
@@ -150,22 +171,25 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
   tree,
   width  = 500,
   height = 700,
-  backgroundColor   = "#c8e6c9",
-  leafColor         = "#2e7d32",
-  trunkBaseHalfPx   = 28,
+  backgroundColor = "#c8e6c9",
+  leafColor       = "#2e7d32",
+  trunkBaseHalfPx = 28,
 }) => {
-  const { shapes, rootNorm } = useMemo(() => {
+  const { shapes, rootNorm, maxDepth } = useMemo(() => {
     if (tree.root.segments.length === 0) {
-      return { shapes: [] as SegmentShape[], rootNorm: 1 };
+      return { shapes: [] as SegmentShape[], rootNorm: 1, maxDepth: 0 };
     }
-    const map = new Map<Segment, number>();
-    const rootCount = buildCountMap(tree.root.segments, 0, map);
+    const countMap = new Map<Segment, number>();
+    const rootCount = buildCountMap(tree.root.segments, 0, countMap);
+
+    const depthMap = new Map<Segment, number>();
+    const maxDepth = buildDepthMap(tree.root.segments, 0, depthMap);
+
     const shapes: SegmentShape[] = [];
-    gatherShapes(tree.root.segments, 0, map, shapes);
-    return { shapes, rootNorm: Math.sqrt(rootCount) };
+    gatherShapes(tree.root.segments, 0, countMap, depthMap, shapes);
+    return { shapes, rootNorm: Math.sqrt(rootCount), maxDepth };
   }, [tree]);
 
-  // Tight bounding box over all segment endpoints
   const { minX, maxX, minY, maxY } = useMemo(() => {
     if (shapes.length === 0) return { minX: 0, maxX: 1, minY: -1, maxY: 0 };
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -187,19 +211,15 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
     (width  - padding * 2) / worldW,
     (height - padding * 2) / worldH,
   );
-
-  // baseHalf: world-space half-width such that the trunk is trunkBaseHalfPx pixels wide.
-  // startNorm of the root = rootNorm, so trunk px width = baseHalf * rootNorm * viewScale = trunkBaseHalfPx.
   const baseHalf = trunkBaseHalfPx / (rootNorm * viewScale);
 
-  // View transform: world → SVG px.
-  // The parser uses y-down convention but the tree grows upward (y decreasing).
-  // We flip so the tree stands upright:
-  //   maxY is the visual BOTTOM (base, y=0 typically) → SVG y = height − padding
-  //   minY is the visual TOP  (tips)                  → SVG y = padding
   const cx = width / 2 - ((minX + maxX) / 2) * viewScale;
   const tx = (x: number) => x * viewScale + cx;
   const ty = (y: number) => (height - padding) - (maxY - y) * viewScale;
+
+  // Outermost ~40% of depth levels get leaves — the canopy shell.
+  // Inner branches (high depth = far from tips) remain bare wood.
+  const leafThreshold = Math.max(2, Math.round(maxDepth * 0.4));
 
   if (shapes.length === 0) {
     return <svg width={width} height={height} style={{ background: backgroundColor }} />;
@@ -211,20 +231,16 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
       height={height}
       style={{ background: backgroundColor, display: "block" }}
     >
-      {/* Tapered branch quads, back-to-front (thickest first for Z-order) */}
+      {/* Tapered branch quads, back-to-front */}
       {[...shapes]
         .sort((a, b) => b.startNorm - a.startNorm)
         .map((shape, i) => {
           const h1 = shape.startNorm * baseHalf;
           const h2 = shape.endNorm   * baseHalf;
-
-          // Colour: thick = dark brown, thin = light brown
-          const t = Math.min(1, shape.startNorm / rootNorm);
-          const fill =
-            t > 0.6
-              ? lerpColor(DARK_BROWN, MID_BROWN,   (t - 0.6) / 0.4)
-              : lerpColor(MID_BROWN,  LIGHT_BROWN,  t / 0.6);
-
+          const t  = Math.min(1, shape.startNorm / rootNorm);
+          const fill = t > 0.6
+            ? lerpColor(DARK_BROWN, MID_BROWN,   (t - 0.6) / 0.4)
+            : lerpColor(MID_BROWN,  LIGHT_BROWN,  t / 0.6);
           return (
             <path
               key={i}
@@ -234,30 +250,27 @@ export const LSystemSVGRenderer: React.FC<Props> = ({
           );
         })}
 
-      {/* Leaf clusters distributed along every canopy-zone segment.
-          Clusters are placed every LEAF_SPACING SVG px and alternate
-          slightly to each side of the branch so they overlap into a
-          solid green mass rather than a "beads on string" line. */}
+      {/* Leaf clusters on the outer canopy shell only.
+          Filter: depth <= leafThreshold (close to the tips).
+          Botanically: real temperate trees leaf only on the outermost
+          2–3 branching orders; interior wood is bare due to self-shading. */}
       {shapes
-        .filter((s) => s.startNorm / rootNorm < 0.5)
+        .filter((s) => s.depth <= leafThreshold)
         .flatMap((shape, si) => {
           const { start: s, end: e, angleRad: θ } = shape.segment;
           const sx = tx(s.x), sy = ty(s.y);
           const ex = tx(e.x), ey = ty(e.y);
           const segLenPx = Math.hypot(ex - sx, ey - sy);
-          const LEAF_SPACING = 11; // SVG pixels between cluster centres
+          const LEAF_SPACING = 11;
           const count = Math.max(1, Math.round(segLenPx / LEAF_SPACING));
-          // Clusters large enough to overlap adjacent ones (r > spacing/2)
           const r = Math.max(6, Math.min(11, shape.startNorm * baseHalf * viewScale * 3));
-          // SVG perpendicular direction: (-sinθ, cosθ) — same in SVG as world
           const perpX = -Math.sin(θ), perpY = Math.cos(θ);
 
           return Array.from({ length: count }, (_, k) => {
-            const t = (k + 0.5) / count;
-            // Alternate clusters to either side so they form a blob, not a line
+            const t   = (k + 0.5) / count;
             const side = (k % 2 === 0 ? 1 : -1) * r * 0.35;
-            const lx = sx + t * (ex - sx) + side * perpX;
-            const ly = sy + t * (ey - sy) + side * perpY;
+            const lx  = sx + t * (ex - sx) + side * perpX;
+            const ly  = sy + t * (ey - sy) + side * perpY;
             return (
               <g key={`leaf-${si}-${k}`}>
                 <circle cx={lx}             cy={ly}             r={r * 1.1} fill={leafColor} opacity={0.55} />
