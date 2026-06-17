@@ -8,6 +8,7 @@
         "@radix-ui/react-slider": "^1.2.3",
         "@radix-ui/react-slot": "^1.1.2",
         "@tile-former/tilegen": "workspace:*",
+        "@tile-former/tree": "workspace:*",
         "@timohausmann/quadtree-js": "^1.2.6",
         "@turf/clusters-kmeans": "^7.2.0",
         "@uidotdev/usehooks": "^2.4.1",
@@ -62,6 +63,12 @@
       "devDependencies": {
         "@types/bun": "latest",
       },
+      "peerDependencies": {
+        "@typescript/native-preview": "latest",
+      },
+    },
+    "packages/tree": {
+      "name": "@tile-former/tree",
       "peerDependencies": {
         "@typescript/native-preview": "latest",
       },
@@ -313,6 +320,8 @@
     "@tailwindcss/vite": ["@tailwindcss/vite@4.0.9", "", { "dependencies": { "@tailwindcss/node": "4.0.9", "@tailwindcss/oxide": "4.0.9", "lightningcss": "^1.29.1", "tailwindcss": "4.0.9" }, "peerDependencies": { "vite": "^5.2.0 || ^6" } }, "sha512-BIKJO+hwdIsN7V6I7SziMZIVHWWMsV/uCQKYEbeiGRDRld+TkqyRRl9+dQ0MCXbhcVr+D9T/qX2E84kT7V281g=="],
 
     "@tile-former/tilegen": ["@tile-former/tilegen@workspace:packages/tilegen"],
+
+    "@tile-former/tree": ["@tile-former/tree@workspace:packages/tree"],
 
     "@timohausmann/quadtree-js": ["@timohausmann/quadtree-js@1.2.6", "", {}, "sha512-EoAoLMFV2JfSG8+8XD9xWJQdyvfEB5xNpiQWGD7rTDSbDQQV8IVpkm0uOIxwJZ+1uC9hHKri9GmJ5wBSUO4jfg=="],
 
