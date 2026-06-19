@@ -12,6 +12,7 @@ import { PipelinePanel } from "./PipelinePanel.tsx";
 import { TileInfo } from "./TileInfo.tsx";
 import { Tile } from "@tile-former/tilegen";
 import { generateLargeVoronoi, generateSmallVoronoi } from "./voronoi.ts";
+import { createRand } from "./rand.ts";
 
 export function TileMapTool({
   biomes,
@@ -35,6 +36,8 @@ export function TileMapTool({
   const [showLargeVoronoi, setShowLargeVoronoi] = useState(true);
   const [showSmallVoronoi, setShowSmallVoronoi] = useState(true);
   const [showVoronoiFeatures, setShowVoronoiFeatures] = useState(true);
+  const [voronoiM1, setVoronoiM1] = useState(0);
+  const [voronoiM2, setVoronoiM2] = useState(3);
 
   useEffect(() => {
     const timer = setTimeout(() => setGenConfig(config), 250);
@@ -53,8 +56,8 @@ export function TileMapTool({
   );
 
   const smallVoronoiData = useMemo(
-    () => generateSmallVoronoi(genConfig.seed),
-    [genConfig.seed],
+    () => generateSmallVoronoi(genConfig.seed, voronoiM1, voronoiM2, createRand(genConfig.seed + ":groups")),
+    [genConfig.seed, voronoiM1, voronoiM2],
   );
 
   const setParam = (key: keyof PipelineConfig, value: number | string) =>
@@ -73,6 +76,10 @@ export function TileMapTool({
           onToggleLargeVoronoi={setShowLargeVoronoi}
           onToggleSmallVoronoi={setShowSmallVoronoi}
           onToggleVoronoiFeatures={setShowVoronoiFeatures}
+          voronoiM1={voronoiM1}
+          voronoiM2={voronoiM2}
+          onChangeVoronoiM1={setVoronoiM1}
+          onChangeVoronoiM2={setVoronoiM2}
         />
         <TileInfo
           biomes={biomes}

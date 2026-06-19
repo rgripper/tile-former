@@ -46,6 +46,10 @@ export function PipelinePanel({
   onToggleLargeVoronoi,
   onToggleSmallVoronoi,
   onToggleVoronoiFeatures,
+  voronoiM1,
+  voronoiM2,
+  onChangeVoronoiM1,
+  onChangeVoronoiM2,
 }: {
   config: PipelineConfig;
   onChange: (key: keyof PipelineConfig, value: number | string) => void;
@@ -55,6 +59,10 @@ export function PipelinePanel({
   onToggleLargeVoronoi: (v: boolean) => void;
   onToggleSmallVoronoi: (v: boolean) => void;
   onToggleVoronoiFeatures: (v: boolean) => void;
+  voronoiM1: number;
+  voronoiM2: number;
+  onChangeVoronoiM1: (v: number) => void;
+  onChangeVoronoiM2: (v: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-2 text-xs font-mono">
@@ -122,6 +130,34 @@ export function PipelinePanel({
           />
           <span className="text-gray-300">features</span>
         </label>
+
+        <div className="mt-1 grid gap-x-2 gap-y-0.5 items-center" style={{ gridTemplateColumns: "2rem 1fr 2rem" }}>
+          <div className="text-gray-500 text-right">M1</div>
+          <input
+            type="range" min={0} max={5} step={1}
+            value={voronoiM1}
+            onChange={(e) => {
+              const v = parseInt(e.target.value);
+              onChangeVoronoiM1(v);
+              if (v > voronoiM2) onChangeVoronoiM2(v);
+            }}
+            className="w-full"
+          />
+          <div className="text-center text-gray-200 tabular-nums">{voronoiM1}</div>
+
+          <div className="text-gray-500 text-right">M2</div>
+          <input
+            type="range" min={0} max={10} step={1}
+            value={voronoiM2}
+            onChange={(e) => {
+              const v = parseInt(e.target.value);
+              onChangeVoronoiM2(v);
+              if (v < voronoiM1) onChangeVoronoiM1(v);
+            }}
+            className="w-full"
+          />
+          <div className="text-center text-gray-200 tabular-nums">{voronoiM2}</div>
+        </div>
       </div>
     </div>
   );
