@@ -24,7 +24,7 @@ function noiseThreshold(chance: number): number {
   return Math.max(-0.9, 0.75 - chance * 3.0);
 }
 
-export function stage11_mineableResource(tiles: Tile[][], config: PipelineConfig): void {
+export function stage11_mineableResources(tiles: Tile[][], config: PipelineConfig): void {
   const { seed, mineableResourceRates } = config;
   const entries = Object.entries(mineableResourceRates) as Array<[string, number]>;
   if (entries.length === 0) return;

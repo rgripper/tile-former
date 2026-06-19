@@ -10,7 +10,7 @@ import { stage7_caSmoothing } from "./stage7_caSmoothing";
 import { stage8_expandTiles } from "./stage8_expandTiles";
 import { stage9_drainageCluster } from "./stage9_drainageCluster";
 import { stage10_fertility } from "./stage10_fertility";
-import { stage11_mineableResource } from "./stage11_mineableResource";
+import { stage11_mineableResources } from "./stage11_mineableResources";
 
 export function generateTileMap(config: PipelineConfig): Tile[][] {
   const grid = stage1_initGrid(config);
@@ -23,6 +23,6 @@ export function generateTileMap(config: PipelineConfig): Tile[][] {
   const tiles = stage8_expandTiles(grid, config);
   stage9_drainageCluster(tiles, config);
   stage10_fertility(tiles, config);
-  stage11_mineableResource(tiles, config);
+  stage11_mineableResources(tiles, config);
   return tiles;
 }

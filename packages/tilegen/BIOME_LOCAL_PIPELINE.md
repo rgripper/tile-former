@@ -93,9 +93,9 @@ See [tileGenerator/stage9_drainageCluster.ts](tileGenerator/stage9_drainageClust
 
 See [tileGenerator/stage10_fertility.ts](tileGenerator/stage10_fertility.ts).
 
-### Stage 11 — Ore placement `[tile scale]`
+### Stage 11 — Mineable resource placement `[tile scale]`
 
-See [tileGenerator/stage11_ore.ts](tileGenerator/stage11_ore.ts).
+See [tileGenerator/stage11_mineableResources.ts](tileGenerator/stage11_mineableResources.ts).
 
 ---
 
@@ -125,4 +125,3 @@ Apply axes in dependency order during local generation:
 | 8     | Fertility          | —           | derived from rock + climate + moisture                |
 
 Axes 1–5 are computed at both resolutions: coarsely at patch scale for biome selection and CA, then at full resolution at tile scale for gameplay. CA runs between the two passes, reading patch-scale axis values.
-
