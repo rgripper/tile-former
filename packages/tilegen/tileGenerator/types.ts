@@ -41,9 +41,8 @@ export type PipelineConfig = {
   borderBlendWidth: number; // blend band width in patches
   biomes: Biome[];
   surfacePatchChance: number; // [0, 1] base probability for rocky/sandy patch tiles
-  drainageClusterChance: number; // [0, 1] fraction of qualifying drainage minima that activate
-  drainageClusterBreadth: number; // tiles — max flood-fill radius from cluster seed
-  drainageClusterDepth: number; // [0, 1] drainage suppression intensity at cluster center
+  drainageClusterCount: number; // number of water areas to place
+  drainageClusterSize: number; // cells per water area
   mineableResourceRates: Partial<Record<string, number>>; // base occurrence rate per mineable resource type [0, 1]
 };
 
@@ -66,8 +65,7 @@ export const defaultPipelineConfig: PipelineConfig = {
   borderBlendWidth: 3,
   biomes: defaultBiomes,
   surfacePatchChance: 0.07,
-  drainageClusterChance: 0.5,
-  drainageClusterBreadth: 4,
-  drainageClusterDepth: 0.6,
+  drainageClusterCount: 5,
+  drainageClusterSize: 12,
   mineableResourceRates: {},
 };

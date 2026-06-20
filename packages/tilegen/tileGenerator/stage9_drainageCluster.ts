@@ -1,190 +1,86 @@
 // Stage 9 — Drainage cluster pass [tile scale]
 // Spec: BIOME_LOCAL_PIPELINE.md
 //
-// Stamps geology-driven water accumulation zones as ponds. Water placement is
-// emergent from the drainage field (already shaped by rock type) rather than
-// independently noise-placed.
+// Selects water areas from tiles at altitudeLevel 0 and stamps riparian fringe.
 //
-// Candidate seeds: tiles with drainage < 0.35 that are local altitude minima.
-// Activated seeds BFS flood-fill outward; the fill suppresses drainage and marks
-// tiles as water where drainage < 0.15 after suppression. Two CA passes clean
-// cluster shapes; BFS then stamps riparian fringe.
-//
-// Three config parameters control output:
-//   drainageClusterChance  — fraction of qualifying minima that activate
-//   drainageClusterBreadth — flood-fill radius (tiles)
-//   drainageClusterDepth   — drainage suppression intensity at cluster centre
+// Two config parameters control output:
+//   drainageClusterCount — number of water areas to place
+//   drainageClusterSize  — cells per water area (BFS fill from seed)
 
 import { createRand } from "../rand";
 import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "./types";
-import { clamp, makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
+import { makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
 
 const RIPARIAN_NOISE_SCALE = 0.18;
-
-// Tiles whose drainage falls below this threshold after rock-permeability
-// application are eligible cluster seeds (impermeable geology + flat ground).
-const CANDIDATE_DRAIN_THRESHOLD = 0.35;
-
-// Minimum number of tiles a fill must cover to be stamped as a cluster.
-const CLUSTER_MIN_AREA = 4;
-
-// Tiles within a cluster whose drainage drops below this become water.
-const WATER_DRAIN_THRESHOLD = 0.15;
-
-// Base altitude tolerance for the cluster flood-fill; scaled by drainageClusterDepth.
-const ALT_TOLERANCE_BASE = 0.02;
 
 export function stage9_drainageCluster(
   tiles: Tile[][],
   config: PipelineConfig,
 ): void {
-  placeClusters(tiles, config);
-  smoothClusters(tiles, config);
+  placeWater(tiles, config);
   placeRiparian(tiles, config);
 }
 
-function placeClusters(tiles: Tile[][], config: PipelineConfig): void {
-  const {
-    width,
-    height,
-    seed,
-    drainageClusterChance,
-    drainageClusterBreadth,
-    drainageClusterDepth,
-  } = config;
+function placeWater(tiles: Tile[][], config: PipelineConfig): void {
+  const { width, height, seed, drainageClusterCount, drainageClusterSize } =
+    config;
 
-  if (drainageClusterChance <= 0) return;
+  if (drainageClusterCount <= 0 || drainageClusterSize <= 0) return;
 
   const rand = createRand(seed + "_clusters");
-  const tileAlt = (x: number, y: number) => tiles[x]?.[y]?.altitude ?? Infinity;
   const tKey = (x: number, y: number) => tileKey(x, y, width);
 
-  // Altitude tolerance: deeper depth allows the fill to climb higher from the minimum.
-  const altTolerance = ALT_TOLERANCE_BASE * (0.5 + drainageClusterDepth);
-
-  // Find candidate seeds: local altitude minima with low geology-influenced drainage.
+  // Collect all altitudeLevel-0 tiles as candidate seeds.
   const candidates: Array<[number, number]> = [];
   for (let x = 0; x < width; x++) {
     for (let y = 0; y < height; y++) {
-      const tile = tiles[x][y];
-      if (tile.drainage >= CANDIDATE_DRAIN_THRESHOLD) continue;
-
-      const alt = tileAlt(x, y);
-      let isMin = true;
-      for (const [dx, dy] of MOORE8) {
-        const nx = x + dx,
-          ny = y + dy;
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          if (tileAlt(nx, ny) <= alt) {
-            isMin = false;
-            break;
-          }
-        }
-      }
-      if (isMin) candidates.push([x, y]);
+      if (tiles[x][y].altitudeLevel === 0) candidates.push([x, y]);
     }
   }
 
-  // Sort by drainage ascending so the most waterlogged candidates are tried first.
-  candidates.sort(
-    ([ax, ay], [bx, by]) => tiles[ax][ay].drainage - tiles[bx][by].drainage,
-  );
-
-  const maxArea = Math.max(
-    CLUSTER_MIN_AREA,
-    Math.round(Math.PI * drainageClusterBreadth * drainageClusterBreadth * 0.5),
-  );
+  // Shuffle candidates so placement is random across the world.
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(rand.next() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
 
   const claimed = new Set<number>();
+  let placed = 0;
 
   for (const [sx, sy] of candidates) {
-    if (rand.next() > drainageClusterChance) continue;
+    if (placed >= drainageClusterCount) break;
     if (claimed.has(tKey(sx, sy))) continue;
 
-    const seedAlt = tileAlt(sx, sy);
-
-    // BFS flood-fill within altitude tolerance, up to maxArea tiles.
-    const fill: Array<[number, number, number]> = []; // [x, y, dist]
-    const queue: Array<[number, number, number]> = [[sx, sy, 0]];
+    // BFS flood-fill up to drainageClusterSize cells, staying within altitudeLevel 0.
+    const fill: Array<[number, number]> = [];
+    const queue: Array<[number, number]> = [[sx, sy]];
     const seen = new Set<number>();
     seen.add(tKey(sx, sy));
 
-    while (queue.length > 0 && fill.length < maxArea) {
-      const entry = queue.shift()!;
-      const [cx, cy, dist] = entry;
-      fill.push([cx, cy, dist]);
-      if (dist >= drainageClusterBreadth) continue;
+    while (queue.length > 0 && fill.length < drainageClusterSize) {
+      const [cx, cy] = queue.shift()!;
+      fill.push([cx, cy]);
       for (const [dx, dy] of VON4) {
         const nx = cx + dx,
           ny = cy + dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
         const nk = tKey(nx, ny);
         if (seen.has(nk) || claimed.has(nk)) continue;
-        if (tileAlt(nx, ny) <= seedAlt + altTolerance) {
+        if (tiles[nx][ny].altitudeLevel === 0) {
           seen.add(nk);
-          queue.push([nx, ny, dist + 1]);
+          queue.push([nx, ny]);
         }
       }
     }
 
-    if (fill.length < CLUSTER_MIN_AREA) continue;
-
-    const maxDist = Math.max(...fill.map(([, , d]) => d), 1);
-
-    for (const [fx, fy, dist] of fill) {
+    for (const [fx, fy] of fill) {
       claimed.add(tKey(fx, fy));
-
-      // Drainage suppression tapers from center (full depth) to edge (zero).
-      const distFactor = 1 - dist / (maxDist + 1);
-      const suppression = drainageClusterDepth * distFactor;
-      const tile = tiles[fx][fy];
-      tile.drainage = clamp(tile.drainage * (1 - suppression), 0, 1);
-      tile.effectiveMoisture = tile.precipitation * (1 - tile.drainage);
-
-      if (tile.drainage < WATER_DRAIN_THRESHOLD) {
-        tile.water = true;
-        tile.waterType = "pond";
-      }
-    }
-  }
-}
-
-// Two CA iterations to clean up cluster water shapes:
-//   - land tiles with ≥ 6/8 water neighbours → water  (fills interior land specs)
-//   - water tiles with ≤ 2/8 water neighbours → land   (erodes isolated spikes)
-function smoothClusters(tiles: Tile[][], config: PipelineConfig): void {
-  const { width, height } = config;
-
-  const isWater = (x: number, y: number): boolean =>
-    x >= 0 && x < width && y >= 0 && y < height && tiles[x][y].water;
-
-  for (let iter = 0; iter < 2; iter++) {
-    const toAdd: Array<[number, number]> = [];
-    const toRemove: Array<[number, number]> = [];
-
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        let wn = 0;
-        for (const [dx, dy] of MOORE8) {
-          if (isWater(x + dx, y + dy)) wn++;
-        }
-        if (tiles[x][y].water) {
-          if (wn <= 2) toRemove.push([x, y]);
-        } else {
-          if (wn >= 6) toAdd.push([x, y]);
-        }
-      }
+      tiles[fx][fy].water = true;
+      tiles[fx][fy].waterType = "pond";
     }
 
-    for (const [x, y] of toRemove) {
-      tiles[x][y].water = false;
-      tiles[x][y].waterType = undefined;
-    }
-    for (const [x, y] of toAdd) {
-      tiles[x][y].water = true;
-      tiles[x][y].waterType = "pond";
-    }
+    placed++;
   }
 }
 
@@ -236,9 +132,7 @@ function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
       } else {
         // d === 2: include if drainage is low (bog = always, rock = rarely).
         const threshold = tile.drainage * 1.5 - 1.0;
-        if (
-          noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold
-        ) {
+        if (noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold) {
           tile.riparian = true;
         }
       }
