@@ -44,7 +44,39 @@ export async function initIsoApp({
   const isoContainer = createIsoTiles(tileMap, onTileClick);
   viewport.addChild(isoContainer);
 
-  return { app, viewport };
+  const offsetX = gridSize.height * (ISO_W / 2);
+  const offsetY = MAX_FLOORS * CLIFF_UNIT;
+
+  const highlightGraphics = new Graphics();
+  viewport.addChild(highlightGraphics);
+
+  function highlightTile(tile: Tile | null) {
+    highlightGraphics.clear();
+    if (!tile) return;
+    const col = tile.index.x;
+    const row = tile.index.y;
+    const floor = Math.round(tile.altitude * MAX_FLOORS);
+    const cliffH = floor * CLIFF_UNIT;
+    const isoX = (col - row) * (ISO_W / 2) + offsetX;
+    const isoY = (col + row) * (ISO_H / 2) + offsetY;
+    const topY = isoY - cliffH;
+    highlightGraphics.poly([
+      isoX + ISO_W / 2, topY,
+      isoX + ISO_W,     topY + ISO_H / 2,
+      isoX + ISO_W / 2, topY + ISO_H,
+      isoX,             topY + ISO_H / 2,
+    ]);
+    highlightGraphics.fill({ color: 0xffffff, alpha: 0.35 });
+    highlightGraphics.poly([
+      isoX + ISO_W / 2, topY,
+      isoX + ISO_W,     topY + ISO_H / 2,
+      isoX + ISO_W / 2, topY + ISO_H,
+      isoX,             topY + ISO_H / 2,
+    ]);
+    highlightGraphics.stroke({ color: 0xffffff, alpha: 0.9, width: 1.5 });
+  }
+
+  return { app, viewport, highlightTile };
 }
 
 function hexStringToNumber(color: string): number {

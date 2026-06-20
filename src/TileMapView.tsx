@@ -41,6 +41,7 @@ export function TileMapView({
     small: Container;
     features: Container;
   } | null>(null);
+  const highlightTileRef = useRef<((tile: Tile | null) => void) | null>(null);
 
   useEffect(() => {
     if (!canvasRef) return;
@@ -49,6 +50,7 @@ export function TileMapView({
 
     const handleClick = (tile: Tile) => {
       setSelectedTile(tile);
+      highlightTileRef.current?.(tile);
       onTileClick(tile);
     };
 
@@ -80,12 +82,14 @@ export function TileMapView({
         tileMap,
         container: canvasRef,
         onTileClick: handleClick,
-      }).then(({ app, viewport }) => {
+      }).then(({ app, viewport, highlightTile }) => {
         appAndViewportRef.current = { app, viewport };
         voronoiLayersRef.current = null;
+        highlightTileRef.current = highlightTile;
         canvasRef.appendChild(app.canvas);
         unsubscribe = () => {
           appAndViewportRef.current = undefined;
+          highlightTileRef.current = null;
           canvasRef.removeChild(app.canvas);
           app.destroy();
         };
