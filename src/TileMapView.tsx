@@ -127,7 +127,7 @@ export function TileMapView({
         {renderMode === "topdown" ? "2.5D View" : "Top Down"}
       </button>
       {selectedTile && (
-        <div className="absolute bottom-2 left-2 z-10 bg-black/70 text-white text-xs font-mono px-3 py-2 rounded shadow space-y-0.5">
+        <div className="absolute bottom-2 left-2 z-10 bg-black/70 text-white text-xs font-mono px-3 py-2 rounded shadow space-y-1">
           <div>
             tile ({selectedTile.index.x}, {selectedTile.index.y})
           </div>
@@ -135,7 +135,20 @@ export function TileMapView({
             level <span className="text-yellow-300 font-bold">{selectedTile.altitudeLevel}</span>
             <span className="opacity-50"> / 10</span>
           </div>
-          <div className="opacity-60">altitude {selectedTile.altitude.toFixed(3)}</div>
+          {(
+            [
+              { label: "moisture", value: selectedTile.effectiveMoisture, color: "bg-blue-400" },
+              { label: "light", value: selectedTile.light, color: "bg-yellow-300" },
+              { label: "fertility", value: selectedTile.fertility, color: "bg-green-400" },
+            ] as const
+          ).map(({ label, value, color }) => (
+            <div key={label} className="flex items-center gap-2">
+              <span className="opacity-60 w-16">{label}</span>
+              <div className="w-20 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div className={`h-full ${color}`} style={{ width: `${Math.round(value * 100)}%` }} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
