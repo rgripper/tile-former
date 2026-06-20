@@ -30,7 +30,7 @@ export function TileMapView({
   showSmallVoronoi: boolean;
   showVoronoiFeatures: boolean;
 }) {
-  const [renderMode, setRenderMode] = useState<RenderMode>("topdown");
+  const [renderMode, setRenderMode] = useState<RenderMode>("isometric");
   const [canvasRef, setCanvasRef] = useState<HTMLElement | null>(null);
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const appAndViewportRef = useRef<

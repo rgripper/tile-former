@@ -37,7 +37,7 @@ export async function initIsoApp({
   });
 
   viewport.drag().pinch().wheel().decelerate();
-  viewport.setZoom(0.15);
+  viewport.setZoom(0.6);
 
   app.stage.addChild(viewport);
 
