@@ -14,6 +14,7 @@ import type { Biome } from "../tile/Biome";
 import type { PatchCell, PipelineConfig } from "./types";
 import {
   clamp,
+  lerp,
   computeDrainage,
   computeLight,
   makeNoise2D,
@@ -29,8 +30,11 @@ export function stage8_expandTiles(
   const pw = grid.length;
   const ph = grid[0].length;
 
+  // Fine noise runs at a much lower frequency than patch noise so it adds broad
+  // undulation rather than per-tile grain. Amplitude kept small so a single
+  // tile rarely crosses a voxel-level boundary on its own.
   const fineAlt = makeNoise2D(seed + "_falt");
-  const tileScale = localNoiseScale * tilesPerPatch;
+  const fineAltScale = localNoiseScale * 0.4;
 
   const biomeById = new Map<number, Biome>(config.biomes.map((b) => [b.id, b]));
 
@@ -49,14 +53,27 @@ export function stage8_expandTiles(
   const tempVariance = tempSumSq / patchCount - tempMean * tempMean;
   const continentality = clamp(Math.sqrt(tempVariance) / 20, 0, 1);
 
+  // Smoothstep kernel for patch interpolation — avoids the hard seams that
+  // appear at patch boundaries when altitude is read from a single parent cell.
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+
   const tileAltitude = (tx: number, ty: number): number => {
-    const px = clamp(Math.floor(tx / tilesPerPatch), 0, pw - 1);
-    const py = clamp(Math.floor(ty / tilesPerPatch), 0, ph - 1);
-    return clamp(
-      grid[px][py].altitude + fineAlt(tx * tileScale, ty * tileScale) * 0.05,
-      0,
-      1,
-    );
+    // Fractional position within patch grid.
+    const fpx = tx / tilesPerPatch;
+    const fpy = ty / tilesPerPatch;
+    const px0 = clamp(Math.floor(fpx), 0, pw - 1);
+    const py0 = clamp(Math.floor(fpy), 0, ph - 1);
+    const px1 = clamp(px0 + 1, 0, pw - 1);
+    const py1 = clamp(py0 + 1, 0, ph - 1);
+    const sx = smooth(fpx - Math.floor(fpx));
+    const sy = smooth(fpy - Math.floor(fpy));
+
+    // Bilinear (smoothstepped) interpolation of the four surrounding patches.
+    const a = lerp(grid[px0][py0].altitude, grid[px1][py0].altitude, sx);
+    const b = lerp(grid[px0][py1].altitude, grid[px1][py1].altitude, sx);
+    const patchAlt = lerp(a, b, sy);
+
+    return clamp(patchAlt + fineAlt(tx * fineAltScale, ty * fineAltScale) * 0.025, 0, 1);
   };
 
   const tiles: Tile[][] = [];

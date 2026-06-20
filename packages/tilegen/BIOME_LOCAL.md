@@ -8,7 +8,7 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Documents
 
-- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–9, derived values, axis hierarchy
+- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–11, derived values, axis hierarchy
 - [BIOME_LOCAL_SELECTION.md](BIOME_LOCAL_SELECTION.md) — biome selection cascade (altitude, temperature, moisture, drainage), parameter generation, ecotones, temperature zone adjacency, constants
 - [BIOME_LOCAL_CA.md](BIOME_LOCAL_CA.md) — CA post-processing: majority-rule smoothing + terrain-justification check
 - [BIOME_LOCAL_WATER.md](BIOME_LOCAL_WATER.md) — water features (ponds, rivers) as tile flags, placed opportunistically post-Stage 7
@@ -17,16 +17,18 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Implementation Status
 
-All 9 stages are implemented in `src/tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
+All 11 stages are implemented in `tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
 
 | Stage | Status | File |
 | ----- | ------ | ---- |
 | 1 Base anchoring | ✅ | `stage1_initGrid` |
 | 2 Local noise axes | ✅ | `stage2_noiseAxes` |
-| 3 Gradient axes | ✅ | `stage3_gradientAxes` |
-| 4 Ecotone blending | ✅ | `stage4_blendBorders` |
-| 5 Biome selection | ✅ | `stage5_selectBiomes` |
-| 6 CA smoothing | ✅ | `stage6_caSmoothing` |
-| 7 Tile modifier pass | ✅ | `stage7_expandTiles` |
-| 8 Water features | ✅ | `stage8_waterFeatures` |
-| 9 Surface patches | ✅ | `stage9_surfacePatches` |
+| 3 Rock type | ✅ | `stage3_rockType` |
+| 4 Gradient axes | ✅ | `stage4_gradientAxes` |
+| 5 Ecotone blending | ✅ | `stage5_blendBorders` |
+| 6 Biome selection | ✅ | `stage6_selectBiomes` |
+| 7 CA smoothing | ✅ | `stage7_caSmoothing` |
+| 8 Tile modifier pass | ✅ | `stage8_expandTiles` |
+| 9 Drainage clusters | ✅ | `stage9_drainageCluster` |
+| 10 Fertility | ✅ | `stage10_fertility` |
+| 11 Mineable resources | ✅ | `stage11_mineableResources` |
