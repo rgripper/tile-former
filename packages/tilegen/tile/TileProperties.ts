@@ -6,6 +6,7 @@ export type TileProperties = {
   drainage: number;
   light: number;
   altitude: number;
+  altitudeLevel: number; // [0, 10] — discretized altitude, Math.round(altitude * 10)
   seasonality: number;
   effectiveMoisture: number;
   continentality: number;

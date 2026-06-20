@@ -132,7 +132,7 @@ export function TileMapView({
             tile ({selectedTile.index.x}, {selectedTile.index.y})
           </div>
           <div>
-            level <span className="text-yellow-300 font-bold">{Math.round(selectedTile.altitude * 10)}</span>
+            level <span className="text-yellow-300 font-bold">{selectedTile.altitudeLevel}</span>
             <span className="opacity-50"> / 10</span>
           </div>
           <div className="opacity-60">altitude {selectedTile.altitude.toFixed(3)}</div>

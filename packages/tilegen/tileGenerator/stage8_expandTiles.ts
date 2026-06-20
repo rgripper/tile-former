@@ -131,6 +131,7 @@ export function stage8_expandTiles(
         index: { x: tx, y: ty },
         biomeId: patch.biomeId,
         altitude,
+        altitudeLevel: Math.round(altitude * 10),
         temperature,
         precipitation,
         drainage,
