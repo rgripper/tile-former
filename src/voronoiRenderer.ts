@@ -39,15 +39,6 @@ function pip(x: number, y: number, poly: number[]): boolean {
   return inside;
 }
 
-export function createLargeVoronoiLayer(data: VoronoiData): Container {
-  const container = new Container();
-  const g = new Graphics();
-  for (const cell of data.cells) addPolyPath(g, cell.polygon);
-  g.stroke({ color: 0xffffff, alpha: 0.55, pixelLine: true });
-  container.addChild(g);
-  return container;
-}
-
 export function createSmallVoronoiLayer(data: VoronoiData): Container {
   const container = new Container();
 

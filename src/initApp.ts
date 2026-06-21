@@ -2,7 +2,7 @@ import { Viewport } from "pixi-viewport";
 import { Container, Application, Spritesheet, Graphics } from "pixi.js";
 import { gridSize, tileSide } from "./config.ts";
 import { Tile, Biome, biomes } from "@tile-former/tilegen";
-import { createLargeVoronoiLayer, createSmallVoronoiLayer, createVoronoiFeaturesLayer } from "./voronoiRenderer.ts";
+import { createSmallVoronoiLayer, createVoronoiFeaturesLayer } from "./voronoiRenderer.ts";
 import type { VoronoiData } from "./voronoi.ts";
 
 export async function initApp({
@@ -10,10 +10,8 @@ export async function initApp({
   tileSpritesheet,
   container,
   onTileClick,
-  largeVoronoiData,
   smallVoronoiData,
   seed,
-  showLargeVoronoi,
   showSmallVoronoi,
   showVoronoiFeatures,
 }: {
@@ -21,10 +19,8 @@ export async function initApp({
   tileSpritesheet: Spritesheet;
   container: HTMLElement;
   onTileClick: (tile: Tile) => void;
-  largeVoronoiData: VoronoiData;
   smallVoronoiData: VoronoiData;
   seed: string;
-  showLargeVoronoi: boolean;
   showSmallVoronoi: boolean;
   showVoronoiFeatures: boolean;
 }) {
@@ -60,17 +56,12 @@ export async function initApp({
   smallVoronoiLayer.visible = showSmallVoronoi;
   viewport.addChild(smallVoronoiLayer);
 
-  const largeVoronoiLayer = createLargeVoronoiLayer(largeVoronoiData);
-  largeVoronoiLayer.visible = showLargeVoronoi;
-  viewport.addChild(largeVoronoiLayer);
-
   const soilGridContainer = createSoilGridSprites(tileMap);
   viewport.addChild(soilGridContainer);
 
   return {
     app,
     viewport,
-    largeVoronoiLayer,
     smallVoronoiLayer,
     voronoiFeaturesLayer,
   };

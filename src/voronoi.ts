@@ -98,55 +98,6 @@ function groupCentroid(cells: VoronoiCell[], cellIndices: number[]): [number, nu
   return [cx / cellIndices.length, cy / cellIndices.length];
 }
 
-export function generateLargeVoronoi(seed: string): VoronoiData {
-  const rng = createRand(seed + ":large");
-
-  const N = 10;
-  const cellsX = Math.ceil(gridSize.width / N) + 2;
-  const cellsY = Math.ceil(gridSize.height / N) + 2;
-  const cellW = WORLD_W / Math.ceil(gridSize.width / N);
-  const cellH = WORLD_H / Math.ceil(gridSize.height / N);
-
-  const n = cellsX * cellsY;
-  const coords = new Float64Array(n * 2);
-  const xs: number[] = [];
-  const ys: number[] = [];
-
-  let idx = 0;
-  for (let cy = -1; cy < cellsY - 1; cy++) {
-    for (let cx = -1; cx < cellsX - 1; cx++) {
-      const x = (cx + rng.next()) * cellW;
-      const y = (cy + rng.next()) * cellH;
-      xs.push(x);
-      ys.push(y);
-      coords[idx++] = x;
-      coords[idx++] = y;
-    }
-  }
-
-  const delaunay = new Delaunay(coords);
-  const voronoi = delaunay.voronoi([0, 0, WORLD_W, WORLD_H]);
-
-  const cells: VoronoiCell[] = [];
-  for (let i = 0; i < xs.length; i++) {
-    cells.push({
-      polygon: extractPolygon(voronoi.cellPolygon(i)),
-      centerX: xs[i]!,
-      centerY: ys[i]!,
-    });
-  }
-
-  const groups: VoronoiGroup[] = cells.map((cell, i) => ({
-    cellIndices: [i],
-    boundaryPolygon: cell.polygon,
-    centroidX: cell.centerX,
-    centroidY: cell.centerY,
-    fillType: null,
-  }));
-
-  return { cells, groups };
-}
-
 // Generates the small-scale voronoi layer used for sub-tile features.
 //
 // Phase 1 – point placement:

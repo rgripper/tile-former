@@ -40,10 +40,8 @@ const sliderParams: SliderParam[] = [
 export function PipelinePanel({
   config,
   onChange,
-  showLargeVoronoi,
   showSmallVoronoi,
   showVoronoiFeatures,
-  onToggleLargeVoronoi,
   onToggleSmallVoronoi,
   onToggleVoronoiFeatures,
   voronoiM1,
@@ -53,10 +51,8 @@ export function PipelinePanel({
 }: {
   config: PipelineConfig;
   onChange: (key: keyof PipelineConfig, value: number | string) => void;
-  showLargeVoronoi: boolean;
   showSmallVoronoi: boolean;
   showVoronoiFeatures: boolean;
-  onToggleLargeVoronoi: (v: boolean) => void;
   onToggleSmallVoronoi: (v: boolean) => void;
   onToggleVoronoiFeatures: (v: boolean) => void;
   voronoiM1: number;
@@ -103,15 +99,6 @@ export function PipelinePanel({
 
       <div className="border-t border-gray-700 pt-1 flex flex-col gap-0.5">
         <div className="text-gray-400 mb-0.5">voronoi</div>
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showLargeVoronoi}
-            onChange={(e) => onToggleLargeVoronoi(e.target.checked)}
-            className="accent-blue-400"
-          />
-          <span className="text-gray-300">large (N=10)</span>
-        </label>
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"

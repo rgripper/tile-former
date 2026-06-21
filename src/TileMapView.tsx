@@ -13,20 +13,16 @@ export function TileMapView({
   tileMap,
   tileSpritesheet,
   onTileClick,
-  largeVoronoiData,
   smallVoronoiData,
   seed,
-  showLargeVoronoi,
   showSmallVoronoi,
   showVoronoiFeatures,
 }: {
   tileMap: Tile[][];
   tileSpritesheet: Spritesheet;
   onTileClick: (tile: Tile) => void;
-  largeVoronoiData: VoronoiData;
   smallVoronoiData: VoronoiData;
   seed: string;
-  showLargeVoronoi: boolean;
   showSmallVoronoi: boolean;
   showVoronoiFeatures: boolean;
 }) {
@@ -37,7 +33,6 @@ export function TileMapView({
     { app: Application; viewport: Viewport } | undefined
   >(undefined);
   const voronoiLayersRef = useRef<{
-    large: Container;
     small: Container;
     features: Container;
   } | null>(null);
@@ -60,15 +55,13 @@ export function TileMapView({
         tileSpritesheet,
         container: canvasRef,
         onTileClick: handleClick,
-        largeVoronoiData,
         smallVoronoiData,
         seed,
-        showLargeVoronoi,
         showSmallVoronoi,
         showVoronoiFeatures,
-      }).then(({ app, viewport, largeVoronoiLayer, smallVoronoiLayer, voronoiFeaturesLayer }) => {
+      }).then(({ app, viewport, smallVoronoiLayer, voronoiFeaturesLayer }) => {
         appAndViewportRef.current = { app, viewport };
-        voronoiLayersRef.current = { large: largeVoronoiLayer, small: smallVoronoiLayer, features: voronoiFeaturesLayer };
+        voronoiLayersRef.current = { small: smallVoronoiLayer, features: voronoiFeaturesLayer };
         canvasRef.appendChild(app.canvas);
         unsubscribe = () => {
           appAndViewportRef.current = undefined;
@@ -97,13 +90,7 @@ export function TileMapView({
     }
 
     return () => unsubscribe();
-  }, [canvasRef, tileSpritesheet, tileMap, largeVoronoiData, smallVoronoiData, seed, onTileClick, renderMode]);
-
-  useEffect(() => {
-    if (voronoiLayersRef.current) {
-      voronoiLayersRef.current.large.visible = showLargeVoronoi;
-    }
-  }, [showLargeVoronoi]);
+  }, [canvasRef, tileSpritesheet, tileMap, smallVoronoiData, seed, onTileClick, renderMode]);
 
   useEffect(() => {
     if (voronoiLayersRef.current) {
