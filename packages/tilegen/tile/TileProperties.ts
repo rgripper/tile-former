@@ -4,7 +4,9 @@ export type TileProperties = {
   temperature: number;
   precipitation: number;
   drainage: number;
-  light: number;
+  light: number;       // [0, 1] — base insolation from segmentBase (latitude/climate baseline)
+  cliffShadow: number; // [0, 1] — fraction of light blocked by surrounding cliff walls
+  groundLight: number; // [0, 1] — final light reaching the ground (light * (1 - cliffShadow) * forest modifiers)
   altitude: number;
   altitudeLevel: number; // [0, 10] — discretized altitude, Math.round(altitude * 10)
   seasonality: number;

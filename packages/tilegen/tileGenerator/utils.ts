@@ -36,11 +36,6 @@ export function computeDrainage(gx: number, gy: number, permeability: number): n
   return clamp(slopeDrainage * 0.7 + permeability * 0.3, 0, 1);
 }
 
-// Light from south-facing slope aspect. gy > 0 means terrain rises southward.
-export function computeLight(gy: number): number {
-  return clamp(0.5 + gy * 1.5, 0.1, 1.0);
-}
-
 // Encodes (x, y) as a single integer for use in Set/Map.
 // width must be provided so the encoding is collision-free for the grid dimensions.
 export function tileKey(x: number, y: number, width: number): number {

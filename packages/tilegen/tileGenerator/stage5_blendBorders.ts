@@ -1,7 +1,7 @@
 // Stage 5 — Ecotone blending at segment borders [patch scale]
 // Spec: BIOME_LOCAL_PIPELINE.md
 //
-// Blends altitude, temperature, precipitation, and light from adjacent segment
+// Blends altitude, temperature, and precipitation from adjacent segment
 // bases across a transition band (borderBlendWidth patches wide) where the
 // neighbour belongs to an adjacent temperature zone (TEMP_ZONE_ADJACENCY).
 // Blending at the property level lets downstream biome selection and CA work on
@@ -84,8 +84,8 @@ export function stage5_blendBorders(
         cell.altitude = lerp(b.base.altitude, cell.altitude, t);
         cell.temperature = lerp(b.base.temperature, cell.temperature, t);
         cell.precipitation = lerp(b.base.precipitation, cell.precipitation, t);
-        cell.light = lerp(b.base.light, cell.light, t);
-        // drainage is gradient-derived and has no segment base value — left unblended
+        // drainage and light have no meaningful patch-level value to blend:
+        // drainage is gradient-derived, light is the segment base constant
       }
     }
   }

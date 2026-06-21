@@ -2,11 +2,15 @@
 // Spec: BIOME_LOCAL_PIPELINE.md
 //
 // Expands the patch grid to full tile resolution. Each tile inherits its biome
-// from the parent patch. Elevation, drainage, and light are recomputed from
-// terrain geometry. Temperature and precipitation are sampled from the biome's
+// from the parent patch. Elevation and drainage are recomputed from terrain
+// geometry. Temperature and precipitation are sampled from the biome's
 // paramDist distributions (N(mean,stddev), clamped to biome range), grounding
 // tile parameters in biome character rather than raw noise.
 // effectiveMoisture = precipitation × (1 − drainage) is derived last.
+//
+// Light is set to segmentBase.light (latitude/climate baseline — constant
+// across the local world). cliffShadow is computed from neighbor altitude
+// differences; groundLight is finalised in Stage 12.
 
 import { createRand } from "../rand";
 import type { Tile } from "../tile/tile";
@@ -16,7 +20,6 @@ import {
   clamp,
   lerp,
   computeDrainage,
-  computeLight,
   makeNoise2D,
   sampleNormal,
 } from "./utils";
@@ -92,7 +95,7 @@ export function stage8_expandTiles(
 
       const { permeability } = getRockType(patch.rockType);
       const drainage = computeDrainage(gx, gy, permeability);
-      const light = computeLight(gy);
+      const light = config.segmentBase.light;
 
       const biome = biomeById.get(patch.biomeId);
       let temperature: number;
@@ -136,6 +139,8 @@ export function stage8_expandTiles(
         precipitation,
         drainage,
         light,
+        cliffShadow: 0, // computed in stage 12 from altitudeLevel differences
+        groundLight: 0, // computed in stage 12 after all shadow modifiers are known
         seasonality: config.segmentBase.seasonality,
         effectiveMoisture,
         continentality,

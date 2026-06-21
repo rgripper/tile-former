@@ -8,7 +8,7 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Documents
 
-- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–11, derived values, axis hierarchy
+- [BIOME_LOCAL_PIPELINE.md](BIOME_LOCAL_PIPELINE.md) — two-resolution pipeline, stages 1–12, derived values, axis hierarchy
 - [BIOME_LOCAL_SELECTION.md](BIOME_LOCAL_SELECTION.md) — biome selection cascade (altitude, temperature, moisture, drainage), parameter generation, ecotones, temperature zone adjacency, constants
 - [BIOME_LOCAL_CA.md](BIOME_LOCAL_CA.md) — CA post-processing: majority-rule smoothing + terrain-justification check
 - [BIOME_LOCAL_WATER.md](BIOME_LOCAL_WATER.md) — water features (ponds, rivers) as tile flags, placed opportunistically post-Stage 7
@@ -17,7 +17,7 @@ Each segment contains one **local world** (~5 km) — the playable map where ind
 
 ## Implementation Status
 
-All 11 stages are implemented in `tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
+All 12 stages are implemented in `tileGenerator/pipeline.ts`. See each sub-document for per-stage deviations and open gaps.
 
 | Stage | Status | File |
 | ----- | ------ | ---- |
@@ -32,3 +32,4 @@ All 11 stages are implemented in `tileGenerator/pipeline.ts`. See each sub-docum
 | 9 Drainage clusters | ✅ | `stage9_drainageCluster` |
 | 10 Fertility | ✅ | `stage10_fertility` |
 | 11 Mineable resources | ✅ | `stage11_mineableResources` |
+| 12 Ground light | ✅ | `stage12_groundLight` |

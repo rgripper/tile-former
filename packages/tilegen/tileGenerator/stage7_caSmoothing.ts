@@ -74,12 +74,7 @@ export function stage7_caSmoothing(grid: PatchCell[][], biomes: Biome[]): void {
             b.altitudeRange[0] - cell.altitude,
             cell.altitude - b.altitudeRange[1],
           );
-          const dl = Math.max(
-            0,
-            b.lightRange[0] - cell.light,
-            cell.light - b.lightRange[1],
-          );
-          return dd + da + dl;
+          return dd + da;
         };
 
         const clusterSize = measureCluster(grid, x, y, cur, pw, ph);

@@ -8,14 +8,18 @@ const ISO_H = 32;   // screen height of top diamond face (2:1 ratio)
 const CLIFF_UNIT = 12; // pixels per altitude floor level
 const MAX_FLOORS = 10;
 
+export type IsoDebugOverlay = "none" | "cliffShadow";
+
 export async function initIsoApp({
   tileMap,
   container,
   onTileClick,
+  debugOverlay = "none",
 }: {
   tileMap: Tile[][];
   container: HTMLElement;
   onTileClick: (tile: Tile) => void;
+  debugOverlay?: IsoDebugOverlay;
 }) {
   const app = new Application();
   await app.init({
@@ -41,7 +45,7 @@ export async function initIsoApp({
 
   app.stage.addChild(viewport);
 
-  const isoContainer = createIsoTiles(tileMap, onTileClick);
+  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay);
   viewport.addChild(isoContainer);
 
   const offsetX = gridSize.height * (ISO_W / 2);
@@ -101,7 +105,12 @@ function blendColor(c1: number, c2: number, t: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-function getTileTopColor(tile: Tile): number {
+function getTileTopColor(tile: Tile, debugOverlay: IsoDebugOverlay): number {
+  if (debugOverlay === "cliffShadow") {
+    // Pure shadow visualization: white (no shadow) → dark indigo (full shadow).
+    // Ignores biome so the gradient is unambiguous.
+    return blendColor(0xe8e8ff, 0x0a0a3f, tile.cliffShadow);
+  }
   if (tile.water) return 0x2e6db4;
   const biome = biomes.find((b) => b.id === tile.biomeId);
   let base = colorToNumber(biome?.textureColor ?? "#888888");
@@ -114,6 +123,7 @@ function getTileTopColor(tile: Tile): number {
 function createIsoTiles(
   tileMap: Tile[][],
   onTileClick: (tile: Tile) => void,
+  debugOverlay: IsoDebugOverlay,
 ): Container {
   const container = new Container();
 
@@ -138,7 +148,7 @@ function createIsoTiles(
     // Top face is raised by cliff height
     const topY = isoY - cliffH;
 
-    const topColor = getTileTopColor(tile);
+    const topColor = getTileTopColor(tile, debugOverlay);
     const leftColor = darken(topColor, 0.6);
     const rightColor = darken(topColor, 0.42);
 

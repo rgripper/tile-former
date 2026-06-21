@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { initApp } from "./initApp.ts";
-import { initIsoApp } from "./isoRenderer.ts";
+import { initIsoApp, type IsoDebugOverlay } from "./isoRenderer.ts";
 import { Application, Spritesheet } from "pixi.js";
 import type { Tile } from "@tile-former/tilegen";
 import { Viewport } from "pixi-viewport";
@@ -27,6 +27,7 @@ export function TileMapView({
   showVoronoiFeatures: boolean;
 }) {
   const [renderMode, setRenderMode] = useState<RenderMode>("isometric");
+  const [debugOverlay, setDebugOverlay] = useState<IsoDebugOverlay>("none");
   const [canvasRef, setCanvasRef] = useState<HTMLElement | null>(null);
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const appAndViewportRef = useRef<
@@ -75,6 +76,7 @@ export function TileMapView({
         tileMap,
         container: canvasRef,
         onTileClick: handleClick,
+        debugOverlay,
       }).then(({ app, viewport, highlightTile }) => {
         appAndViewportRef.current = { app, viewport };
         voronoiLayersRef.current = null;
@@ -90,7 +92,7 @@ export function TileMapView({
     }
 
     return () => unsubscribe();
-  }, [canvasRef, tileSpritesheet, tileMap, smallVoronoiData, seed, onTileClick, renderMode]);
+  }, [canvasRef, tileSpritesheet, tileMap, smallVoronoiData, seed, onTileClick, renderMode, debugOverlay]);
 
   useEffect(() => {
     if (voronoiLayersRef.current) {
@@ -107,12 +109,26 @@ export function TileMapView({
   return (
     <div className="flex-1 flex relative">
       <div className="flex-1 flex" ref={setCanvasRef} />
-      <button
-        onClick={() => setRenderMode((m) => m === "topdown" ? "isometric" : "topdown")}
-        className="absolute top-2 right-2 z-10 bg-black/60 hover:bg-black/80 text-white text-xs font-medium px-3 py-1.5 rounded shadow transition-colors"
-      >
-        {renderMode === "topdown" ? "2.5D View" : "Top Down"}
-      </button>
+      <div className="absolute top-2 right-2 z-10 flex gap-2">
+        {renderMode === "isometric" && (
+          <button
+            onClick={() => setDebugOverlay((o) => o === "cliffShadow" ? "none" : "cliffShadow")}
+            className={`text-xs font-medium px-3 py-1.5 rounded shadow transition-colors ${
+              debugOverlay === "cliffShadow"
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : "bg-black/60 hover:bg-black/80 text-white"
+            }`}
+          >
+            Cliff Shadow
+          </button>
+        )}
+        <button
+          onClick={() => { setRenderMode((m) => m === "topdown" ? "isometric" : "topdown"); setDebugOverlay("none"); }}
+          className="bg-black/60 hover:bg-black/80 text-white text-xs font-medium px-3 py-1.5 rounded shadow transition-colors"
+        >
+          {renderMode === "topdown" ? "2.5D View" : "Top Down"}
+        </button>
+      </div>
       {selectedTile && (
         <div className="absolute bottom-2 left-2 z-10 bg-black/70 text-white text-xs font-mono px-3 py-2 rounded shadow space-y-1">
           <div>
@@ -126,6 +142,8 @@ export function TileMapView({
             [
               { label: "moisture", value: selectedTile.effectiveMoisture, color: "bg-blue-400" },
               { label: "light", value: selectedTile.light, color: "bg-yellow-300" },
+              { label: "cliff shd", value: selectedTile.cliffShadow, color: "bg-indigo-400" },
+              { label: "gnd light", value: selectedTile.groundLight, color: "bg-amber-300" },
               { label: "fertility", value: selectedTile.fertility, color: "bg-green-400" },
             ] as const
           ).map(({ label, value, color }) => (

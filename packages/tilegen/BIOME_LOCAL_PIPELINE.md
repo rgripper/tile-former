@@ -25,7 +25,7 @@ The pipeline deliberately inverts the real-world causal order. In nature, physic
 1. **Patch scale** — select a biome using coarse axes anchored to the segment base. The cascade selector guarantees the result is a valid, ecologically coherent ecosystem type.
 2. **Tile scale** — generate tile parameters by sampling from the selected biome's `paramDist` distributions rather than from raw noise. Temperature and precipitation are drawn from `N(mean, stddev)` and clamped to the biome's declared range, ensuring every tile is an internally consistent member of its biome.
 
-Altitude, drainage, and light remain geophysically derived because they depend on terrain geometry, not ecosystem type.
+Altitude and drainage remain geophysically derived because they depend on terrain geometry, not ecosystem type. Light is the segment-level insolation baseline (latitude/climate); cliff shadow and ground light are derived from tile-scale terrain geometry in later stages.
 
 ---
 
@@ -47,10 +47,12 @@ segment base biome
             → CA smoothing
                                                       [tile scale]
               → full-resolution elevation + terrain geometry
-                  (drainage = slope × rock permeability, rock type inherited from patch)
+                  (drainage = slope × rock permeability, rock type inherited from patch,
+                   light = segmentBase.light)
                 → drainage cluster pass (ponds from geology-driven accumulation zones)
                   → fertility  (rock + climate + moisture → soil quality)
                     → ore placement  (rock affinities × configured rates)
+                      → ground light  (cliffShadow from altitudeLevel diffs; groundLight = light × (1 − cliffShadow))
 ```
 
 ### Stage 1 — Base anchoring `[patch scale]`
@@ -83,7 +85,7 @@ See [tileGenerator/stage7_caSmoothing.ts](tileGenerator/stage7_caSmoothing.ts). 
 
 ### Stage 8 — Tile-level modifier pass `[tile scale]`
 
-See [tileGenerator/stage8_expandTiles.ts](tileGenerator/stage8_expandTiles.ts). Altitude, drainage, and light are recomputed from terrain geometry. Temperature and precipitation are sampled from the patch's biome `paramDist` (see *Design: Biome-First Parameter Generation* above).
+See [tileGenerator/stage8_expandTiles.ts](tileGenerator/stage8_expandTiles.ts). Altitude and drainage are recomputed from terrain geometry. Temperature and precipitation are sampled from the patch's biome `paramDist` (see *Design: Biome-First Parameter Generation* above). `light` is set to `segmentBase.light` (latitude/climate baseline). `cliffShadow` and `groundLight` are initialised to 0 and filled in Stage 12.
 
 ### Stage 9 — Drainage cluster pass `[tile scale]`
 
@@ -97,15 +99,26 @@ See [tileGenerator/stage10_fertility.ts](tileGenerator/stage10_fertility.ts).
 
 See [tileGenerator/stage11_mineableResources.ts](tileGenerator/stage11_mineableResources.ts).
 
+### Stage 12 — Ground light `[tile scale]`
+
+See [tileGenerator/stage12_groundLight.ts](tileGenerator/stage12_groundLight.ts). Two-pass: first computes `cliffShadow` from `altitudeLevel` differences to the four cardinal neighbours (using integer level differences so that only real cliff edges register — smooth altitude gradients within a level produce zero shadow); then derives `groundLight = light × (1 − cliffShadow)`. Runs last so future modifiers (tree canopy density, cave ceilings, etc.) can be folded in here without touching earlier stages.
+
 ---
 
 ## Derived Values
 
 ```
 effectiveMoisture  = precipitation × (1 - drainage)
+cliffShadow        = clamp((southLevelDiff×3 + northLevelDiff×1 + eastLevelDiff×2 + westLevelDiff×2) / 10, 0, 1)
+                     where levelDiff = max(0, neighbour.altitudeLevel − tile.altitudeLevel)
+groundLight        = light × (1 - cliffShadow)   [× future canopy modifier]
 ```
 
-Collapses precipitation and drainage into a dimension that maps more cleanly onto biome character. Recomputed after any stage that modifies drainage.
+`effectiveMoisture` collapses precipitation and drainage into a dimension that maps more cleanly onto biome character. Recomputed after any stage that modifies drainage.
+
+`cliffShadow` uses integer `altitudeLevel` differences (0–10) to the four cardinal neighbours, not raw altitude. This is intentional: raw altitude is smoothly interpolated between patches, so adjacent tiles at the same visual cliff level produce near-zero gradients; `altitudeLevel` differences only register where the discretized cliff height actually changes. Weights reflect sun direction: south = 3 (blocks main insolation), east/west = 2 (morning/evening), north = 1 (sky occlusion only; north = higher latitude, sun is in the south). Divided by 10 so a single south-facing level-1 cliff gives 0.3 shadow.
+
+`groundLight` is the final light level reaching the ground. It is computed last (Stage 12) so that future vegetation modifiers can be added without touching earlier stages.
 
 ---
 
@@ -113,15 +126,17 @@ Collapses precipitation and drainage into a dimension that maps more cleanly ont
 
 Apply axes in dependency order during local generation:
 
-| Order | Axis               | Contagion   | Depends on                                            |
-| ----- | ------------------ | ----------- | ----------------------------------------------------- |
-| 1     | Elevation          | —           | base altitude + local noise                           |
-| 2     | Temperature        | low (local) | base temperature + elevation                          |
-| 3     | Precipitation      | very high   | base precipitation + local noise                      |
-| 4     | Rock type          | none        | segment.dominantRockType + local noise                |
-| 5     | Drainage           | medium      | elevation gradient × rock permeability                |
-| 6     | Light              | none        | base: segment.baseLight; local: slope aspect + canopy |
-| 7     | Effective moisture | —           | derived from precip + drainage                        |
-| 8     | Fertility          | —           | derived from rock + climate + moisture                |
+| Order | Axis               | Contagion   | Depends on                                              |
+| ----- | ------------------ | ----------- | ------------------------------------------------------- |
+| 1     | Elevation          | —           | base altitude + local noise                             |
+| 2     | Temperature        | low (local) | base temperature + elevation                            |
+| 3     | Precipitation      | very high   | base precipitation + local noise                        |
+| 4     | Rock type          | none        | segment.dominantRockType + local noise                  |
+| 5     | Drainage           | medium      | elevation gradient × rock permeability                  |
+| 6     | Light              | none        | segment.light (latitude/climate baseline)               |
+| 7     | Effective moisture | —           | derived from precip + drainage                          |
+| 8     | Fertility          | —           | derived from rock + climate + moisture                  |
+| 9     | Cliff shadow       | —           | altitudeLevel (integer) difference to cardinal neighbors |
+| 10    | Ground light       | —           | light × (1 − cliffShadow) × future canopy modifier     |
 
-Axes 1–5 are computed at both resolutions: coarsely at patch scale for biome selection and CA, then at full resolution at tile scale for gameplay. CA runs between the two passes, reading patch-scale axis values.
+Axes 1–5 are computed at both resolutions: coarsely at patch scale for biome selection and CA, then at full resolution at tile scale for gameplay. CA runs between the two passes, reading patch-scale axis values. Axes 6–10 are tile-scale only.
