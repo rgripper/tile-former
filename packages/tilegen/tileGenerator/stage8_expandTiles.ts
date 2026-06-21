@@ -151,6 +151,8 @@ export function stage8_expandTiles(
         waterType: undefined,
         surfaceType: undefined,
         riparian: false,
+        treeSuitability: 0,
+        bushSuitability: 0,
       };
     }
   }

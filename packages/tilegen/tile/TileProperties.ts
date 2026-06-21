@@ -19,4 +19,15 @@ export type TileProperties = {
   waterType: "pond" | undefined;
   surfaceType: "rocky" | "sandy" | undefined;
   riparian: boolean;
+  // [0, 1] — base probability weight for tree/large-vegetation spawning.
+  // Combines soil viability, topography, and hydrology. Set by dresser stage 2.
+  // Does NOT include canopy competition (applied per-tree at spawn time) or
+  // seed dispersal (emergent from local-parent spawn mechanic).
+  treeSuitability: number;
+  // [0, 1] — base probability weight for bush/shrub spawning.
+  // Same causes as treeSuitability but with different tolerances: looser soil
+  // requirements, steeper slope tolerance, and hydrology inverted — riparian
+  // zones are peak habitat rather than suppression zones.
+  // Does NOT include canopy suppression (applied at spawn time).
+  bushSuitability: number;
 };
