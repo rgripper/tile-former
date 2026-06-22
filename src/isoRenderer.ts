@@ -10,6 +10,17 @@ const MAX_FLOORS = 10;
 
 export type IsoDebugOverlay = "none" | "cliffShadow";
 
+// Vegetation sizes (screen pixels)
+const TREE_TRUNK_H = 14;
+const TREE_TRUNK_W = 3;
+const TREE_CANOPY_RX = 7;
+const TREE_CANOPY_RY = 5;
+const TREE_TRUNK_COLOR = 0x4a2e0e;
+const TREE_CANOPY_COLOR = 0x2d6a2d;
+const BUSH_RX = 5;
+const BUSH_RY = 3;
+const BUSH_COLOR = 0x3d7d30;
+
 export async function initIsoApp({
   tileMap,
   container,
@@ -120,6 +131,20 @@ function getTileTopColor(tile: Tile, debugOverlay: IsoDebugOverlay): number {
   return base;
 }
 
+function drawTree(g: Graphics, sx: number, sy: number, light: number): void {
+  const canopy = darken(TREE_CANOPY_COLOR, 0.45 + 0.55 * light);
+  g.rect(sx - TREE_TRUNK_W / 2, sy - TREE_TRUNK_H, TREE_TRUNK_W, TREE_TRUNK_H);
+  g.fill({ color: TREE_TRUNK_COLOR });
+  g.ellipse(sx, sy - TREE_TRUNK_H, TREE_CANOPY_RX, TREE_CANOPY_RY);
+  g.fill({ color: canopy });
+}
+
+function drawBush(g: Graphics, sx: number, sy: number, light: number): void {
+  const color = darken(BUSH_COLOR, 0.45 + 0.55 * light);
+  g.ellipse(sx, sy - BUSH_RY, BUSH_RX, BUSH_RY);
+  g.fill({ color });
+}
+
 function createIsoTiles(
   tileMap: Tile[][],
   onTileClick: (tile: Tile) => void,
@@ -209,6 +234,22 @@ function createIsoTiles(
       g.moveTo(isoX + ISO_W / 2, topY + ISO_H);
       g.lineTo(isoX + ISO_W,     topY + ISO_H / 2);
       g.stroke(rim);
+    }
+
+    // Vegetation — skip in debug overlays so suitability maps stay readable
+    if (debugOverlay === "none") {
+      // Continuous tile-unit coords → screen: (px-py)*(ISO_W/2), (px+py)*(ISO_H/2)
+      // Both use the same cliffH as the tile they sit on.
+      for (const t of tile.trees) {
+        const sx = (t.x - t.y + 1) * (ISO_W / 2) + offsetX;
+        const sy = (t.x + t.y) * (ISO_H / 2) + offsetY - cliffH;
+        drawTree(g, sx, sy, tile.groundLight);
+      }
+      for (const b of tile.bushes) {
+        const sx = (b.x - b.y + 1) * (ISO_W / 2) + offsetX;
+        const sy = (b.x + b.y) * (ISO_H / 2) + offsetY - cliffH;
+        drawBush(g, sx, sy, tile.groundLight);
+      }
     }
 
     g.interactive = true;

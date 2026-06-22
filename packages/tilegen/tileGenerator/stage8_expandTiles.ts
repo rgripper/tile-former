@@ -153,6 +153,8 @@ export function stage8_expandTiles(
         riparian: false,
         treeSuitability: 0,
         bushSuitability: 0,
+        trees: [],
+        bushes: [],
       };
     }
   }

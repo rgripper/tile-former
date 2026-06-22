@@ -30,4 +30,8 @@ export type TileProperties = {
   // zones are peak habitat rather than suppression zones.
   // Does NOT include canopy suppression (applied at spawn time).
   bushSuitability: number;
+  // Continuous-coordinate placements (tile units) of trees and bushes whose
+  // tile membership falls within this tile. Set by dresser stage 4.
+  trees: Array<{ x: number; y: number }>;
+  bushes: Array<{ x: number; y: number }>;
 };
