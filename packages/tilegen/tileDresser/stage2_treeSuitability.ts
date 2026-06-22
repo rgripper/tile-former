@@ -33,6 +33,11 @@ import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "../tileGenerator/types";
 import { clamp, lerp, makeNoise2D, VON4 } from "../tileGenerator/utils";
 
+// At scale 0.025, one Simplex period spans 1/0.025 = 40 tiles — produces large
+// patches of dense-forest vs open-land character, independent of soil and terrain.
+// Intentionally much coarser than SOIL_NOISE_SCALE so the two signals don't alias.
+const FOREST_DENSITY_SCALE = 0.025;
+
 // At scale 0.05, one Simplex period spans 1/0.05 = 20 tiles — large enough to
 // produce distinct patches of poor/rich soil within a biome rather than per-tile noise.
 const SOIL_NOISE_SCALE = 0.05;
@@ -71,6 +76,7 @@ export function stage2_treeSuitability(
   // altitude fine-noise (_falt), riparian (_riparian), and bush soil (_soil_bush)
   // layers — overlapping seeds would produce spurious spatial correlations.
   const soilNoise = makeNoise2D(seed + "_soil_suit");
+  const forestNoise = makeNoise2D(seed + "_forest_density");
   const waterDist = computeWaterDist(tiles, width, height);
 
   for (let x = 0; x < width; x++) {
@@ -78,6 +84,7 @@ export function stage2_treeSuitability(
       const tile = tiles[x][y];
 
       if (tile.water) {
+        tile.forestDensity = 0;
         tile.treeSuitability = 0;
         continue;
       }
@@ -124,6 +131,7 @@ export function stage2_treeSuitability(
           ? 0
           : clamp((d - HYDRO_INNER_BUFFER) / HYDRO_ECOTONE_WIDTH, 0, 1);
 
+      tile.forestDensity = (forestNoise(x * FOREST_DENSITY_SCALE, y * FOREST_DENSITY_SCALE) + 1) * 0.5;
       tile.treeSuitability = clamp(soilFactor * topographyFactor * hydrologyFactor, 0, 1);
     }
   }

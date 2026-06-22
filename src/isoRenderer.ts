@@ -11,10 +11,10 @@ const MAX_FLOORS = 10;
 export type IsoDebugOverlay = "none" | "cliffShadow";
 
 // Vegetation sizes (screen pixels)
-const TREE_TRUNK_H = 14;
-const TREE_TRUNK_W = 3;
-const TREE_CANOPY_RX = 7;
-const TREE_CANOPY_RY = 5;
+const TREE_TRUNK_H = 28;
+const TREE_TRUNK_W = 6;
+const TREE_CANOPY_RX = 14;
+const TREE_CANOPY_RY = 10;
 const TREE_TRUNK_COLOR = 0x4a2e0e;
 const TREE_CANOPY_COLOR = 0x2d6a2d;
 const BUSH_RX = 5;

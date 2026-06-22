@@ -45,6 +45,12 @@ const SOIL_VIABILITY_MIN = 0.5;
 // that shrubs colonise bare rock, sand, and degraded ground that trees cannot.
 const FERTILITY_FLOOR = 0.4;
 
+// Dense forest canopy shades out understory shrubs. At forestDensity = 1, suitability
+// is multiplied by (1 - CANOPY_SUPPRESSION) = 0.2 — sparse but not zero, since shrubs
+// do survive in gaps and at the forest floor edge. At forestDensity = 0 (open land),
+// no suppression is applied.
+const CANOPY_SUPPRESSION = 0.8;
+
 // Trees fail above gradient ≈ 0.25; bushes tolerate up to ≈ 0.4. Both thresholds
 // are measured against the same 2-tile central-difference span (see stage 2).
 // At 0.4, a 1-unit altitude rise occurs over ~2.5 tiles — a steep but not vertical
@@ -120,7 +126,8 @@ export function stage3_bushSuitability(
       const d = waterDist[x][y];
       const hydrologyFactor = riparianHydroFactor(d);
 
-      tile.bushSuitability = clamp(soilFactor * topographyFactor * hydrologyFactor, 0, 1);
+      const canopyFactor = 1 - tile.forestDensity * CANOPY_SUPPRESSION;
+      tile.bushSuitability = clamp(soilFactor * topographyFactor * hydrologyFactor * canopyFactor, 0, 1);
     }
   }
 }

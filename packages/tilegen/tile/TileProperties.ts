@@ -19,6 +19,11 @@ export type TileProperties = {
   waterType: "pond" | undefined;
   surfaceType: "rocky" | "sandy" | undefined;
   riparian: boolean;
+  // [0, 1] — large-scale forest clustering signal. Low-frequency noise (~40-tile
+  // coherence) that drives variable tree packing: high → dense forest, low → open
+  // parkland. Also used by stage 3 for canopy suppression of understory bushes.
+  // Set by dresser stage 2 alongside treeSuitability.
+  forestDensity: number;
   // [0, 1] — base probability weight for tree/large-vegetation spawning.
   // Combines soil viability, topography, and hydrology. Set by dresser stage 2.
   // Does NOT include canopy competition (applied per-tree at spawn time) or
