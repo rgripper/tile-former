@@ -150,7 +150,7 @@ export function stage8_expandTiles(
         water: false,
         waterType: undefined,
         surfaceType: undefined,
-        riparian: false,
+        riparian: 0,
         forestDensity: 0,
         treeSuitability: 0,
         bushSuitability: 0,

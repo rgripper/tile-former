@@ -10,7 +10,7 @@
 import { createRand } from "../rand";
 import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "./types";
-import { makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
+import { clamp, makeNoise2D, MOORE8, tileKey, VON4 } from "./utils";
 
 const RIPARIAN_NOISE_SCALE = 0.18;
 
@@ -128,13 +128,13 @@ function placeRiparian(tiles: Tile[][], config: PipelineConfig): void {
       const tile = tiles[x][y];
 
       if (d === 1) {
-        tile.riparian = true;
+        tile.riparian = 1.0;
       } else {
-        // d === 2: include if drainage is low (bog = always, rock = rarely).
+        // d === 2: value tapers with drainage. threshold ∈ [−1, 0.5]: boggy tiles
+        // score high (always > 0), rocky tiles score low (often 0).
         const threshold = tile.drainage * 1.5 - 1.0;
-        if (noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE) > threshold) {
-          tile.riparian = true;
-        }
+        const noiseVal = noise(x * RIPARIAN_NOISE_SCALE, y * RIPARIAN_NOISE_SCALE);
+        tile.riparian = clamp((noiseVal - threshold) / 2, 0, 1);
       }
     }
   }

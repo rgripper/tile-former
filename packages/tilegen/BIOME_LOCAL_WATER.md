@@ -44,22 +44,28 @@ Stage 8 runs after Stage 7 (tile modifier pass) because it needs tile-scale elev
 
 ## Riparian fringe
 
-After smoothing, a riparian pass marks land tiles adjacent to pond tiles as `riparian: true`. These tiles represent the transitional wet-margin zone — reeds, muddy banks, saturated soil — between open water and dry land.
+After smoothing, a riparian pass assigns each land tile a `riparian` value in `[0, 1]` representing proximity to water. These tiles represent the transitional wet-margin zone — reeds, muddy banks, saturated soil — between open water and dry land.
 
-**Width** is 1–2 tiles and varies continuously with local drainage:
+```typescript
+riparian: number  // [0, 1] — 1 = adjacent to water, 0 = dry land
+```
 
-- **Distance 1** (immediate neighbours) — always riparian.
-- **Distance 2** — included only if `noise > tile.drainage × 1.5 − 1.0`, where noise is a low-frequency simplex value per tile (scale 0.18).
+**Width** is 1–2 tiles; the value depends on distance and local drainage:
 
-The threshold formula means:
+- **Distance 1** (immediate neighbours) — `riparian = 1.0` always.
+- **Distance 2** — `riparian = clamp((noise − threshold) / 2, 0, 1)`, where
+  - `threshold = tile.drainage × 1.5 − 1.0` (ranges from −1.0 to +0.5)
+  - `noise` is a low-frequency simplex value per tile (scale 0.18)
 
-| Tile drainage | Distance-2 inclusion |
-| ------------- | -------------------- |
-| 0.0 (boggy)   | Always (threshold −1.0, noise always exceeds) |
-| 0.5 (medium)  | ~60 % of tiles |
-| 1.0 (rocky)   | ~25 % of tiles |
+The threshold formula produces naturally wider, wetter fringes on boggy ground and narrower, weaker fringes on well-drained or rocky ground:
 
-The noise unevenness makes the fringe look organic rather than a perfect ring. Riparian tiles retain their biome assignment — a Taiga tile with `riparian: true` is still Taiga; the flag is purely additive for gameplay and rendering.
+| Tile drainage | Dist-2 riparian value |
+| ------------- | --------------------- |
+| 0.0 (boggy)   | `(noise + 1) / 2` → ~0.5 average, always > 0 |
+| 0.5 (medium)  | `(noise + 0.25) / 2` → ~0.31 average |
+| 1.0 (rocky)   | `(noise − 0.5) / 2` → ~0.125 average, often 0 |
+
+The noise unevenness makes the fringe look organic rather than a perfect ring. Riparian tiles retain their biome assignment — a Taiga tile with `riparian > 0` is still Taiga; the value is purely additive for gameplay and rendering (e.g. fertility scales as `× (1 + 0.3 × riparian)`).
 
 ---
 
@@ -84,4 +90,4 @@ Implemented in `stage8_waterFeatures()` → `placePonds()` → `smoothPonds()` i
 
 **Smoothing** — runs after pond placement on the full tile grid. `smoothPonds()` uses the Moore 8-neighbourhood with the thresholds above, repeated twice.
 
-**Riparian** — runs after smoothing. `placeRiparian()` seeds a BFS from every water tile, propagates Chebyshev distance up to 2, and applies the drainage-gated threshold to distance-2 tiles. The simplex noise seed is `config.seed + "_riparian"`.
+**Riparian** — runs after smoothing. `placeRiparian()` seeds a BFS from every water tile, propagates Chebyshev distance up to 2, assigns `riparian = 1.0` at distance 1, and computes a continuous `[0, 1]` value at distance 2 via `clamp((noise − threshold) / 2, 0, 1)`. The simplex noise seed is `config.seed + "_riparian"`.

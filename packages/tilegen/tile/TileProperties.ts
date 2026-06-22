@@ -18,7 +18,7 @@ export type TileProperties = {
   water: boolean;
   waterType: "pond" | undefined;
   surfaceType: "rocky" | "sandy" | undefined;
-  riparian: boolean;
+  riparian: number; // [0, 1] — proximity to water: 1 = adjacent, 0 = dry land
   // [0, 1] — large-scale forest clustering signal. Low-frequency noise (~40-tile
   // coherence) that drives variable tree packing: high → dense forest, low → open
   // parkland. Also used by stage 3 for canopy suppression of understory bushes.

@@ -7,7 +7,7 @@
 //   tempFactor     = exp(−((temperature − 17) / 20)²)  // bell curve peaking at 17 °C
 //   moistureFactor = lerp(0.3, 1.0, min(1, effectiveMoisture × 2))
 //   fertility      = rockFertilityBase × tempFactor × moistureFactor
-//                    × 1.3  if riparian (sediment and nutrient deposition)
+//                    × (1 + 0.3 × riparian)  // up to +30 % at dist-1; less further out
 
 import type { Tile } from "../tile/tile";
 import type { PipelineConfig } from "./types";
@@ -41,7 +41,7 @@ export function stage10_fertility(
       let fertility = fertilityBase * tempFactor * moistureFactor;
 
       // Riparian zones receive regular sediment and nutrient deposition.
-      if (tile.riparian) fertility *= 1.3;
+      fertility *= 1 + 0.3 * tile.riparian;
 
       tile.fertility = clamp(fertility, 0, 1);
     }
