@@ -1,7 +1,10 @@
-import { Application, Container, Graphics } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { Tile, biomes } from "@tile-former/tilegen";
 import { gridSize } from "./config.ts";
+import treeImageUrl from "./assets/tree.png";
+import tree2ImageUrl from "./assets/tree2.png";
+import bushImageUrl from "./assets/bush.png";
 
 const ISO_W = 64;   // screen width of top diamond face
 const ISO_H = 32;   // screen height of top diamond face (2:1 ratio)
@@ -9,17 +12,6 @@ const CLIFF_UNIT = 12; // pixels per altitude floor level
 const MAX_FLOORS = 10;
 
 export type IsoDebugOverlay = "none" | "cliffShadow";
-
-// Vegetation sizes (screen pixels)
-const TREE_TRUNK_H = 28;
-const TREE_TRUNK_W = 6;
-const TREE_CANOPY_RX = 14;
-const TREE_CANOPY_RY = 10;
-const TREE_TRUNK_COLOR = 0x4a2e0e;
-const TREE_CANOPY_COLOR = 0x2d6a2d;
-const BUSH_RX = 5;
-const BUSH_RY = 3;
-const BUSH_COLOR = 0x3d7d30;
 
 export async function initIsoApp({
   tileMap,
@@ -56,7 +48,13 @@ export async function initIsoApp({
 
   app.stage.addChild(viewport);
 
-  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay);
+  const [treeTexture, tree2Texture, bushTexture] = await Promise.all([
+    Assets.load<Texture>(treeImageUrl),
+    Assets.load<Texture>(tree2ImageUrl),
+    Assets.load<Texture>(bushImageUrl),
+  ]);
+
+  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay, treeTexture, tree2Texture, bushTexture);
   viewport.addChild(isoContainer);
 
   const offsetX = gridSize.height * (ISO_W / 2);
@@ -131,24 +129,23 @@ function getTileTopColor(tile: Tile, debugOverlay: IsoDebugOverlay): number {
   return base;
 }
 
-function drawTree(g: Graphics, sx: number, sy: number, light: number): void {
-  const canopy = darken(TREE_CANOPY_COLOR, 0.45 + 0.55 * light);
-  g.rect(sx - TREE_TRUNK_W / 2, sy - TREE_TRUNK_H, TREE_TRUNK_W, TREE_TRUNK_H);
-  g.fill({ color: TREE_TRUNK_COLOR });
-  g.ellipse(sx, sy - TREE_TRUNK_H, TREE_CANOPY_RX, TREE_CANOPY_RY);
-  g.fill({ color: canopy });
-}
-
-function drawBush(g: Graphics, sx: number, sy: number, light: number): void {
-  const color = darken(BUSH_COLOR, 0.45 + 0.55 * light);
-  g.ellipse(sx, sy - BUSH_RY, BUSH_RX, BUSH_RY);
-  g.fill({ color });
+function vegSprite(texture: Texture, sx: number, sy: number, light: number): Sprite {
+  const sprite = new Sprite(texture);
+  sprite.anchor.set(0.5, 1);
+  sprite.x = sx;
+  sprite.y = sy;
+  const tv = Math.round((0.45 + 0.55 * light) * 255);
+  sprite.tint = (tv << 16) | (tv << 8) | tv;
+  return sprite;
 }
 
 function createIsoTiles(
   tileMap: Tile[][],
   onTileClick: (tile: Tile) => void,
   debugOverlay: IsoDebugOverlay,
+  treeTexture: Texture,
+  tree2Texture: Texture,
+  bushTexture: Texture,
 ): Container {
   const container = new Container();
 
@@ -243,12 +240,18 @@ function createIsoTiles(
       for (const t of tile.trees) {
         const sx = (t.x - t.y + 1) * (ISO_W / 2) + offsetX;
         const sy = (t.x + t.y) * (ISO_H / 2) + offsetY - cliffH;
-        drawTree(g, sx, sy, tile.groundLight);
+        // Deterministic per-tree type: ~30% deciduous, 70% pine
+        const tex = (Math.floor(t.x * 127 + t.y * 311) % 10) < 3 ? tree2Texture : treeTexture;
+        g.ellipse(sx + 3, sy, 11, 5);
+        g.fill({ color: 0x000000, alpha: 0.32 });
+        g.addChild(vegSprite(tex, sx, sy, tile.groundLight));
       }
       for (const b of tile.bushes) {
         const sx = (b.x - b.y + 1) * (ISO_W / 2) + offsetX;
         const sy = (b.x + b.y) * (ISO_H / 2) + offsetY - cliffH;
-        drawBush(g, sx, sy, tile.groundLight);
+        g.ellipse(sx + 2, sy, 7, 3);
+        g.fill({ color: 0x000000, alpha: 0.28 });
+        g.addChild(vegSprite(bushTexture, sx, sy, tile.groundLight));
       }
     }
 

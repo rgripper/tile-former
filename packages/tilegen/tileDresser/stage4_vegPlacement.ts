@@ -62,7 +62,7 @@ export function stage4_vegPlacement(tiles: Tile[][], config: PipelineConfig): vo
     2,
     createRand(seed + "_veg_bushes"),
     (x, y) => tiles[Math.floor(x)][Math.floor(y)].bushSuitability,
-    (_x, _y) => BUSH_MIN_DIST,
+    () => BUSH_MIN_DIST,
     (x, y) => { tiles[Math.floor(x)][Math.floor(y)].bushes.push({ x, y }); },
   );
 }
