@@ -128,7 +128,7 @@ with similar properties tile without visible seams.
   (renders all 44 biomes at once for taxonomy sanity-checking).
 - [x] **M2 — Substrate:** material generators, dithered blends, diamond mask,
   3×3 seam preview.
-- [ ] **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
+- [x] **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
 - [ ] **M4 — Animated scatter:** fern/reed generators, sway frames, overlay preview,
   spritesheet export.
 - [ ] **M5 — Export + game hookup:** atlas/recipe export, quantized cache-key API,
@@ -179,6 +179,32 @@ non-empty; rendered 3×3 composites for 8 showcase biomes → no visible seams
 and distinct per-substrate texture. Known cosmetic gap: the interim mat pass
 floods high-coverage tiles (rainforest/swamp read as flat green) — expected
 until M3 replaces it with tufts/litter stamps. M1 tuning gaps above still open.
+
+**M3 done (2026-07-08).** New core modules: `stamps.ts` (world-lattice
+feature placement — `stampField` for pixel stamps, `spotField` for
+discs/domes; anchors jittered per cell, 3×3 neighbor scan, so features
+crossing tile borders paint identically from both sides), `mats/index.ts`
+(real mat stage replacing the interim M2 flood — turf fill with blade runs /
+bright tips / dark bases for grass, dryGrass and clumped sedge tussocks;
+low-contrast moss carpet; lichen crust discs with dark rims; cushion domes lit
+from above; leaf/needle litter as individual 2–4 px stamps; every generator
+caps density < 1 so substrate shows through, and a signed edge-strength `s`
+frays each patch boundary a few px past the nominal threshold), and
+`scatter/index.ts` (static scatter baked into the floor: pebbles with lit
+tops, kinked twigs, stray leaves). `StyleParams` gained `staticScatter`
+densities (pebble/twig/leaf, resolved from drainage/fertility/forestDensity/
+temperature) and `scatterRamps` (palette-resolved so biome overrides apply).
+`rampAt` moved from `substrate/` to `palette/` as the shared ramp mapper.
+
+Verified: `bunx tsc --noEmit` clean; headless bake of all 44 biomes fully
+painted with plausible mat mixes (rainforest grass+litter, taiga
+needleLitter+lichen, fell cushion+lichen, swamp grass+sedge) and scatter
+densities (deserts peb≈1, forests twig 0.6/leaf 0.5); rendered 3×3 composites
+for 12 showcase biomes → no seams, cushion domes / litter stamps / pebbles
+legible. Remaining cosmetic notes: near-full-coverage grass (rainforest)
+still reads mostly solid — intentional now (density-capped show-through),
+revisit hue variation in tuning; M1 tuning gaps (desert bareRock bias, Boreal
+Bog peat threshold) still open.
 
 ## Testing
 

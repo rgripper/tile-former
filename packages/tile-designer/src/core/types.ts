@@ -70,6 +70,10 @@ export type StyleParams = {
   // Texturing scalars for the substrate stage: arid drives crack patterns
   // (dry clay, cracked earth), wet drives sheen highlights (mud, riparian).
   texture: { arid: number; wet: number };
+  // Static scatter baked into the floor (M3): densities [0,1] and the ramps
+  // their stamps draw from (palette-resolved so biome overrides apply).
+  staticScatter: { pebble: number; twig: number; leaf: number };
+  scatterRamps: { pebble: Ramp; twig: Ramp; leaf: Ramp };
   // Animated-scatter densities [0,1] — consumed from M4 on; resolved here so
   // the designer can display them from M1.
   scatter: { fern: number; reed: number; flower: number };

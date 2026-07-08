@@ -8,4 +8,7 @@ export * from "./src/core/pixels.ts";
 export * from "./src/core/noise.ts";
 export * from "./src/core/bake.ts";
 export * from "./src/core/substrate/index.ts";
+export * from "./src/core/mats/index.ts";
+export * from "./src/core/scatter/index.ts";
+export * from "./src/core/stamps.ts";
 export * from "./src/core/biomeInput.ts";

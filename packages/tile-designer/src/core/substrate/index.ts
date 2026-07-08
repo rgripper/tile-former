@@ -11,15 +11,10 @@ import type { Ramp, StyleParams, SubstrateId } from "../types.ts";
 import { hash2D } from "../rng.ts";
 import { bayer, cellEdge, fbm } from "../noise.ts";
 import { insideDiamond, put, type PixelBuffer } from "../pixels.ts";
+import { rampAt } from "../palette/index.ts";
 
 // Texturing context shared by all generators for a given tile.
 type Ctx = { seed: number; arid: number; wet: number };
-
-// Map a [0,1) value onto the 4-step ramp with a mid-heavy distribution:
-// mostly indices 1–2, occasional deep shadow (0) and highlight (3).
-function rampAt(ramp: Ramp, v: number): number {
-  return ramp[v < 0.12 ? 0 : v < 0.58 ? 1 : v < 0.92 ? 2 : 3]!;
-}
 
 type Generator = (wx: number, wy: number, ramp: Ramp, c: Ctx) => number;
 

@@ -155,6 +155,19 @@ export function resolveStyle(i: DesignInput): StyleParams {
     surface,
     substrateRamps,
     matRamps,
+    staticScatter: {
+      // Exposed stones where drainage is high and soil development thin.
+      pebble: clamp01(rise(i.drainage, 0.35, 0.7) * (0.4 + 0.6 * fall(i.fertility, 0.2, 0.6))),
+      // Deadfall under any canopy that isn't frozen solid year-round.
+      twig: clamp01(i.forestDensity * rise(i.temperature, -10, 0)),
+      // Stray broadleaf drop outside the litter carpet proper.
+      leaf: clamp01(i.forestDensity * rise(i.temperature, 5, 15) * 0.8),
+    },
+    scatterRamps: {
+      pebble: palette.substrates.scree,
+      twig: palette.mats.needleLitter,
+      leaf: palette.mats.leafLitter,
+    },
     texture: {
       arid: fall(i.effectiveMoisture, 0.08, 0.35) * rise(i.temperature, -5, 8),
       wet: Math.max(i.riparian, rise(i.effectiveMoisture, 0.7, 0.95)),

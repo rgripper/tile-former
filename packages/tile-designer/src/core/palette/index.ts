@@ -45,6 +45,12 @@ export function shiftRamp(ramp: Ramp, dh: number, ds: number, dl: number): Ramp 
   }) as Ramp;
 }
 
+// Map a [0,1) value onto the 4-step ramp with a mid-heavy distribution:
+// mostly indices 1–2, occasional deep shadow (0) and highlight (3).
+export function rampAt(ramp: Ramp, v: number): number {
+  return ramp[v < 0.12 ? 0 : v < 0.58 ? 1 : v < 0.92 ? 2 : 3]!;
+}
+
 // --- Global base ramps (dark → highlight) ---
 // Placeholder pixel-art ramps; the designer exists to iterate on these.
 
