@@ -117,18 +117,47 @@ with similar properties tile without visible seams.
 
 ## Milestones
 
-- **M0 — Scaffold:** rename to `@tile-former/tile-designer`, Vite+React app with
-  `dev` script, workspace dep on `@tile-former/tilegen`.
-- **M1 — Resolver + shell:** surface taxonomy + `resolve.ts`, palette system
-  (global base + per-biome overrides), sliders + presets + flat-color preview +
-  biome gallery (validates taxonomy coverage before any pixel art exists).
-- **M2 — Substrate:** material generators, dithered blends, diamond mask,
+- [x] **M0 — Scaffold:** renamed to `@tile-former/tile-designer`, Vite+React app
+  with `dev` script (root: `bun run designer`), workspace dep on
+  `@tile-former/tilegen`. tilegen now also exports `rockTypes`/`RockTypeId`/
+  `TileProperties`.
+- [x] **M1 — Resolver + shell:** surface taxonomy + `resolve.ts` (score
+  functions → top-2 blended substrates + up to 3 mats + scatter densities),
+  palette system (global ramps + per-biome partial overrides), property
+  sliders + biome preset dropdown + flat-color preview + biome gallery
+  (renders all 44 biomes at once for taxonomy sanity-checking).
+- [ ] **M2 — Substrate:** material generators, dithered blends, diamond mask,
   3×3 seam preview.
-- **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
-- **M4 — Animated scatter:** fern/reed generators, sway frames, overlay preview,
+- [ ] **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
+- [ ] **M4 — Animated scatter:** fern/reed generators, sway frames, overlay preview,
   spritesheet export.
-- **M5 — Export + game hookup:** atlas/recipe export, quantized cache-key API,
+- [ ] **M5 — Export + game hookup:** atlas/recipe export, quantized cache-key API,
   wire `bakeFloorTexture` into `isoRenderer.ts` replacing flat `getTileTopColor`.
+
+## Progress log
+
+**M0/M1 done (2026-07-08).** Package lives at `packages/tile-designer/`;
+`bun run designer` (root) or `bun run dev` (in-package) launches it. Core
+(`src/core/`) is pure TS and exported from the package root for later reuse by
+the game. UI (`src/app/`) is React + plain `<canvas>` (`imageSmoothingEnabled
+= false`), no Pixi at designer scale as planned.
+
+Verified: `bunx tsgo --noEmit` clean in-package; dev server serves and all
+workspace imports (`@tile-former/tilegen`) resolve; headless run of
+`resolveSurface` over all 44 biomes produces plausible substrate/mat picks
+(tundra → frozenGround+lichen, bogs → peat, fell-fields → bareRock+scree+
+cushion, rainforest → clay+soil+grass/litter).
+
+Known tuning gaps to chase in the UI next session (score-curve edits in
+`resolve.ts` / `biomeInput.ts`, not architecture changes):
+- Hot/Cold Desert lean too `bareRock`-heavy vs. sand — partly an artifact of
+  the gallery's deterministic per-biome rock-type guess in `biomeToInput`,
+  worth checking against real sand-forming rock assignment once tilegen
+  drives the input instead of biome means.
+- Boreal Bog resolves to `frozenGround`+`soil` instead of `peat` — its
+  `paramDist` moisture mean sits just under the `peat` score's moisture
+  threshold; either lower the threshold or raise the biome's effective
+  moisture derivation in `biomeInput.ts`.
 
 ## Testing
 
