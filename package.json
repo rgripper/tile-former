@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "designer": "vite packages/tile-designer",
     "type-check": "tsgo --noEmit",
     "build": "tsgo && vite build",
     "@tailwindcss/cli": "@tailwindcss/cli",

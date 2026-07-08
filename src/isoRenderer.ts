@@ -2,9 +2,16 @@ import { Application, Assets, Container, Graphics, Sprite, Texture } from "pixi.
 import { Viewport } from "pixi-viewport";
 import { Tile, biomes } from "@tile-former/tilegen";
 import { gridSize } from "./config.ts";
-import treeImageUrl from "./assets/tree.png";
-import tree2ImageUrl from "./assets/tree2.png";
-import bushImageUrl from "./assets/bush.png";
+
+const oakImageUrls = Object.values(
+  import.meta.glob<string>("./assets/oak/*.png", { eager: true, import: "default" }),
+);
+const pineImageUrls = Object.values(
+  import.meta.glob<string>("./assets/pine/*.png", { eager: true, import: "default" }),
+);
+const bushImageUrls = Object.values(
+  import.meta.glob<string>("./assets/bush/*.png", { eager: true, import: "default" }),
+);
 
 const ISO_W = 64;   // screen width of top diamond face
 const ISO_H = 32;   // screen height of top diamond face (2:1 ratio)
@@ -48,13 +55,16 @@ export async function initIsoApp({
 
   app.stage.addChild(viewport);
 
-  const [treeTexture, tree2Texture, bushTexture] = await Promise.all([
-    Assets.load<Texture>(treeImageUrl),
-    Assets.load<Texture>(tree2ImageUrl),
-    Assets.load<Texture>(bushImageUrl),
+  const [oakTextureMap, pineTextureMap, bushTextureMap] = await Promise.all([
+    Assets.load<Texture>(oakImageUrls),
+    Assets.load<Texture>(pineImageUrls),
+    Assets.load<Texture>(bushImageUrls),
   ]);
+  const oakTextures = Object.values(oakTextureMap);
+  const pineTextures = Object.values(pineTextureMap);
+  const bushTextures = Object.values(bushTextureMap);
 
-  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay, treeTexture, tree2Texture, bushTexture);
+  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay, oakTextures, pineTextures, bushTextures);
   viewport.addChild(isoContainer);
 
   const offsetX = gridSize.height * (ISO_W / 2);
@@ -129,11 +139,17 @@ function getTileTopColor(tile: Tile, debugOverlay: IsoDebugOverlay): number {
   return base;
 }
 
-function vegSprite(texture: Texture, sx: number, sy: number, light: number): Sprite {
+// Trees and bushes are drawn from 128×128 source art with generous transparent
+// padding; scale them down to roughly match the footprint of the old hand-sized stubs.
+const TREE_SCALE = 0.3;
+const BUSH_SCALE = 0.18;
+
+function vegSprite(texture: Texture, sx: number, sy: number, light: number, scale = 1): Sprite {
   const sprite = new Sprite(texture);
   sprite.anchor.set(0.5, 1);
   sprite.x = sx;
   sprite.y = sy;
+  sprite.scale.set(scale);
   const tv = Math.round((0.45 + 0.55 * light) * 255);
   sprite.tint = (tv << 16) | (tv << 8) | tv;
   return sprite;
@@ -143,9 +159,9 @@ function createIsoTiles(
   tileMap: Tile[][],
   onTileClick: (tile: Tile) => void,
   debugOverlay: IsoDebugOverlay,
-  treeTexture: Texture,
-  tree2Texture: Texture,
-  bushTexture: Texture,
+  oakTextures: Texture[],
+  pineTextures: Texture[],
+  bushTextures: Texture[],
 ): Container {
   const container = new Container();
 
@@ -240,18 +256,24 @@ function createIsoTiles(
       for (const t of tile.trees) {
         const sx = (t.x - t.y + 1) * (ISO_W / 2) + offsetX;
         const sy = (t.x + t.y) * (ISO_H / 2) + offsetY - cliffH;
-        // Deterministic per-tree type: ~30% deciduous, 70% pine
-        const tex = (Math.floor(t.x * 127 + t.y * 311) % 10) < 3 ? tree2Texture : treeTexture;
+        // Deterministic per-tree type: ~30% oak, 70% pine, with a deterministic
+        // pick among the 10 art variants of whichever species is chosen.
+        const hash = Math.floor(t.x * 127 + t.y * 311);
+        const textures = (hash % 10) < 3 ? oakTextures : pineTextures;
+        const tex = textures[Math.floor(hash / 10) % textures.length];
         g.ellipse(sx + 3, sy, 11, 5);
         g.fill({ color: 0x000000, alpha: 0.32 });
-        g.addChild(vegSprite(tex, sx, sy, tile.groundLight));
+        g.addChild(vegSprite(tex, sx, sy, tile.groundLight, TREE_SCALE));
       }
       for (const b of tile.bushes) {
         const sx = (b.x - b.y + 1) * (ISO_W / 2) + offsetX;
         const sy = (b.x + b.y) * (ISO_H / 2) + offsetY - cliffH;
+        // Deterministic per-bush variant pick among the 10 art variants.
+        const hash = Math.floor(b.x * 197 + b.y * 421);
+        const tex = bushTextures[hash % bushTextures.length];
         g.ellipse(sx + 2, sy, 7, 3);
         g.fill({ color: 0x000000, alpha: 0.28 });
-        g.addChild(vegSprite(bushTexture, sx, sy, tile.groundLight));
+        g.addChild(vegSprite(tex, sx, sy, tile.groundLight, BUSH_SCALE));
       }
     }
 
