@@ -6,8 +6,5 @@
     ".": {
       "import": "./index.ts"
     }
-  },
-  "peerDependencies": {
-    "@typescript/native-preview": "latest"
   }
 }

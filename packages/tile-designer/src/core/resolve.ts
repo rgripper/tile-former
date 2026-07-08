@@ -155,6 +155,10 @@ export function resolveStyle(i: DesignInput): StyleParams {
     surface,
     substrateRamps,
     matRamps,
+    texture: {
+      arid: fall(i.effectiveMoisture, 0.08, 0.35) * rise(i.temperature, -5, 8),
+      wet: Math.max(i.riparian, rise(i.effectiveMoisture, 0.7, 0.95)),
+    },
     scatter: {
       fern:
         rise(i.effectiveMoisture, 0.4, 0.7) *

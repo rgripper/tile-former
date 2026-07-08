@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { biomes } from "@tile-former/tilegen";
 import { biomeToInput } from "../core/biomeInput.ts";
 import { resolveStyle } from "../core/resolve.ts";
-import { paintFlatPreview } from "../core/preview.ts";
+import { bakeTile } from "../core/bake.ts";
 import { TileCanvas } from "./TileCanvas.tsx";
 
 // One tile per biome at its paramDist means — validates that the surface
@@ -14,7 +14,9 @@ export function BiomeGallery({ seed }: { seed: number }) {
         const style = resolveStyle(biomeToInput(biome));
         return {
           biome,
-          buffer: paintFlatPreview(style, seed ^ biome.id),
+          // Distinct world origins so gallery cells don't all show the same
+          // patch of the noise field.
+          buffer: bakeTile(style, biome.id * 512, 0, seed),
           surface: style.surface,
         };
       }),

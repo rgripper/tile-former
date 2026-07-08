@@ -67,6 +67,9 @@ export type StyleParams = {
   surface: SurfaceSpec;
   substrateRamps: Partial<Record<SubstrateId, Ramp>>;
   matRamps: Partial<Record<MatId, Ramp>>;
+  // Texturing scalars for the substrate stage: arid drives crack patterns
+  // (dry clay, cracked earth), wet drives sheen highlights (mud, riparian).
+  texture: { arid: number; wet: number };
   // Animated-scatter densities [0,1] — consumed from M4 on; resolved here so
   // the designer can display them from M1.
   scatter: { fern: number; reed: number; flower: number };

@@ -126,7 +126,7 @@ with similar properties tile without visible seams.
   palette system (global ramps + per-biome partial overrides), property
   sliders + biome preset dropdown + flat-color preview + biome gallery
   (renders all 44 biomes at once for taxonomy sanity-checking).
-- [ ] **M2 — Substrate:** material generators, dithered blends, diamond mask,
+- [x] **M2 — Substrate:** material generators, dithered blends, diamond mask,
   3×3 seam preview.
 - [ ] **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
 - [ ] **M4 — Animated scatter:** fern/reed generators, sway frames, overlay preview,
@@ -142,7 +142,7 @@ with similar properties tile without visible seams.
 the game. UI (`src/app/`) is React + plain `<canvas>` (`imageSmoothingEnabled
 = false`), no Pixi at designer scale as planned.
 
-Verified: `bunx tsgo --noEmit` clean in-package; dev server serves and all
+Verified: `bunx tsc --noEmit` clean in-package; dev server serves and all
 workspace imports (`@tile-former/tilegen`) resolve; headless run of
 `resolveSurface` over all 44 biomes produces plausible substrate/mat picks
 (tundra → frozenGround+lichen, bogs → peat, fell-fields → bareRock+scree+
@@ -158,6 +158,27 @@ Known tuning gaps to chase in the UI next session (score-curve edits in
   `paramDist` moisture mean sits just under the `peat` score's moisture
   threshold; either lower the threshold or raise the biome's effective
   moisture derivation in `biomeInput.ts`.
+
+**M2 done (2026-07-08).** New core modules: `pixels.ts` (PixelBuffer, diamond
+mask, blit target), `noise.ts` (value noise, 3-octave fBm, Bayer 4×4, Worley
+cell-edge for cracks), `substrate/index.ts` (per-substrate generators — rock
+strata + fracture lines, scree clumps, sand ripples with wandering phase,
+soil/clay shrinkage cracks scaled by an `arid` scalar, mud/clay wet sheen from
+a `wet` scalar, peat fiber streaks, frost polygons, snow drifts + sparkle),
+and `bake.ts` (`bakeTile(style, ox, oy, seed)` = substrate + interim
+clustered-mat pass + water). `preview.ts` deleted; `StyleParams` gained
+`texture: { arid, wet }` (resolved in `resolve.ts`). Substrate blend =
+low-frequency fBm patches with a Bayer-roughened boundary band. All noise is
+keyed on world pixel coordinates + the *world* seed (never a per-tile seed),
+so seam-freeness holds by construction; the iso 2:1 squash is compensated by
+doubling y-frequency inside generators. UI gained `NeighborhoodPreview`
+(3×3 iso composite with per-neighbor property jitter).
+
+Verified: `bunx tsc --noEmit` clean; headless bake of all 44 biomes
+non-empty; rendered 3×3 composites for 8 showcase biomes → no visible seams
+and distinct per-substrate texture. Known cosmetic gap: the interim mat pass
+floods high-coverage tiles (rainforest/swamp read as flat green) — expected
+until M3 replaces it with tufts/litter stamps. M1 tuning gaps above still open.
 
 ## Testing
 

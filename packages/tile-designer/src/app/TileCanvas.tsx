@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { PixelBuffer } from "../core/preview.ts";
+import type { PixelBuffer } from "../core/pixels.ts";
 
 // Blits a PixelBuffer to a canvas at an integer zoom with crisp pixels.
 export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number }) {

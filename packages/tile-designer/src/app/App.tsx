@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import type { DesignInput } from "../core/types.ts";
 import { resolveStyle } from "../core/resolve.ts";
-import { paintFlatPreview } from "../core/preview.ts";
+import { bakeTile } from "../core/bake.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
 import { biomes } from "@tile-former/tilegen";
 import { PropertyPanel } from "./PropertyPanel.tsx";
 import { TileCanvas } from "./TileCanvas.tsx";
 import { BiomeGallery } from "./BiomeGallery.tsx";
+import { NeighborhoodPreview } from "./NeighborhoodPreview.tsx";
 
 const initialInput: DesignInput = biomeToInput(biomes[0]!);
 
@@ -15,7 +16,7 @@ export function App() {
   const [seed, setSeed] = useState(1234);
 
   const style = useMemo(() => resolveStyle(input), [input]);
-  const buffer = useMemo(() => paintFlatPreview(style, seed), [style, seed]);
+  const buffer = useMemo(() => bakeTile(style, 0, 0, seed), [style, seed]);
 
   return (
     <div className="app">
@@ -48,6 +49,8 @@ export function App() {
             </div>
           </div>
         </div>
+
+        <NeighborhoodPreview input={input} seed={seed} />
 
         <BiomeGallery seed={seed} />
       </div>
