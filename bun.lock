@@ -7,6 +7,7 @@
       "dependencies": {
         "@radix-ui/react-slider": "^1.2.3",
         "@radix-ui/react-slot": "^1.1.2",
+        "@tile-former/tile-designer": "workspace:*",
         "@tile-former/tilegen": "workspace:*",
         "@tile-former/tree": "workspace:*",
         "@timohausmann/quadtree-js": "^1.2.6",

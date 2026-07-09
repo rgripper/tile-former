@@ -131,8 +131,9 @@ with similar properties tile without visible seams.
 - [x] **M3 — Mat + static scatter:** grass/moss coverage, tufts, pebble/litter stamps.
 - [ ] **M4 — Animated scatter:** fern/reed generators, sway frames, overlay preview,
   spritesheet export.
-- [ ] **M5 — Export + game hookup:** atlas/recipe export, quantized cache-key API,
-  wire `bakeFloorTexture` into `isoRenderer.ts` replacing flat `getTileTopColor`.
+- [ ] **M5 — Export + game hookup:** atlas/recipe export,
+  ~~quantized cache-key API~~ / ~~wire `bakeFloorTexture` into `isoRenderer.ts`
+  replacing flat `getTileTopColor`~~ (done).
 
 ## Progress log
 
@@ -205,6 +206,54 @@ legible. Remaining cosmetic notes: near-full-coverage grass (rainforest)
 still reads mostly solid — intentional now (density-capped show-through),
 revisit hue variation in tuning; M1 tuning gaps (desert bareRock bias, Boreal
 Bog peat threshold) still open.
+
+**M5 game hookup done (2026-07-08).** New game module `src/floorTextures.ts`
+(root app): maps `Tile` → `DesignInput`, hashes the game's string seed (FNV-1a)
+to the numeric world seed, computes the world pixel origin from the iso grid
+index (`ox=(col−row)·64, oy=(col+row)·32` — same mapping as
+`NeighborhoodPreview`), and wraps the baked 128×64 buffer in a Pixi `Texture`
+(`scaleMode = "nearest"`). `isoRenderer.ts` now overlays a half-scale (64×32)
+floor sprite on each top diamond; the flat `getTileTopColor` fill remains
+underneath as the click hit-area, for cliff-face shading, and for debug
+overlays (which skip the sprite). Altitude rim strokes moved to a child
+`Graphics` so they render above the floor sprite. `initIsoApp` gained a
+`seed?: string` param, threaded from `TileMapView`.
+
+Verified: root `bun run type-check` clean; headless bake at three iso origins
+paints exactly the 4096-px diamond; full app rendered headless (playwright +
+system Chrome) → 64×64 map shows seamless baked substrate/mats, textured
+water, rims and vegetation intact. All 4096 tiles bake synchronously at init
+with no visible stall in headless timing.
+
+**Persistent bake cache added (2026-07-09).** New game module
+`src/floorTextureCache.ts`: `warmFloorTextureCache(tiles, worldSeed)` runs
+before `createIsoTiles` (awaited alongside vegetation `Assets.load` in
+`initIsoApp`) and returns a `Map<"col,row", Texture>` for the render loop to
+read synchronously. Resolved the M1 quantized-cache-key question: since all
+noise is world-pixel-coordinate keyed (never tile-relative), two tiles at
+different positions never share a bake regardless of property quantization —
+so the cache key is `` v{CACHE_VERSION}|{ox},{oy}|s{worldSeed}|{quantized
+properties} ``, i.e. it dedupes a *given* tile's bake across page loads and
+across small property drift (moisture/fertility/drainage/altitude/riparian/
+forestDensity ×8 buckets, groundLight ×6, temperature to the nearest °C, per
+the quantization buckets sketched in "Baking & determinism"), not across
+tiles. Storage is IndexedDB (`tile-former-floor-cache` / store `textures`),
+raw `{width, height, data: Uint8ClampedArray}` records — no PNG encode, since
+the resolution (128×64) and tile count keep it cheap and origin storage
+quotas are generous. `floorTextures.ts` split into `bakeFloorBuffer` (pure,
+canvas-free) and `bufferToTexture` so the warm-up path never touches the DOM
+until a texture is actually needed. Falls back to baking without persistence
+if `indexedDB.open` throws (disabled/private-mode browsers).
+
+Verified: headless run (playwright + system Chrome) — first load writes
+exactly 4096 IndexedDB records and the rendered frame is pixel-identical to
+the non-cached bake; a `fake-indexeddb`-backed logic test (no browser)
+confirms a cold session bakes and persists all 4096 keys, a warm session
+against the same store is a 100%-hit no-rebake pass, and a session with a
+handful of changed keys (simulating a quantization-bucket crossing) misses
+only those keys and reuses the rest. A second full-browser reload pass was
+inconclusive — headless Chrome crashed under this machine's memory pressure
+(~2GB free) during relaunch, unrelated to the cache logic itself.
 
 ## Testing
 

@@ -1,7 +1,9 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { Tile, biomes } from "@tile-former/tilegen";
-import { gridSize } from "./config.ts";
+import { defaultRandSeed, gridSize } from "./config.ts";
+import { hashSeed } from "./floorTextures.ts";
+import { warmFloorTextureCache } from "./floorTextureCache.ts";
 
 const oakImageUrls = Object.values(
   import.meta.glob<string>("./assets/oak/*.png", { eager: true, import: "default" }),
@@ -25,11 +27,13 @@ export async function initIsoApp({
   container,
   onTileClick,
   debugOverlay = "none",
+  seed = defaultRandSeed,
 }: {
   tileMap: Tile[][];
   container: HTMLElement;
   onTileClick: (tile: Tile) => void;
   debugOverlay?: IsoDebugOverlay;
+  seed?: string;
 }) {
   const app = new Application();
   await app.init({
@@ -55,16 +59,17 @@ export async function initIsoApp({
 
   app.stage.addChild(viewport);
 
-  const [oakTextureMap, pineTextureMap, bushTextureMap] = await Promise.all([
+  const [oakTextureMap, pineTextureMap, bushTextureMap, floorTextures] = await Promise.all([
     Assets.load<Texture>(oakImageUrls),
     Assets.load<Texture>(pineImageUrls),
     Assets.load<Texture>(bushImageUrls),
+    warmFloorTextureCache(tileMap.flat(), hashSeed(seed)),
   ]);
   const oakTextures = Object.values(oakTextureMap);
   const pineTextures = Object.values(pineTextureMap);
   const bushTextures = Object.values(bushTextureMap);
 
-  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay, oakTextures, pineTextures, bushTextures);
+  const isoContainer = createIsoTiles(tileMap, onTileClick, debugOverlay, oakTextures, pineTextures, bushTextures, floorTextures);
   viewport.addChild(isoContainer);
 
   const offsetX = gridSize.height * (ISO_W / 2);
@@ -162,6 +167,7 @@ function createIsoTiles(
   oakTextures: Texture[],
   pineTextures: Texture[],
   bushTextures: Texture[],
+  floorTextures: Map<string, Texture>,
 ): Container {
   const container = new Container();
 
@@ -213,7 +219,9 @@ function createIsoTiles(
 
     }
 
-    // Top diamond face
+    // Top diamond face: baked floor texture (128×64 shown at 64×32), or the
+    // flat biome color in debug overlays. The flat fill stays underneath the
+    // sprite as the click hit-area.
     g.poly([
       isoX + ISO_W / 2, topY,
       isoX + ISO_W,     topY + ISO_H / 2,
@@ -222,31 +230,43 @@ function createIsoTiles(
     ]);
     g.fill({ color: topColor });
 
-    // Draw a border on each diamond edge where the adjacent tile is at a different level.
+    if (debugOverlay === "none") {
+      const floorSprite = new Sprite(floorTextures.get(`${col},${row}`)!);
+      floorSprite.x = isoX;
+      floorSprite.y = topY;
+      floorSprite.width = ISO_W;
+      floorSprite.height = ISO_H;
+      g.addChild(floorSprite);
+    }
+
+    // Draw a border on each diamond edge where the adjacent tile is at a different
+    // level. On a child Graphics so the rims render above the floor sprite.
+    const rims = new Graphics();
+    g.addChild(rims);
     // Neighbors: upper-left=(col-1,row), upper-right=(col,row-1),
     //            lower-left=(col,row+1), lower-right=(col+1,row)
     const nFloor = (c: number, r: number) =>
       Math.round((tileMap[c]?.[r]?.altitude ?? 0) * MAX_FLOORS);
     const rim = { color: 0x444444, alpha: 1, pixelLine: true };
     if (floor !== nFloor(col - 1, row)) {
-      g.moveTo(isoX + ISO_W / 2, topY);
-      g.lineTo(isoX,             topY + ISO_H / 2);
-      g.stroke(rim);
+      rims.moveTo(isoX + ISO_W / 2, topY);
+      rims.lineTo(isoX,             topY + ISO_H / 2);
+      rims.stroke(rim);
     }
     if (floor !== nFloor(col, row - 1)) {
-      g.moveTo(isoX + ISO_W / 2, topY);
-      g.lineTo(isoX + ISO_W,     topY + ISO_H / 2);
-      g.stroke(rim);
+      rims.moveTo(isoX + ISO_W / 2, topY);
+      rims.lineTo(isoX + ISO_W,     topY + ISO_H / 2);
+      rims.stroke(rim);
     }
     if (floor !== nFloor(col, row + 1)) {
-      g.moveTo(isoX,             topY + ISO_H / 2);
-      g.lineTo(isoX + ISO_W / 2, topY + ISO_H);
-      g.stroke(rim);
+      rims.moveTo(isoX,             topY + ISO_H / 2);
+      rims.lineTo(isoX + ISO_W / 2, topY + ISO_H);
+      rims.stroke(rim);
     }
     if (floor !== nFloor(col + 1, row)) {
-      g.moveTo(isoX + ISO_W / 2, topY + ISO_H);
-      g.lineTo(isoX + ISO_W,     topY + ISO_H / 2);
-      g.stroke(rim);
+      rims.moveTo(isoX + ISO_W / 2, topY + ISO_H);
+      rims.lineTo(isoX + ISO_W,     topY + ISO_H / 2);
+      rims.stroke(rim);
     }
 
     // Vegetation — skip in debug overlays so suitability maps stay readable

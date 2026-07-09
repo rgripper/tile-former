@@ -42,6 +42,7 @@ export function TileMapView({
   useEffect(() => {
     if (!canvasRef) return;
 
+    let cancelled = false;
     let unsubscribe = () => {};
 
     const handleClick = (tile: Tile) => {
@@ -61,6 +62,10 @@ export function TileMapView({
         showSmallVoronoi,
         showVoronoiFeatures,
       }).then(({ app, viewport, smallVoronoiLayer, voronoiFeaturesLayer }) => {
+        if (cancelled) {
+          app.destroy();
+          return;
+        }
         appAndViewportRef.current = { app, viewport };
         voronoiLayersRef.current = { small: smallVoronoiLayer, features: voronoiFeaturesLayer };
         canvasRef.appendChild(app.canvas);
@@ -77,7 +82,12 @@ export function TileMapView({
         container: canvasRef,
         onTileClick: handleClick,
         debugOverlay,
+        seed,
       }).then(({ app, viewport, highlightTile }) => {
+        if (cancelled) {
+          app.destroy();
+          return;
+        }
         appAndViewportRef.current = { app, viewport };
         voronoiLayersRef.current = null;
         highlightTileRef.current = highlightTile;
@@ -91,7 +101,10 @@ export function TileMapView({
       });
     }
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [canvasRef, tileSpritesheet, tileMap, smallVoronoiData, seed, onTileClick, renderMode, debugOverlay]);
 
   useEffect(() => {
