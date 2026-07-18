@@ -10,7 +10,7 @@
 import type { RenderStyle, StyleParams, SubstrateId } from "../types.ts";
 import { hash2D } from "../rng.ts";
 import { bayer, cellEdge, fbm, grainCoord, smoothstep } from "../noise.ts";
-import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
+import { edgeInset, put, rowSpan, type PixelBuffer } from "../pixels.ts";
 import { resolveTone } from "../tone.ts";
 
 // Isolated-patch mode (see RenderStyle.isolatedPatches): the outer rim of the
@@ -145,10 +145,10 @@ export function paintSubstrate(
   const ctx: Ctx = { seed, arid: style.texture.arid, wet: style.texture.wet };
   const subs = style.surface.substrates;
   for (let y = 0; y < buf.height; y++) {
-    for (let x = 0; x < buf.width; x++) {
-      if (!insideDiamond(x, y)) continue;
+    const [x0, x1] = rowSpan(y);
+    const wy = grainCoord(oy + y, render.grain);
+    for (let x = x0; x <= x1; x++) {
       const wx = grainCoord(ox + x, render.grain);
-      const wy = grainCoord(oy + y, render.grain);
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;

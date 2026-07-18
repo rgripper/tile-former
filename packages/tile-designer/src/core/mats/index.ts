@@ -14,7 +14,7 @@ import { hash2D } from "../rng.ts";
 import { fbm, grainCoord, smoothstep } from "../noise.ts";
 import { rampAt } from "../palette/index.ts";
 import { resolveTone } from "../tone.ts";
-import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
+import { edgeInset, put, rowSpan, type PixelBuffer } from "../pixels.ts";
 import { spotField, stampField } from "../stamps.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -129,12 +129,12 @@ export function paintMats(
   if (mats.length === 0) return;
   const mc: MatCtx = { tileBias };
   for (let y = 0; y < buf.height; y++) {
-    for (let x = 0; x < buf.width; x++) {
-      if (!insideDiamond(x, y)) continue;
+    const [x0, x1] = rowSpan(y);
+    const wy = oy + y;
+    const gy = grainCoord(wy, render.grain);
+    for (let x = x0; x <= x1; x++) {
       const wx = ox + x;
-      const wy = oy + y;
       const gx = grainCoord(wx, render.grain);
-      const gy = grainCoord(wy, render.grain);
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;

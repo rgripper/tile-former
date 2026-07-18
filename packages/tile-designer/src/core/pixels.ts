@@ -30,6 +30,18 @@ export function edgeInset(x: number, y: number): number {
   return 1 - (Math.abs(dx) + Math.abs(dy));
 }
 
+// Inclusive [x0, x1] span of diamond pixels on row y — closed-form version of
+// scanning insideDiamond across the row. Lets the bake stages iterate only the
+// ~50% of the rect that is actually inside the diamond.
+export function rowSpan(y: number): [number, number] {
+  const dy = Math.abs((y + 0.5) / (TILE_H / 2) - 1);
+  const halfW = TILE_W / 2;
+  // |dx| <= 1 - dy  =>  x + 0.5 in [halfW*dy, TILE_W - halfW*dy]
+  const x0 = Math.ceil(halfW * dy - 0.5);
+  const x1 = TILE_W - 1 - x0;
+  return [x0, x1];
+}
+
 export function put(buf: PixelBuffer, x: number, y: number, color: number): void {
   const o = (y * buf.width + x) * 4;
   buf.data[o] = (color >> 16) & 0xff;
