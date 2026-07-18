@@ -1,7 +1,13 @@
 import { ALL_ROCK_TYPE_IDS, biomes } from "@tile-former/tilegen";
 import type { RockTypeId } from "@tile-former/tilegen";
-import type { DesignInput } from "../core/types.ts";
+import type { DesignInput, RenderStyle } from "../core/types.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
+
+const RENDER_TOGGLES: Array<{ key: keyof RenderStyle; label: string }> = [
+  { key: "legacyGrain", label: "legacy grain" },
+  { key: "tileVariation", label: "per-tile tone variation" },
+  { key: "crispEdges", label: "crisp material edges" },
+];
 
 type NumericKey =
   | "temperature"
@@ -27,13 +33,17 @@ const SLIDERS: Array<{ key: NumericKey; label: string; min: number; max: number;
 export function PropertyPanel({
   input,
   seed,
+  render,
   onChange,
   onSeed,
+  onRender,
 }: {
   input: DesignInput;
   seed: number;
+  render: RenderStyle;
   onChange: (next: DesignInput) => void;
   onSeed: (seed: number) => void;
+  onRender: (next: RenderStyle) => void;
 }) {
   return (
     <div className="panel">
@@ -102,6 +112,20 @@ export function PropertyPanel({
           water
         </label>
       </div>
+
+      <h2>Render style</h2>
+      {RENDER_TOGGLES.map((t) => (
+        <div className="row" key={t.key}>
+          <label>
+            <input
+              type="checkbox"
+              checked={render[t.key]}
+              onChange={(e) => onRender({ ...render, [t.key]: e.target.checked })}
+            />{" "}
+            {t.label}
+          </label>
+        </div>
+      ))}
 
       <div className="row">
         <label>seed</label>

@@ -9,25 +9,34 @@
 // strength s ∈ [0,1] that generators use to thin out toward (and slightly
 // past) the boundary.
 
-import type { MatId, Ramp, StyleParams } from "../types.ts";
+import type { MatId, Ramp, RenderStyle, StyleParams } from "../types.ts";
 import { hash2D } from "../rng.ts";
 import { fbm } from "../noise.ts";
 import { rampAt } from "../palette/index.ts";
+import { resolveTone } from "../tone.ts";
 import { insideDiamond, put, type PixelBuffer } from "../pixels.ts";
 import { spotField, stampField } from "../stamps.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
+// Per-tile render context for the mat generators (flat vs grainy fill, and the
+// per-tile dominant-tone bias used in flat mode).
+type MatCtx = { flat: boolean; tileBias: number };
+
 // s: edge strength — 0 just outside the patch fringe, 1 well inside it.
-type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number) => number | null;
+type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number, mc: MatCtx) => number | null;
 
 // Turf fill shared by the grassy mats: short vertical blade runs share one
-// shade so the fill reads as blades, with rare bright tips and dark bases.
-// `fill` caps the density so substrate grain shows through even at s = 1.
-function turf(wx: number, wy: number, s: number, ramp: Ramp, seed: number, fill: number): number | null {
+// shade so the fill reads as blades. `fill` caps the density so the substrate
+// shows through even at s = 1. Flat mode drops the per-pixel grain and lets
+// resolveTone carry the sparse tip/base accents instead.
+function turf(wx: number, wy: number, s: number, ramp: Ramp, seed: number, fill: number, mc: MatCtx): number | null {
   const density = fill * Math.min(1, s * 1.6);
   if (hash2D(wx, wy, seed ^ 0x1f123bb5) > density) return null;
   const blade = hash2D(wx, Math.floor(wy / 2), seed ^ 0x51ed270b);
+  // Dominant mid tone with low-amplitude per-blade wobble (base is a 0..3 step
+  // position); resolveTone adds the rare tip/base fleck.
+  if (mc.flat) return resolveTone(2.0 + (blade - 0.5) * 0.9, wx, wy, ramp, seed, mc.tileBias);
   const grain = hash2D(wx, wy, seed ^ 0x9e3779b9);
   if (grain > 0.97) return ramp[3]!; // sunlit tip
   if (grain < 0.04) return ramp[0]!; // shadowed base
@@ -50,21 +59,22 @@ function needleStamp(dx: number, dy: number, h: number, ramp: Ramp): number | nu
 }
 
 const matGens: Record<MatId, MatGen> = {
-  grass: (wx, wy, s, ramp, seed) => turf(wx, wy, s, ramp, seed, 0.92),
+  grass: (wx, wy, s, ramp, seed, mc) => turf(wx, wy, s, ramp, seed, 0.92, mc),
 
-  dryGrass: (wx, wy, s, ramp, seed) => turf(wx, wy, s, ramp, seed, 0.78),
+  dryGrass: (wx, wy, s, ramp, seed, mc) => turf(wx, wy, s, ramp, seed, 0.78, mc),
 
-  sedge(wx, wy, s, ramp, seed) {
+  sedge(wx, wy, s, ramp, seed, mc) {
     // Tussocks: only clumped cells grow, denser toward each clump's own value.
     const clump = hash2D(Math.floor(wx / 6), Math.floor(wy / 3), seed ^ 0x94d049bb);
     if (clump < 0.45) return null;
-    return turf(wx, wy, s * (0.4 + 0.6 * clump), ramp, seed, 0.95);
+    return turf(wx, wy, s * (0.4 + 0.6 * clump), ramp, seed, 0.95, mc);
   },
 
-  moss(wx, wy, s, ramp, seed) {
+  moss(wx, wy, s, ramp, seed, mc) {
     // Dense soft carpet, low-contrast mottle.
     if (hash2D(wx, wy, seed ^ 0x7feb352d) > 0.97 * Math.min(1, s * 2)) return null;
     const mottle = fbm(wx, wy * 2, seed ^ 0x2c1b3c6d, 0.12);
+    if (mc.flat) return resolveTone(1.4 + (mottle - 0.5) * 1.1, wx, wy, ramp, seed, mc.tileBias);
     const grain = hash2D(wx, wy, seed ^ 0x846ca68b);
     return rampAt(ramp, 0.2 + mottle * 0.5 + grain * 0.3);
   },
@@ -99,9 +109,12 @@ export function paintMats(
   ox: number,
   oy: number,
   seed: number,
+  render: RenderStyle,
+  tileBias: number,
 ): void {
   const mats = style.surface.mats;
   if (mats.length === 0) return;
+  const mc: MatCtx = { flat: !render.legacyGrain, tileBias };
   for (let y = 0; y < buf.height; y++) {
     for (let x = 0; x < buf.width; x++) {
       if (!insideDiamond(x, y)) continue;
@@ -111,10 +124,12 @@ export function paintMats(
         const mat = mats[mi]!;
         const patch = fbm(wx, wy * 2, seed ^ (0xabcd1234 + mi * 0x1013), 0.045);
         // Signed inside-ness → edge strength; the +0.05 lets sparse frays
-        // spill a few pixels past the nominal patch boundary.
-        const s = clamp01((mat.coverage * 0.9 - patch + 0.05) / 0.2);
+        // spill a few pixels past the nominal patch boundary. Crisp mode
+        // collapses the fringe to a hard in/out step.
+        const inside = mat.coverage * 0.9 - patch + 0.05;
+        const s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
         if (s <= 0) continue;
-        const c = matGens[mat.id](wx, wy, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9));
+        const c = matGens[mat.id](wx, wy, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
         if (c !== null) {
           put(buf, x, y, c);
           break;

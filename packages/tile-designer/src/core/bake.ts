@@ -3,7 +3,7 @@
 // (pebbles/twigs/leaves) + flat water. All noise is world-coordinate so
 // neighboring tiles are seamless.
 
-import type { StyleParams } from "./types.ts";
+import type { RenderStyle, StyleParams } from "./types.ts";
 import { hash2D } from "./rng.ts";
 import { insideDiamond, makeBuffer, put, type PixelBuffer } from "./pixels.ts";
 import { paintSubstrate } from "./substrate/index.ts";
@@ -19,6 +19,7 @@ export function bakeTile(
   ox: number,
   oy: number,
   seed: number,
+  render: RenderStyle,
 ): PixelBuffer {
   const buf = makeBuffer();
   if (style.water) {
@@ -31,8 +32,12 @@ export function bakeTile(
     }
     return buf;
   }
-  paintSubstrate(buf, style, ox, oy, seed);
-  paintMats(buf, style, ox, oy, seed);
+  // Flat mode only: whole-tile dominant-tone bias (±0.5 ramp step) keyed off
+  // the tile's world origin, so neighboring tiles occasionally settle a shade
+  // apart. Zero unless tile variation is on.
+  const tileBias = render.tileVariation ? hash2D(ox, oy, seed ^ 0x51ed270b) - 0.5 : 0;
+  paintSubstrate(buf, style, ox, oy, seed, render, tileBias);
+  paintMats(buf, style, ox, oy, seed, render, tileBias);
   paintStaticScatter(buf, style, ox, oy, seed);
   return buf;
 }

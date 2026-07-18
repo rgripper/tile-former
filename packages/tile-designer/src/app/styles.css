@@ -122,3 +122,60 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.scroll-x {
+  overflow: auto;
+  max-height: 640px;
+  border-radius: 6px;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.segmented button.active {
+  background: #2c3a52;
+  border-color: #4c8bf5;
+  color: #e4e6ec;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+  font-size: 11px;
+  color: #9aa0ae;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-row progress {
+  flex: 1;
+  height: 8px;
+  appearance: none;
+  border: none;
+  border-radius: 4px;
+}
+
+.progress-row progress::-webkit-progress-bar {
+  background: #14161b;
+  border-radius: 4px;
+}
+
+.progress-row progress::-webkit-progress-value {
+  background: #4c8bf5;
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+
+.progress-row progress::-moz-progress-bar {
+  background: #4c8bf5;
+  border-radius: 4px;
+}

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { PixelBuffer } from "../core/pixels.ts";
 
-// Blits a PixelBuffer to a canvas at an integer zoom with crisp pixels.
+// Blits a PixelBuffer to a canvas at a given zoom (integer or fractional)
+// with crisp (unfiltered) pixels.
 export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -17,12 +18,14 @@ export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number
       buffer.height,
     );
     ctx.imageSmoothingEnabled = false;
+    // Changing width/height (below, keyed off zoom) clears the canvas, so this
+    // effect must rerun on zoom changes too, not just when buffer is rebaked.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     createImageBitmap(image).then((bmp) => {
       ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
       bmp.close();
     });
-  }, [buffer]);
+  }, [buffer, zoom]);
 
   return (
     <canvas

@@ -8,7 +8,7 @@ import { bakeFloorBuffer, bufferToTexture, tileToDesignInput, tileWorldOrigin } 
 // its exact float properties — see tile-designer/PLAN.md, "Baking &
 // determinism". Bump CACHE_VERSION whenever the bake pipeline changes shape,
 // so stale entries from an old pixel layout are never read back.
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 const DB_NAME = "tile-former-floor-cache";
 const STORE_NAME = "textures";
 

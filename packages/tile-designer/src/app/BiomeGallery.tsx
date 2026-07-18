@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { biomes } from "@tile-former/tilegen";
+import type { RenderStyle } from "../core/types.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
 import { resolveStyle } from "../core/resolve.ts";
 import { bakeTile } from "../core/bake.ts";
@@ -7,7 +8,7 @@ import { TileCanvas } from "./TileCanvas.tsx";
 
 // One tile per biome at its paramDist means — validates that the surface
 // taxonomy produces sensible, distinct ground for every biome at a glance.
-export function BiomeGallery({ seed }: { seed: number }) {
+export function BiomeGallery({ seed, render }: { seed: number; render: RenderStyle }) {
   const cells = useMemo(
     () =>
       biomes.map((biome) => {
@@ -16,11 +17,11 @@ export function BiomeGallery({ seed }: { seed: number }) {
           biome,
           // Distinct world origins so gallery cells don't all show the same
           // patch of the noise field.
-          buffer: bakeTile(style, biome.id * 512, 0, seed),
+          buffer: bakeTile(style, biome.id * 512, 0, seed, render),
           surface: style.surface,
         };
       }),
-    [seed],
+    [seed, render],
   );
 
   return (

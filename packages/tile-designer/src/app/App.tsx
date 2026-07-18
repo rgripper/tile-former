@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { DesignInput } from "../core/types.ts";
+import type { DesignInput, RenderStyle } from "../core/types.ts";
+import { DEFAULT_RENDER } from "../core/types.ts";
 import { resolveStyle } from "../core/resolve.ts";
 import { bakeTile } from "../core/bake.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
@@ -7,20 +8,28 @@ import { biomes } from "@tile-former/tilegen";
 import { PropertyPanel } from "./PropertyPanel.tsx";
 import { TileCanvas } from "./TileCanvas.tsx";
 import { BiomeGallery } from "./BiomeGallery.tsx";
-import { NeighborhoodPreview } from "./NeighborhoodPreview.tsx";
+import { MixedBiomePreview } from "./MixedBiomePreview.tsx";
 
 const initialInput: DesignInput = biomeToInput(biomes[0]!);
 
 export function App() {
   const [input, setInput] = useState<DesignInput>(initialInput);
   const [seed, setSeed] = useState(1234);
+  const [render, setRender] = useState<RenderStyle>(DEFAULT_RENDER);
 
   const style = useMemo(() => resolveStyle(input), [input]);
-  const buffer = useMemo(() => bakeTile(style, 0, 0, seed), [style, seed]);
+  const buffer = useMemo(() => bakeTile(style, 0, 0, seed, render), [style, seed, render]);
 
   return (
     <div className="app">
-      <PropertyPanel input={input} seed={seed} onChange={setInput} onSeed={setSeed} />
+      <PropertyPanel
+        input={input}
+        seed={seed}
+        render={render}
+        onChange={setInput}
+        onSeed={setSeed}
+        onRender={setRender}
+      />
 
       <div className="preview-col">
         <div className="panel">
@@ -50,9 +59,9 @@ export function App() {
           </div>
         </div>
 
-        <NeighborhoodPreview input={input} seed={seed} />
+        <MixedBiomePreview input={input} seed={seed} render={render} />
 
-        <BiomeGallery seed={seed} />
+        <BiomeGallery seed={seed} render={render} />
       </div>
     </div>
   );

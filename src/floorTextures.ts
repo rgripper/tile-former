@@ -2,11 +2,13 @@ import { Texture } from "pixi.js";
 import type { Tile } from "@tile-former/tilegen";
 import {
   bakeTile,
+  DEFAULT_RENDER,
   resolveStyle,
   TILE_H,
   TILE_W,
   type DesignInput,
   type PixelBuffer,
+  type RenderStyle,
 } from "@tile-former/tile-designer";
 
 // The bake core keys all noise on world pixel coordinates + a numeric world
@@ -46,9 +48,13 @@ export function tileWorldOrigin(tile: Tile): { ox: number; oy: number } {
 
 // Pure bake of one tile's 128×64 floor diamond — no canvas/GPU involved, so
 // it's safe to call off the render path (e.g. from the cache warm-up pass).
-export function bakeFloorBuffer(tile: Tile, worldSeed: number): PixelBuffer {
+export function bakeFloorBuffer(
+  tile: Tile,
+  worldSeed: number,
+  render: RenderStyle = DEFAULT_RENDER,
+): PixelBuffer {
   const { ox, oy } = tileWorldOrigin(tile);
-  return bakeTile(resolveStyle(tileToDesignInput(tile)), ox, oy, worldSeed);
+  return bakeTile(resolveStyle(tileToDesignInput(tile)), ox, oy, worldSeed, render);
 }
 
 export function bufferToTexture(width: number, height: number, data: Uint8ClampedArray): Texture {
