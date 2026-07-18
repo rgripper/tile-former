@@ -75,6 +75,15 @@ export type RenderStyle = {
   // the tile's rim, so the border stays pure primary and biome seams read
   // clean. Off = the legacy interpenetrating blend.
   isolatedPatches: boolean;
+  // The "brush" size: every generator samples world-coordinate noise (hash
+  // accents, sheen/sparkle, cracks, ripples, patch shapes) through a
+  // grain×grain quantized coordinate instead of the raw pixel, so textures
+  // read as chunky low-fi blocks instead of shimmering sub-pixel detail once
+  // tiles are drawn small on screen. 1 = off (native per-pixel noise); native
+  // bake res is 2× the screen tile, so 2 is "one block per real screen
+  // pixel." Stamped features (pebbles/twigs/leaves/needles) are placed and
+  // shaped independently of this — they need precise, ungrained coordinates.
+  grain: number;
 };
 
 // Recommended starting look for the flat redesign.
@@ -82,6 +91,7 @@ export const DEFAULT_RENDER: RenderStyle = {
   tileVariation: true,
   crispEdges: true,
   isolatedPatches: true,
+  grain: 2,
 };
 
 // Everything the bake stages need, fully resolved — no further property

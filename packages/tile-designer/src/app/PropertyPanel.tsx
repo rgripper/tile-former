@@ -3,7 +3,11 @@ import type { RockTypeId } from "@tile-former/tilegen";
 import type { DesignInput, RenderStyle } from "../core/types.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
 
-const RENDER_TOGGLES: Array<{ key: keyof RenderStyle; label: string }> = [
+// Boolean-valued RenderStyle keys only (excludes the numeric `grain`), so the
+// checkbox binding below is type-safe without a runtime filter.
+type BoolRenderKey = { [K in keyof RenderStyle]: RenderStyle[K] extends boolean ? K : never }[keyof RenderStyle];
+
+const RENDER_TOGGLES: Array<{ key: BoolRenderKey; label: string }> = [
   { key: "tileVariation", label: "per-tile tone variation" },
   { key: "crispEdges", label: "crisp material edges" },
   { key: "isolatedPatches", label: "isolated non-primary patches" },
@@ -114,6 +118,18 @@ export function PropertyPanel({
       </div>
 
       <h2>Render style</h2>
+      <div className="field">
+        <label>grain (noise brush size, px)</label>
+        <input
+          type="range"
+          min={1}
+          max={4}
+          step={1}
+          value={render.grain}
+          onChange={(e) => onRender({ ...render, grain: Number(e.target.value) })}
+        />
+        <span className="value">{render.grain}</span>
+      </div>
       {RENDER_TOGGLES.map((t) => (
         <div className="row" key={t.key}>
           <label>

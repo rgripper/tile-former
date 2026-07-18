@@ -5,6 +5,7 @@
 
 import type { RenderStyle, StyleParams } from "./types.ts";
 import { hash2D } from "./rng.ts";
+import { grainCoord } from "./noise.ts";
 import { insideDiamond, makeBuffer, put, type PixelBuffer } from "./pixels.ts";
 import { paintSubstrate } from "./substrate/index.ts";
 import { paintMats } from "./mats/index.ts";
@@ -26,7 +27,9 @@ export function bakeTile(
     for (let y = 0; y < buf.height; y++) {
       for (let x = 0; x < buf.width; x++) {
         if (!insideDiamond(x, y)) continue;
-        const n = hash2D(ox + x, oy + y, seed ^ 0x9e3779b9);
+        const gx = grainCoord(ox + x, render.grain);
+        const gy = grainCoord(oy + y, render.grain);
+        const n = hash2D(gx, gy, seed ^ 0x9e3779b9);
         put(buf, x, y, WATER_RAMP[n < 0.85 ? 1 : n < 0.95 ? 2 : 3]!);
       }
     }

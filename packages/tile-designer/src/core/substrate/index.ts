@@ -9,7 +9,7 @@
 
 import type { RenderStyle, StyleParams, SubstrateId } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { bayer, cellEdge, fbm, smoothstep } from "../noise.ts";
+import { bayer, cellEdge, fbm, grainCoord, smoothstep } from "../noise.ts";
 import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
 import { resolveTone } from "../tone.ts";
 
@@ -147,8 +147,8 @@ export function paintSubstrate(
   for (let y = 0; y < buf.height; y++) {
     for (let x = 0; x < buf.width; x++) {
       if (!insideDiamond(x, y)) continue;
-      const wx = ox + x;
-      const wy = oy + y;
+      const wx = grainCoord(ox + x, render.grain);
+      const wy = grainCoord(oy + y, render.grain);
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;

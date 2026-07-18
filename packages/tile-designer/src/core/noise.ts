@@ -12,6 +12,16 @@ export function smoothstep(a: number, b: number, x: number): number {
   return smooth(Math.min(1, Math.max(0, (x - a) / (b - a))));
 }
 
+// Snaps a world coordinate down to its enclosing grain-sized block. This is
+// the whole "chunky brush": callers quantize wx/wy once before handing them
+// to any generator below, so every noise primitive — hash lookups, fBm
+// fields, cellEdge cracks — automatically reads as grain×grain blocks
+// instead of native per-pixel detail, with no per-generator special-casing.
+// Pure function of world coords, so block boundaries agree across tile seams.
+export function grainCoord(v: number, grain: number): number {
+  return grain > 1 ? Math.floor(v / grain) * grain : v;
+}
+
 // Smoothed value noise on an integer lattice, output [0,1).
 export function valueNoise(x: number, y: number, seed: number): number {
   const xi = Math.floor(x);

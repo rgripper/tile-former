@@ -11,7 +11,7 @@
 
 import type { MatId, Ramp, RenderStyle, StyleParams } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { fbm, smoothstep } from "../noise.ts";
+import { fbm, grainCoord, smoothstep } from "../noise.ts";
 import { rampAt } from "../palette/index.ts";
 import { resolveTone } from "../tone.ts";
 import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
@@ -44,7 +44,7 @@ type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number, mc: 
 function turf(wx: number, wy: number, s: number, ramp: Ramp, seed: number, fill: number, mc: MatCtx): number | null {
   const cover = fill * Math.min(1, s * 1.6);
   if (fbm(wx, wy * 2, seed ^ 0x1f123bb5, 0.16) > cover) return null;
-  const blade = hash2D(wx, Math.floor(wy / 2), seed ^ 0x51ed270b);
+  const blade = hash2D(wx, wy, seed ^ 0x51ed270b);
   return resolveTone(2.0 + (blade - 0.5) * 0.9, wx, wy, ramp, seed, mc.tileBias);
 }
 
@@ -55,13 +55,21 @@ export function leafStamp(dx: number, dy: number, h: number, ramp: Ramp): number
   return null;
 }
 
-// Fallen needle: 4px dash at ±1:2 slope (iso-friendly diagonals).
+// Fallen needle: 4px dash at ±1:2 slope (iso-friendly diagonals), 2px thick
+// so it reads as a chunky stroke rather than a single-pixel-width string.
 function needleStamp(dx: number, dy: number, h: number, ramp: Ramp): number | null {
   if (dx < 0 || dx > 3) return null;
   const dir = h < 0.5 ? 1 : -1;
-  if (dy !== Math.round(dx * 0.5) * dir) return null;
+  const y0 = Math.round(dx * 0.5) * dir;
+  if (dy !== y0 && dy !== y0 + dir) return null;
   return rampAt(ramp, 0.2 + h * 0.45);
 }
+
+// Mats whose color comes from a placed stamp (a specific leaf/needle shape at
+// an exact anchor) rather than diffuse per-pixel noise. These must keep the
+// real, ungrained world coordinate — snapping it would blow up each stamp
+// into a grain×grain-scaled blob instead of just its intended shape.
+const STAMP_MATS = new Set<MatId>(["leafLitter", "needleLitter"]);
 
 const matGens: Record<MatId, MatGen> = {
   grass: (wx, wy, s, ramp, seed, mc) => turf(wx, wy, s, ramp, seed, 0.92, mc),
@@ -95,7 +103,9 @@ const matGens: Record<MatId, MatGen> = {
     stampField(wx, wy, seed ^ 0x3ad8025f, 5, 3, 0.9 * s, leafStamp, ramp),
 
   needleLitter: (wx, wy, s, ramp, seed) =>
-    stampField(wx, wy, seed ^ 0xe6546b64, 6, 3, 0.85 * s, needleStamp, ramp),
+    // cellH 4, not 3: the thickened stamp's dy now reaches ±3, and the 3×3
+    // neighbor scan only finds anchors whose stamp extent stays within one cell.
+    stampField(wx, wy, seed ^ 0xe6546b64, 6, 4, 0.85 * s, needleStamp, ramp),
 
   cushion(wx, wy, s, ramp, seed) {
     // Dome mats: lit from above, darkening down the flanks to the rim.
@@ -123,6 +133,8 @@ export function paintMats(
       if (!insideDiamond(x, y)) continue;
       const wx = ox + x;
       const wy = oy + y;
+      const gx = grainCoord(wx, render.grain);
+      const gy = grainCoord(wy, render.grain);
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;
@@ -134,7 +146,10 @@ export function paintMats(
         const gate = isolate ? edgeGate : 1;
         if (gate <= 0) continue;
         const freq = isolate ? ISOLATED_PATCH_FREQ : PRIMARY_PATCH_FREQ;
-        const patch = fbm(wx, wy * 2, seed ^ (0xabcd1234 + mi * 0x1013), freq);
+        // Patch macro-shape is grained for every mat (even stamp-based ones):
+        // it only decides *where* the mat covers, so a chunky boundary is
+        // free lo-fi texture with no risk to individual stamp shapes.
+        const patch = fbm(gx, gy * 2, seed ^ (0xabcd1234 + mi * 0x1013), freq);
         // Signed inside-ness → edge strength; the +0.05 lets sparse frays
         // spill a few pixels past the nominal patch boundary. Crisp mode
         // collapses the fringe to a hard in/out step.
@@ -142,7 +157,11 @@ export function paintMats(
         let s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
         if (isolate) s *= gate;
         if (s <= 0) continue;
-        const c = matGens[mat.id](wx, wy, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
+        // Diffuse mats sample color from the grained coordinate (chunky
+        // turf/moss/lichen/cushion texture); stamp mats keep the real
+        // coordinate so leaf/needle placement and shape stay precise.
+        const [mx, my] = STAMP_MATS.has(mat.id) ? [wx, wy] : [gx, gy];
+        const c = matGens[mat.id](mx, my, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
         if (c !== null) {
           put(buf, x, y, c);
           break;

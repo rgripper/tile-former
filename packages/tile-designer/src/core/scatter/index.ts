@@ -19,12 +19,14 @@ function pebbleStamp(dx: number, dy: number, h: number, ramp: Ramp): number | nu
   return null;
 }
 
-// Twig: 4–6px near-horizontal line with a 1px kink past the midpoint.
+// Twig: 4–6px near-horizontal line with a 1px kink past the midpoint, 2px
+// thick so it reads as a chunky stroke rather than a single-pixel-width string.
 function twigStamp(dx: number, dy: number, h: number, ramp: Ramp): number | null {
   const len = 3 + Math.floor(h * 3);
   if (dx < 0 || dx > len) return null;
   const bend = h < 0.5 ? 1 : -1;
-  if (dy !== (dx > len / 2 ? bend : 0)) return null;
+  const y0 = dx > len / 2 ? bend : 0;
+  if (dy !== y0 && dy !== y0 + bend) return null;
   return rampAt(ramp, 0.1 + h * 0.35);
 }
 
