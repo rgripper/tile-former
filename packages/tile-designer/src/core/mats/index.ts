@@ -19,28 +19,24 @@ import { spotField, stampField } from "../stamps.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-// Per-tile render context for the mat generators (flat vs grainy fill, and the
-// per-tile dominant-tone bias used in flat mode).
-type MatCtx = { flat: boolean; tileBias: number };
+// Per-tile render context for the mat generators (the per-tile dominant-tone
+// bias fed into resolveTone).
+type MatCtx = { tileBias: number };
 
 // s: edge strength — 0 just outside the patch fringe, 1 well inside it.
 type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number, mc: MatCtx) => number | null;
 
-// Turf fill shared by the grassy mats: short vertical blade runs share one
-// shade so the fill reads as blades. `fill` caps the density so the substrate
-// shows through even at s = 1. Flat mode drops the per-pixel grain and lets
-// resolveTone carry the sparse tip/base accents instead.
+// Turf fill shared by the grassy mats. `fill` caps coverage so the substrate
+// can show through even at s = 1, but that show-through is a *low-frequency*
+// mask (not per-pixel) — so bare soil forms small worn patches and frayed
+// edges instead of single-pixel brown speckle, while the fill stays dense in
+// the interior. The green tonal life comes from resolveTone's accent on the
+// painted pixels, not from holes.
 function turf(wx: number, wy: number, s: number, ramp: Ramp, seed: number, fill: number, mc: MatCtx): number | null {
-  const density = fill * Math.min(1, s * 1.6);
-  if (hash2D(wx, wy, seed ^ 0x1f123bb5) > density) return null;
+  const cover = fill * Math.min(1, s * 1.6);
+  if (fbm(wx, wy * 2, seed ^ 0x1f123bb5, 0.16) > cover) return null;
   const blade = hash2D(wx, Math.floor(wy / 2), seed ^ 0x51ed270b);
-  // Dominant mid tone with low-amplitude per-blade wobble (base is a 0..3 step
-  // position); resolveTone adds the rare tip/base fleck.
-  if (mc.flat) return resolveTone(2.0 + (blade - 0.5) * 0.9, wx, wy, ramp, seed, mc.tileBias);
-  const grain = hash2D(wx, wy, seed ^ 0x9e3779b9);
-  if (grain > 0.97) return ramp[3]!; // sunlit tip
-  if (grain < 0.04) return ramp[0]!; // shadowed base
-  return rampAt(ramp, blade * 0.6 + grain * 0.4);
+  return resolveTone(2.0 + (blade - 0.5) * 0.9, wx, wy, ramp, seed, mc.tileBias);
 }
 
 // Litter leaf: 2×1 body with an offset tip pixel, shaded per leaf.
@@ -74,9 +70,7 @@ const matGens: Record<MatId, MatGen> = {
     // Dense soft carpet, low-contrast mottle.
     if (hash2D(wx, wy, seed ^ 0x7feb352d) > 0.97 * Math.min(1, s * 2)) return null;
     const mottle = fbm(wx, wy * 2, seed ^ 0x2c1b3c6d, 0.12);
-    if (mc.flat) return resolveTone(1.4 + (mottle - 0.5) * 1.1, wx, wy, ramp, seed, mc.tileBias);
-    const grain = hash2D(wx, wy, seed ^ 0x846ca68b);
-    return rampAt(ramp, 0.2 + mottle * 0.5 + grain * 0.3);
+    return resolveTone(1.4 + (mottle - 0.5) * 1.1, wx, wy, ramp, seed, mc.tileBias);
   },
 
   lichen(wx, wy, s, ramp, seed) {
@@ -114,7 +108,7 @@ export function paintMats(
 ): void {
   const mats = style.surface.mats;
   if (mats.length === 0) return;
-  const mc: MatCtx = { flat: !render.legacyGrain, tileBias };
+  const mc: MatCtx = { tileBias };
   for (let y = 0; y < buf.height; y++) {
     for (let x = 0; x < buf.width; x++) {
       if (!insideDiamond(x, y)) continue;

@@ -32,9 +32,9 @@ export function bakeTile(
     }
     return buf;
   }
-  // Flat mode only: whole-tile dominant-tone bias (±0.5 ramp step) keyed off
-  // the tile's world origin, so neighboring tiles occasionally settle a shade
-  // apart. Zero unless tile variation is on.
+  // Whole-tile dominant-tone bias (±0.5 ramp step) keyed off the tile's world
+  // origin, so neighboring tiles occasionally settle a shade apart. Zero unless
+  // tile variation is on.
   const tileBias = render.tileVariation ? hash2D(ox, oy, seed ^ 0x51ed270b) - 0.5 : 0;
   paintSubstrate(buf, style, ox, oy, seed, render, tileBias);
   paintMats(buf, style, ox, oy, seed, render, tileBias);

@@ -4,7 +4,6 @@ import type { DesignInput, RenderStyle } from "../core/types.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
 
 const RENDER_TOGGLES: Array<{ key: keyof RenderStyle; label: string }> = [
-  { key: "legacyGrain", label: "legacy grain" },
   { key: "tileVariation", label: "per-tile tone variation" },
   { key: "crispEdges", label: "crisp material edges" },
 ];

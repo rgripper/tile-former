@@ -64,12 +64,8 @@ export type Ramp = [number, number, number, number];
 // NOT affect surface/mat selection (that's all in resolve.ts); they only swap
 // the pixel-composition strategy so the designer can A/B the looks live.
 export type RenderStyle = {
-  // true → original grainy pipeline (per-pixel noise mixed into every value).
-  // false → flat "minecrafty" base: one dominant tone per material with sparse
-  // adjacent-step accents (see tone.ts).
-  legacyGrain: boolean;
-  // Flat mode only: bias each whole tile's dominant tone by a per-tile hash so
-  // neighboring tiles occasionally settle a shade apart.
+  // Bias each whole tile's dominant tone by a per-tile hash so neighboring
+  // tiles occasionally settle a shade apart.
   tileVariation: boolean;
   // Hard material boundaries (no Bayer dither on substrate blends, hard mat
   // coverage step) instead of the feathered/dithered defaults.
@@ -78,7 +74,6 @@ export type RenderStyle = {
 
 // Recommended starting look for the flat redesign.
 export const DEFAULT_RENDER: RenderStyle = {
-  legacyGrain: false,
   tileVariation: true,
   crispEdges: true,
 };
