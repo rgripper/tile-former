@@ -70,12 +70,18 @@ export type RenderStyle = {
   // Hard material boundaries (no Bayer dither on substrate blends, hard mat
   // coverage step) instead of the feathered/dithered defaults.
   crispEdges: boolean;
+  // Lo-fi look: keep the primary (base biome) substrate + mat dominant and
+  // confine every non-primary material to compact isolated patches held off
+  // the tile's rim, so the border stays pure primary and biome seams read
+  // clean. Off = the legacy interpenetrating blend.
+  isolatedPatches: boolean;
 };
 
 // Recommended starting look for the flat redesign.
 export const DEFAULT_RENDER: RenderStyle = {
   tileVariation: true,
   crispEdges: true,
+  isolatedPatches: true,
 };
 
 // Everything the bake stages need, fully resolved — no further property

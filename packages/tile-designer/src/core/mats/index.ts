@@ -11,13 +11,22 @@
 
 import type { MatId, Ramp, RenderStyle, StyleParams } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { fbm } from "../noise.ts";
+import { fbm, smoothstep } from "../noise.ts";
 import { rampAt } from "../palette/index.ts";
 import { resolveTone } from "../tone.ts";
-import { insideDiamond, put, type PixelBuffer } from "../pixels.ts";
+import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
 import { spotField, stampField } from "../stamps.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+// Isolated-patch mode (see RenderStyle.isolatedPatches): non-primary mats
+// (index >= 1) are held off the rim by the same edge gate as the substrate and
+// drawn at a higher patch frequency so they read as smaller isolated blobs. The
+// primary mat (index 0, the base biome cover) keeps spreading to the edges.
+const EDGE_MARGIN = 0.16;
+const EDGE_FEATHER = 0.14;
+const PRIMARY_PATCH_FREQ = 0.045;
+const ISOLATED_PATCH_FREQ = 0.07;
 
 // Per-tile render context for the mat generators (the per-tile dominant-tone
 // bias fed into resolveTone).
@@ -114,14 +123,24 @@ export function paintMats(
       if (!insideDiamond(x, y)) continue;
       const wx = ox + x;
       const wy = oy + y;
+      const edgeGate = render.isolatedPatches
+        ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
+        : 1;
       for (let mi = 0; mi < mats.length; mi++) {
         const mat = mats[mi]!;
-        const patch = fbm(wx, wy * 2, seed ^ (0xabcd1234 + mi * 0x1013), 0.045);
+        // Non-primary mats get compact edge-avoiding patches; the primary mat
+        // (mi 0) stays the full-spread base cover.
+        const isolate = render.isolatedPatches && mi > 0;
+        const gate = isolate ? edgeGate : 1;
+        if (gate <= 0) continue;
+        const freq = isolate ? ISOLATED_PATCH_FREQ : PRIMARY_PATCH_FREQ;
+        const patch = fbm(wx, wy * 2, seed ^ (0xabcd1234 + mi * 0x1013), freq);
         // Signed inside-ness → edge strength; the +0.05 lets sparse frays
         // spill a few pixels past the nominal patch boundary. Crisp mode
         // collapses the fringe to a hard in/out step.
         const inside = mat.coverage * 0.9 - patch + 0.05;
-        const s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
+        let s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
+        if (isolate) s *= gate;
         if (s <= 0) continue;
         const c = matGens[mat.id](wx, wy, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
         if (c !== null) {

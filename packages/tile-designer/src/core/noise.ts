@@ -7,6 +7,11 @@ import { hash2D } from "./rng.ts";
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+// Hermite step: 0 at/below a, 1 at/above b, smooth in between.
+export function smoothstep(a: number, b: number, x: number): number {
+  return smooth(Math.min(1, Math.max(0, (x - a) / (b - a))));
+}
+
 // Smoothed value noise on an integer lattice, output [0,1).
 export function valueNoise(x: number, y: number, seed: number): number {
   const xi = Math.floor(x);

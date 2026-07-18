@@ -9,9 +9,15 @@
 
 import type { RenderStyle, StyleParams, SubstrateId } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { bayer, cellEdge, fbm } from "../noise.ts";
-import { insideDiamond, put, type PixelBuffer } from "../pixels.ts";
+import { bayer, cellEdge, fbm, smoothstep } from "../noise.ts";
+import { edgeInset, insideDiamond, put, type PixelBuffer } from "../pixels.ts";
 import { resolveTone } from "../tone.ts";
+
+// Isolated-patch mode (see RenderStyle.isolatedPatches): the outer rim of the
+// diamond, where the normalized edge inset is below EDGE_MARGIN, is forced to
+// pure primary; non-primary coverage fades in across the next EDGE_FEATHER.
+const EDGE_MARGIN = 0.16;
+const EDGE_FEATHER = 0.14;
 
 // Texturing context shared by all generators for a given tile.
 type Ctx = { seed: number; arid: number; wet: number };
@@ -89,21 +95,39 @@ const baseGenerators: Record<SubstrateId, BaseGen> = {
   },
 };
 
-// Blend field: which substrate owns a pixel. Low-frequency fBm forms the
-// large patches. Feathered mode adds a Bayer-dither band so the transition
-// reads as interpenetration; crisp mode thresholds hard for a clean edge.
+// Blend field: which substrate owns a pixel.
+//
+// Isolated-patch mode: the secondary substrate appears only where a mid-freq
+// field peaks — the top `second.weight * PATCH_STRENGTH` fraction — so it reads
+// as compact blobs while the primary stays dominant everywhere else. `edgeGate`
+// (0 at the rim, 1 inside) scales that coverage to zero near the border so the
+// tile's edge is pure primary.
+//
+// Legacy mode: low-frequency fBm split at `first.weight`, i.e. two substrates
+// interpenetrating across the whole tile. Feathered adds a Bayer-dither band;
+// crisp thresholds hard. `edgeGate` is ignored.
+const PATCH_STRENGTH = 0.7;
 function pickSubstrate(
   subs: StyleParams["surface"]["substrates"],
   wx: number,
   wy: number,
   seed: number,
-  crisp: boolean,
+  render: RenderStyle,
+  edgeGate: number,
 ): SubstrateId {
   const first = subs[0]!;
   if (subs.length === 1) return first.id;
+  const second = subs[1]!;
+  if (render.isolatedPatches) {
+    if (edgeGate <= 0) return first.id;
+    const cover = second.weight * PATCH_STRENGTH * edgeGate;
+    const n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.055);
+    const t = render.crispEdges ? n : n + (bayer(wx, wy) - 0.5) * 0.12;
+    return t > 1 - cover ? second.id : first.id;
+  }
   const n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.03);
-  const t = crisp ? n : n + (bayer(wx, wy) - 0.5) * 0.22;
-  return t < first.weight ? first.id : subs[1]!.id;
+  const t = render.crispEdges ? n : n + (bayer(wx, wy) - 0.5) * 0.22;
+  return t < first.weight ? first.id : second.id;
 }
 
 // Paints substrate colors for every diamond pixel of `buf`. (ox, oy) is the
@@ -120,13 +144,15 @@ export function paintSubstrate(
 ): void {
   const ctx: Ctx = { seed, arid: style.texture.arid, wet: style.texture.wet };
   const subs = style.surface.substrates;
-  const crisp = render.crispEdges;
   for (let y = 0; y < buf.height; y++) {
     for (let x = 0; x < buf.width; x++) {
       if (!insideDiamond(x, y)) continue;
       const wx = ox + x;
       const wy = oy + y;
-      const id = pickSubstrate(subs, wx, wy, seed, crisp);
+      const edgeGate = render.isolatedPatches
+        ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
+        : 1;
+      const id = pickSubstrate(subs, wx, wy, seed, render, edgeGate);
       const ramp = style.substrateRamps[id]!;
       put(buf, x, y, resolveTone(baseGenerators[id](wx, wy, ctx), wx, wy, ramp, seed, tileBias));
     }

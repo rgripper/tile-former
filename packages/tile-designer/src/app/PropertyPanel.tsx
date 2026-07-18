@@ -6,6 +6,7 @@ import { biomeToInput } from "../core/biomeInput.ts";
 const RENDER_TOGGLES: Array<{ key: keyof RenderStyle; label: string }> = [
   { key: "tileVariation", label: "per-tile tone variation" },
   { key: "crispEdges", label: "crisp material edges" },
+  { key: "isolatedPatches", label: "isolated non-primary patches" },
 ];
 
 type NumericKey =

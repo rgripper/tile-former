@@ -31,6 +31,10 @@ export function scoreSubstrates(i: DesignInput): Record<SubstrateId, number> {
   const d = i.drainage;
   const f = i.fertility;
   const sandyRock = i.rockType === "sedimentary" || i.rockType === "limestone";
+  // Hot, bone-dry, free-draining ground: an aeolian sand sea. Loose sand
+  // mantles the bedrock here, so this both drives sand up and holds bareRock
+  // down (see below) — otherwise warm deserts read as infertile bare rock.
+  const aeolian = rise(t, 15, 30) * fall(m, 0.06, 0.2) * rise(d, 0.5, 0.8);
 
   return {
     // Persistent snowpack: very cold AND enough precipitation to feed it —
@@ -52,9 +56,11 @@ export function scoreSubstrates(i: DesignInput): Record<SubstrateId, number> {
     // Warm wet lowlands over impermeable ground (rainforest/monsoon floors).
     clay: fall(d, 0.15, 0.45) * rise(t, 10, 22) * rise(m, 0.35, 0.6),
 
-    // Granular weathering: arid + free-draining, strongly favored on
-    // sediment-forming rock.
-    sand: rise(d, 0.5, 0.8) * fall(m, 0.1, 0.35) * (sandyRock ? 1 : 0.4),
+    // Granular weathering: arid + free-draining. Favored on sediment-forming
+    // rock; other rock is penalized, but that penalty relaxes under a hot
+    // aeolian regime (any rock weathers to sand there) so warm deserts stay
+    // sandy regardless of rock while cold dry ground keeps its rocky/soil read.
+    sand: rise(d, 0.5, 0.8) * fall(m, 0.1, 0.35) * (sandyRock ? 1 : 0.4 + 0.5 * aeolian),
 
     // Frost-shattered rubble: freeze–thaw band + fast drainage, boosted at altitude.
     scree:
@@ -62,11 +68,15 @@ export function scoreSubstrates(i: DesignInput): Record<SubstrateId, number> {
       band(t, -30, -15, 0, 10) *
       (0.5 + 0.5 * rise(i.altitude, 0.3, 0.6)),
 
-    // Exposed bedrock: thin/no soil on impermeable or steep ground.
-    bareRock: rise(1 - f, 0.5, 0.85) * rise(d, 0.4, 0.7),
+    // Exposed bedrock: thin/no soil on infertile, well-drained ground — but
+    // an aeolian sand sea buries it, so it yields to sand in warm deserts.
+    bareRock: rise(1 - f, 0.5, 0.85) * rise(d, 0.4, 0.7) * (1 - 0.7 * aeolian),
 
-    // Default earth — scales with fertility, retreats when frozen.
-    soil: (0.25 + 0.55 * f) * rise(t, -12, -2),
+    // Default earth — scales with fertility, retreats when frozen and thins out
+    // under a hot aeolian regime (no vegetation to build a soil horizon there).
+    // Keyed on `aeolian`, not raw moisture, so cold/temperate steppes that share
+    // a desert's low moisture keep their soil.
+    soil: (0.25 + 0.55 * f) * rise(t, -12, -2) * (1 - 0.85 * aeolian),
   };
 }
 
