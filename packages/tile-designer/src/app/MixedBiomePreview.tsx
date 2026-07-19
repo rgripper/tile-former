@@ -174,13 +174,14 @@ export function MixedBiomePreview({
             <button
               key={g}
               className={g === baked.grid ? "active" : undefined}
+              disabled={baking}
               onClick={() => setBaked({ input, seed, render, grid: g })}
             >
               {g}×{g}
             </button>
           ))}
         </div>
-        <button onClick={() => setBaked({ ...baked, input, seed, render })}>
+        <button disabled={baking} onClick={() => setBaked({ ...baked, input, seed, render })}>
           {stale ? "Bake (out of date)" : "Rebake"}
         </button>
         <button onClick={() => setZoomedIn((z) => !z)}>{zoomedIn ? "2× zoom (native)" : "2× zoom"}</button>
