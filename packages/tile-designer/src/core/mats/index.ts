@@ -128,6 +128,14 @@ export function paintMats(
   const mats = style.surface.mats;
   if (mats.length === 0) return;
   const mc: MatCtx = { tileBias };
+  // The mat that spreads to the tile's rim (never held off by the edge gate)
+  // must be a dense ground cover, not a sparse litter *stamp* — otherwise the
+  // actual turf is pulled off the border and the bare substrate reads as an
+  // ugly brown ring (forest biomes score leafLitter/needleLitter above grass,
+  // so mi 0 alone is the wrong pick). Use the first non-stamp mat as the
+  // spreading primary; if a biome has only stamp mats, none is gated (sparse
+  // litter crosses seams cleanly on its own).
+  const primaryIndex = Math.max(0, mats.findIndex((m) => !STAMP_MATS.has(m.id)));
   // Both caches are keyed on the grained world coordinate, packed as a small
   // tile-local integer (cheap, no string alloc, safe from precision loss no
   // matter how far ox/oy are from the origin). `patch` is always a pure
@@ -155,9 +163,14 @@ export function paintMats(
         : 1;
       for (let mi = 0; mi < mats.length; mi++) {
         const mat = mats[mi]!;
-        // Non-primary mats get compact edge-avoiding patches; the primary mat
-        // (mi 0) stays the full-spread base cover.
-        const isolate = render.isolatedPatches && mi > 0;
+        // Diffuse mats sample color from the grained coordinate (chunky
+        // turf/moss/lichen/cushion texture); stamp mats keep the real
+        // coordinate so leaf/needle placement and shape stay precise.
+        const isStamp = STAMP_MATS.has(mat.id);
+        // Compact edge-avoiding patches for the non-primary *diffuse* mats; the
+        // spreading primary and every sparse stamp mat reach the rim so the
+        // border keeps its ground cover instead of baring the substrate.
+        const isolate = render.isolatedPatches && !isStamp && mi !== primaryIndex;
         const gate = isolate ? edgeGate : 1;
         if (gate <= 0) continue;
         const freq = isolate ? ISOLATED_PATCH_FREQ : PRIMARY_PATCH_FREQ;
@@ -177,10 +190,6 @@ export function paintMats(
         let s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
         if (isolate) s *= gate;
         if (s <= 0) continue;
-        // Diffuse mats sample color from the grained coordinate (chunky
-        // turf/moss/lichen/cushion texture); stamp mats keep the real
-        // coordinate so leaf/needle placement and shape stay precise.
-        const isStamp = STAMP_MATS.has(mat.id);
         const [mx, my] = isStamp ? [wx, wy] : [gx, gy];
         let c: number | null;
         if (!isolate && !isStamp && colorCaches) {
