@@ -107,6 +107,14 @@ const baseGenerators: Record<SubstrateId, BaseGen> = {
 // interpenetrating across the whole tile. Feathered adds a Bayer-dither band;
 // crisp thresholds hard. `edgeGate` is ignored.
 const PATCH_STRENGTH = 0.7;
+// The blend field `n` is a pure function of the (already-grained) world
+// coordinate — every pixel in a grain×grain block shares the same value, so
+// caching it per tile bake turns an O(pixels) fbm cost into O(grain blocks).
+// `key` is the caller's tile-local packed coordinate (small integer, cheap to
+// compute, safe from precision loss no matter how far ox/oy are from origin).
+// `blendCache` is null when grain is off (1): every pixel is its own block
+// then, so caching would only add Map overhead with zero reuse.
+// Returns the winning substrate's slot index (0 or 1) into `subs`.
 function pickSubstrate(
   subs: StyleParams["surface"]["substrates"],
   wx: number,
@@ -114,20 +122,30 @@ function pickSubstrate(
   seed: number,
   render: RenderStyle,
   edgeGate: number,
-): SubstrateId {
+  key: number,
+  blendCache: Map<number, number> | null,
+): number {
+  if (subs.length === 1) return 0;
   const first = subs[0]!;
-  if (subs.length === 1) return first.id;
   const second = subs[1]!;
   if (render.isolatedPatches) {
-    if (edgeGate <= 0) return first.id;
+    if (edgeGate <= 0) return 0;
     const cover = second.weight * PATCH_STRENGTH * edgeGate;
-    const n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.055);
+    let n = blendCache?.get(key);
+    if (n === undefined) {
+      n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.055);
+      blendCache?.set(key, n);
+    }
     const t = render.crispEdges ? n : n + (bayer(wx, wy) - 0.5) * 0.12;
-    return t > 1 - cover ? second.id : first.id;
+    return t > 1 - cover ? 1 : 0;
   }
-  const n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.03);
+  let n = blendCache?.get(key);
+  if (n === undefined) {
+    n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.03);
+    blendCache?.set(key, n);
+  }
   const t = render.crispEdges ? n : n + (bayer(wx, wy) - 0.5) * 0.22;
-  return t < first.weight ? first.id : second.id;
+  return t < first.weight ? 0 : 1;
 }
 
 // Paints substrate colors for every diamond pixel of `buf`. (ox, oy) is the
@@ -144,17 +162,38 @@ export function paintSubstrate(
 ): void {
   const ctx: Ctx = { seed, arid: style.texture.arid, wet: style.texture.wet };
   const subs = style.surface.substrates;
+  // Grain > 1 means every pixel in a grain×grain block resolves to the same
+  // grained world coordinate, so caching per block turns an O(pixels) noise
+  // cost into O(blocks) — pure memoization (identical output), not an
+  // approximation. At grain 1 every pixel is its own block, so the cache
+  // would only add Map overhead with zero reuse — skip it there. Keys are
+  // packed as a single number from tile-local offsets (small integers
+  // regardless of how far ox/oy are from the origin) to avoid string alloc.
+  const cached = render.grain > 1;
+  const blendCache = cached ? new Map<number, number>() : null;
+  // One flat cache per substrate slot (there are only ever 1-2), keyed
+  // separately so no per-pixel string concatenation is needed.
+  const colorCaches = cached ? subs.map(() => new Map<number, number>()) : null;
   for (let y = 0; y < buf.height; y++) {
     const [x0, x1] = rowSpan(y);
     const wy = grainCoord(oy + y, render.grain);
+    const ly = wy - oy;
     for (let x = x0; x <= x1; x++) {
       const wx = grainCoord(ox + x, render.grain);
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;
-      const id = pickSubstrate(subs, wx, wy, seed, render, edgeGate);
-      const ramp = style.substrateRamps[id]!;
-      put(buf, x, y, resolveTone(baseGenerators[id](wx, wy, ctx), wx, wy, ramp, seed, tileBias));
+      const colorKey = (wx - ox) * 4096 + ly;
+      const slot = pickSubstrate(subs, wx, wy, seed, render, edgeGate, colorKey, blendCache);
+      const id = subs[slot]!.id;
+      const colorCache = colorCaches?.[slot];
+      let color = colorCache?.get(colorKey);
+      if (color === undefined) {
+        const ramp = style.substrateRamps[id]!;
+        color = resolveTone(baseGenerators[id](wx, wy, ctx), wx, wy, ramp, seed, tileBias);
+        colorCache?.set(colorKey, color);
+      }
+      put(buf, x, y, color);
     }
   }
 }

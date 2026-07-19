@@ -128,13 +128,28 @@ export function paintMats(
   const mats = style.surface.mats;
   if (mats.length === 0) return;
   const mc: MatCtx = { tileBias };
+  // Both caches are keyed on the grained world coordinate, packed as a small
+  // tile-local integer (cheap, no string alloc, safe from precision loss no
+  // matter how far ox/oy are from the origin). `patch` is always a pure
+  // function of it (pure memoization). The full color is only cacheable when
+  // `s` doesn't also depend on the real (ungrained) edgeGate — i.e. the
+  // non-isolated case — and the mat isn't a stamp mat (which samples color at
+  // the real coordinate for precise leaf/needle placement). One cache per mat
+  // slot (there are only ever up to MAX_MATS) avoids keying by mat id too. At
+  // grain 1 every pixel is its own block, so the cache would only add Map
+  // overhead with zero reuse — skip it there.
+  const cached = render.grain > 1;
+  const patchCaches = cached ? mats.map(() => new Map<number, number>()) : null;
+  const colorCaches = cached ? mats.map(() => new Map<number, number | null>()) : null;
   for (let y = 0; y < buf.height; y++) {
     const [x0, x1] = rowSpan(y);
     const wy = oy + y;
     const gy = grainCoord(wy, render.grain);
+    const ly = gy - oy;
     for (let x = x0; x <= x1; x++) {
       const wx = ox + x;
       const gx = grainCoord(wx, render.grain);
+      const key = (gx - ox) * 4096 + ly;
       const edgeGate = render.isolatedPatches
         ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
         : 1;
@@ -149,7 +164,12 @@ export function paintMats(
         // Patch macro-shape is grained for every mat (even stamp-based ones):
         // it only decides *where* the mat covers, so a chunky boundary is
         // free lo-fi texture with no risk to individual stamp shapes.
-        const patch = fbm(gx, gy * 2, seed ^ (0xabcd1234 + mi * 0x1013), freq);
+        const patchCache = patchCaches?.[mi];
+        let patch = patchCache?.get(key);
+        if (patch === undefined) {
+          patch = fbm(gx, gy * 2, seed ^ (0xabcd1234 + mi * 0x1013), freq);
+          patchCache?.set(key, patch);
+        }
         // Signed inside-ness → edge strength; the +0.05 lets sparse frays
         // spill a few pixels past the nominal patch boundary. Crisp mode
         // collapses the fringe to a hard in/out step.
@@ -160,8 +180,21 @@ export function paintMats(
         // Diffuse mats sample color from the grained coordinate (chunky
         // turf/moss/lichen/cushion texture); stamp mats keep the real
         // coordinate so leaf/needle placement and shape stay precise.
-        const [mx, my] = STAMP_MATS.has(mat.id) ? [wx, wy] : [gx, gy];
-        const c = matGens[mat.id](mx, my, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
+        const isStamp = STAMP_MATS.has(mat.id);
+        const [mx, my] = isStamp ? [wx, wy] : [gx, gy];
+        let c: number | null;
+        if (!isolate && !isStamp && colorCaches) {
+          const colorCache = colorCaches[mi]!;
+          const cachedColor = colorCache.get(key);
+          if (cachedColor !== undefined) {
+            c = cachedColor;
+          } else {
+            c = matGens[mat.id](mx, my, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
+            colorCache.set(key, c);
+          }
+        } else {
+          c = matGens[mat.id](mx, my, s, style.matRamps[mat.id]!, seed ^ (mi * 0x9e3779b9), mc);
+        }
         if (c !== null) {
           put(buf, x, y, c);
           break;

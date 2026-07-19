@@ -4,14 +4,19 @@
 // neighboring tiles are seamless.
 
 import type { RenderStyle, StyleParams } from "./types.ts";
+import { TILE_H, TILE_W } from "./types.ts";
 import { hash2D } from "./rng.ts";
-import { grainCoord } from "./noise.ts";
+import { grainCoord, valueNoise } from "./noise.ts";
 import { makeBuffer, put, rowSpan, type PixelBuffer } from "./pixels.ts";
 import { paintSubstrate } from "./substrate/index.ts";
 import { paintMats } from "./mats/index.ts";
 import { paintStaticScatter } from "./scatter/index.ts";
 
 const WATER_RAMP = [0x1e4e86, 0x2e6db4, 0x3f7ec4, 0x5a94d4];
+
+// Lattice spacing for the tile-bias field, in tiles. Larger = the dominant
+// tone drifts across more neighboring tiles before it's noticeably shifted.
+const VARIATION_SCALE = 4;
 
 // Bakes one tile's floor at (ox, oy) world pixel origin. Pure and
 // deterministic in (style, ox, oy, seed).
@@ -35,10 +40,13 @@ export function bakeTile(
     }
     return buf;
   }
-  // Whole-tile dominant-tone bias (±0.5 ramp step) keyed off the tile's world
-  // origin, so neighboring tiles occasionally settle a shade apart. Zero unless
-  // tile variation is on.
-  const tileBias = render.tileVariation ? hash2D(ox, oy, seed ^ 0x51ed270b) - 0.5 : 0;
+  // Whole-tile dominant-tone bias (±0.5 ramp step), sampled from a smooth
+  // low-frequency field over the tile's world origin so the bias drifts
+  // gradually across neighboring tiles instead of jumping tile-to-tile. Zero
+  // unless tile variation is on.
+  const tileBias = render.tileVariation
+    ? valueNoise(ox / TILE_W / VARIATION_SCALE, oy / TILE_H / VARIATION_SCALE, seed ^ 0x51ed270b) - 0.5
+    : 0;
   paintSubstrate(buf, style, ox, oy, seed, render, tileBias);
   paintMats(buf, style, ox, oy, seed, render, tileBias);
   paintStaticScatter(buf, style, ox, oy, seed);
