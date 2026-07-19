@@ -142,7 +142,7 @@ export function MixedBiomePreview({
         const oy = ((tx + ty) * TILE_H) / 2;
         const style = resolveStyle(jitterInput(base, tx, ty));
         const tile = bakeTile(style, ox, oy, baked.seed, baked.render);
-        blit(composite, tile, ox + TILE_W * half, oy + TILE_H * half);
+        blit(composite, tile, ox + (TILE_W * (grid - 1)) / 2, oy + TILE_H * half);
       }
       ty++;
       const done = ty + half;
