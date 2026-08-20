@@ -9,15 +9,13 @@
 
 import type { RenderStyle, StyleParams, SubstrateId } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { bayer, cellEdge, fbm, grainCoord, smoothstep } from "../noise.ts";
-import { edgeInset, put, rowSpan, type PixelBuffer } from "../pixels.ts";
+import { bayer, cellEdge, fbm, grainCoord } from "../noise.ts";
+import { isolateEdgeGate, put, rowSpan, type PixelBuffer } from "../pixels.ts";
 import { resolveTone } from "../tone.ts";
 
 // Isolated-patch mode (see RenderStyle.isolatedPatches): the outer rim of the
-// diamond, where the normalized edge inset is below EDGE_MARGIN, is forced to
-// pure primary; non-primary coverage fades in across the next EDGE_FEATHER.
-const EDGE_MARGIN = 0.16;
-const EDGE_FEATHER = 0.14;
+// diamond, near the rim, is forced to pure primary; non-primary coverage fades
+// in across a noise-perturbed band (see isolateEdgeGate in pixels.ts).
 
 // Texturing context shared by all generators for a given tile.
 type Ctx = { seed: number; arid: number; wet: number };
@@ -107,6 +105,16 @@ const baseGenerators: Record<SubstrateId, BaseGen> = {
 // interpenetrating across the whole tile. Feathered adds a Bayer-dither band;
 // crisp thresholds hard. `edgeGate` is ignored.
 const PATCH_STRENGTH = 0.7;
+// Width (in the blend field's own [0,1) units) of the fray band straddling the
+// isolated-patch threshold. Without it, `t > 1-cover` is a razor-sharp vector
+// line — a modest coverage fraction (e.g. 37% sand-in-soil) collapses into one
+// large blob with a hard geometric edge that reads as a decal, not ground. A
+// pixel within the band is decided by an independent hash test instead of the
+// flat comparison, so the boundary frays into organic speckle at the same
+// per-pixel hard-choice granularity everywhere else in this style (no smooth
+// alpha, still crisp — just spatially varied). Same technique, same reason, as
+// the isolated-mat fray in mats/index.ts's `paintMats`.
+const FRAY_BAND = 0.1;
 // The blend field `n` is a pure function of the (already-grained) world
 // coordinate — every pixel in a grain×grain block shares the same value, so
 // caching it per tile bake turns an O(pixels) fbm cost into O(grain blocks).
@@ -133,11 +141,19 @@ function pickSubstrate(
     const cover = second.weight * PATCH_STRENGTH * edgeGate;
     let n = blendCache?.get(key);
     if (n === undefined) {
-      n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.055);
+      n = fbm(wx, wy * 2, seed ^ 0x6c62272e, 0.065);
       blendCache?.set(key, n);
     }
-    const t = render.crispEdges ? n : n + (bayer(wx, wy) - 0.5) * 0.12;
-    return t > 1 - cover ? 1 : 0;
+    if (!render.crispEdges) {
+      const t = n + (bayer(wx, wy) - 0.5) * 0.12;
+      return t > 1 - cover ? 1 : 0;
+    }
+    const threshold = 1 - cover;
+    const edge = (n - threshold) / FRAY_BAND;
+    if (edge >= 1) return 1;
+    if (edge <= -1) return 0;
+    const p = (edge + 1) / 2;
+    return hash2D(wx, wy, seed ^ 0x1f3d5c79) < p ? 1 : 0;
   }
   let n = blendCache?.get(key);
   if (n === undefined) {
@@ -180,9 +196,7 @@ export function paintSubstrate(
     const ly = wy - oy;
     for (let x = x0; x <= x1; x++) {
       const wx = grainCoord(ox + x, render.grain);
-      const edgeGate = render.isolatedPatches
-        ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
-        : 1;
+      const edgeGate = render.isolatedPatches ? isolateEdgeGate(x, y, wx, wy, seed) : 1;
       const colorKey = (wx - ox) * 4096 + ly;
       const slot = pickSubstrate(subs, wx, wy, seed, render, edgeGate, colorKey, blendCache);
       const id = subs[slot]!.id;

@@ -1,6 +1,7 @@
 // Shared pixel-buffer contract for all bake stages.
 
 import { TILE_H, TILE_W } from "./types.ts";
+import { fbm, smoothstep } from "./noise.ts";
 
 export type PixelBuffer = {
   width: number;
@@ -48,4 +49,41 @@ export function put(buf: PixelBuffer, x: number, y: number, color: number): void
   buf.data[o + 1] = (color >> 8) & 0xff;
   buf.data[o + 2] = color & 0xff;
   buf.data[o + 3] = 255;
+}
+
+// --- Isolate edge gate -------------------------------------------------------
+// Shared by the substrate and mat stages (both previously carried an identical
+// private copy of these constants and the smoothstep below).
+//
+// `isolatedPatches` mode suppresses non-primary materials near the tile rim so
+// the border stays pure primary and biome seams read clean. The naive form,
+// smoothstep(MARGIN, MARGIN+FEATHER, edgeInset(x,y)), gates on the raw inset —
+// and since a constant inset is by definition a diamond contour concentric with
+// the tile, that draws a hard-edged diamond a few pixels in from the border. It
+// is highly visible: whatever the non-primary materials contribute (a speckle
+// of dryGrass, a patch of a second substrate) stops dead along a perfectly
+// straight line that traces the tile shape, which reads as a rectangular
+// cut-off rather than as ground.
+//
+// Perturbing the inset by low-frequency noise before the smoothstep breaks that
+// contour into an irregular wandering boundary at essentially no cost. The
+// noise is keyed on WORLD coordinates, so two adjacent tiles perturb their
+// shared border identically and the gate stays seam-consistent.
+export const EDGE_MARGIN = 0.16;
+export const EDGE_FEATHER = 0.14;
+// How far the gate contour may wander, in edge-inset units. Large enough to
+// destroy the diamond read, bounded so non-primary material still cannot reach
+// the actual rim (which is what keeps biome seams clean).
+export const EDGE_INSET_JITTER = 0.16;
+const EDGE_JITTER_FREQ = 0.05;
+
+export function isolateEdgeGate(
+  x: number,
+  y: number,
+  wx: number,
+  wy: number,
+  seed: number,
+): number {
+  const jitter = (fbm(wx, wy * 2, seed ^ 0x39c1f2b7, EDGE_JITTER_FREQ) - 0.5) * 2 * EDGE_INSET_JITTER;
+  return smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y) + jitter);
 }

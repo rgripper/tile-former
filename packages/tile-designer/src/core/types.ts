@@ -31,6 +31,19 @@ export const MAT_IDS = [
 ] as const;
 export type MatId = (typeof MAT_IDS)[number];
 
+// Static scatter kinds. These are materials for palette purposes (they draw
+// from ramps like everything else) but are placed as discrete stamps rather
+// than as coverage layers.
+export const SCATTER_IDS = ["pebble", "twig", "leaf"] as const;
+export type ScatterId = (typeof SCATTER_IDS)[number];
+
+// Everything that owns a ramp. The substrate/mat/scatter split matters to
+// `resolve.ts` (they are selected by different score functions) but not to the
+// palette or, from the dual-grid redesign on, to the renderer — see PLAN.md,
+// "One unified material stack".
+export const MATERIAL_IDS = [...SUBSTRATE_IDS, ...MAT_IDS, ...SCATTER_IDS] as const;
+export type MaterialId = (typeof MATERIAL_IDS)[number];
+
 // Blended substrate base (top-2 by score, weights sum to 1) plus 0..n mat
 // coverage layers, ordered by coverage descending.
 export type SurfaceSpec = {

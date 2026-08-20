@@ -8,11 +8,15 @@ import { TILE_H, TILE_W } from "./types.ts";
 import { hash2D } from "./rng.ts";
 import { grainCoord, valueNoise } from "./noise.ts";
 import { makeBuffer, put, rowSpan, type PixelBuffer } from "./pixels.ts";
+import { MASTER_RAMPS } from "./palette/master.ts";
 import { paintSubstrate } from "./substrate/index.ts";
 import { paintMats } from "./mats/index.ts";
 import { paintStaticScatter } from "./scatter/index.ts";
 
-const WATER_RAMP = [0x1e4e86, 0x2e6db4, 0x3f7ec4, 0x5a94d4];
+// Water draws from the master palette like everything else. It becomes a real
+// entry in the material stack (top priority, so shorelines get the same
+// dual-grid rounding) in milestone D — see PLAN.md "Open questions".
+const WATER_RAMP = MASTER_RAMPS.water;
 
 // Lattice spacing for the tile-bias field, in tiles. Larger = the dominant
 // tone drifts across more neighboring tiles before it's noticeably shifted.

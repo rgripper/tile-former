@@ -71,6 +71,20 @@ See [tileGenerator/stage3_rockType.ts](tileGenerator/stage3_rockType.ts). Rock-t
 
 See [tileGenerator/stage4_gradientAxes.ts](tileGenerator/stage4_gradientAxes.ts).
 
+`drainage = clamp(|∇altitude| / gradientRef, 0, 1) × 0.7 + permeability × 0.3`.
+
+`gradientRef` is **scale-dependent** and must match the step size the caller took
+its central difference at — `PATCH_GRADIENT_REF` here (differences span 2 patches),
+`TILE_GRADIENT_REF` in Stage 8 (±1 tile). Both are measured constants in
+[tileGenerator/utils.ts](tileGenerator/utils.ts); patch-scale gradients run ~3.5×
+larger than tile-scale ones, so a single shared reference cannot serve both.
+
+A previously shared hardcoded reference of `0.3` was far above the real gradient
+magnitudes (tile-scale max 0.092, patch-scale max 0.248), which left the slope
+term contributing almost nothing and capped `drainage` at ~0.38 on every map.
+Re-measure and update these constants if `localNoiseScale` or the altitude
+amplitude changes materially.
+
 ### Stage 5 — Ecotone blending at segment borders `[patch scale]`
 
 See [tileGenerator/stage5_blendBorders.ts](tileGenerator/stage5_blendBorders.ts).

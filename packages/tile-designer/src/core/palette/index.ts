@@ -1,5 +1,11 @@
-import type { MatId, Ramp, SubstrateId } from "../types.ts";
+import type { MaterialId, Ramp } from "../types.ts";
+import { MATERIAL_IDS } from "../types.ts";
+import { MASTER_RAMPS, snapRampToPalette } from "./master.ts";
+import { MATERIAL_STYLES, shadeRamp, type MaterialStyle } from "./materials.ts";
 import { biomeOverrides } from "./biomeOverrides.ts";
+
+export * from "./master.ts";
+export * from "./materials.ts";
 
 // --- Color helpers (hex number ↔ HSL) ---
 
@@ -36,13 +42,22 @@ export function hslToRgb(h: number, s: number, l: number): number {
   );
 }
 
-// Shift a whole ramp in HSL space — used for climate tinting (e.g. grass hue
-// from yellow-green when dry to deep green when wet).
+// Raw HSL shift of a whole ramp. Almost never what you want directly — the
+// result is off-palette. Use `tintRamp`.
 export function shiftRamp(ramp: Ramp, dh: number, ds: number, dl: number): Ramp {
   return ramp.map((c) => {
     const [h, s, l] = rgbToHsl(c);
     return hslToRgb(h + dh, s + ds, l + dl);
   }) as Ramp;
+}
+
+// Climate/context tint that stays legal: shift in HSL, then snap every step
+// back onto the master palette. Snapping is not a lossy afterthought here, it
+// is the point — a grass ramp pushed toward yellow for a dry climate lands on
+// `straw` steps on its own, so climate variation moves *between* authored ramps
+// instead of inventing colors between them.
+export function tintRamp(ramp: Ramp, dh: number, ds: number, dl: number): Ramp {
+  return snapRampToPalette(shiftRamp(ramp, dh, ds, dl));
 }
 
 // Map a [0,1) value onto the 4-step ramp with a mid-heavy distribution:
@@ -51,51 +66,30 @@ export function rampAt(ramp: Ramp, v: number): number {
   return ramp[v < 0.12 ? 0 : v < 0.58 ? 1 : v < 0.92 ? 2 : 3]!;
 }
 
-// --- Global base ramps (dark → highlight) ---
-// Placeholder pixel-art ramps; the designer exists to iterate on these.
-
-export const substrateRamps: Record<SubstrateId, Ramp> = {
-  bareRock:     [0x4a4a52, 0x6b6b73, 0x8c8c94, 0xb0b0b5],
-  scree:        [0x55524a, 0x77746a, 0x99958a, 0xb8b4a8],
-  sand:         [0xa8865a, 0xc9a86e, 0xe3c489, 0xf2dca8],
-  soil:         [0x4a3626, 0x6b4e36, 0x8a6a4a, 0xa88a64],
-  clay:         [0x6e4030, 0x8f5740, 0xad7052, 0xc48a68],
-  mud:          [0x3a2e22, 0x54432f, 0x6e5a3e, 0x84704f],
-  peat:         [0x2e2418, 0x453624, 0x5c4a30, 0x6e5c3e],
-  frozenGround: [0x5a5e66, 0x7c828c, 0x9ea6b0, 0xc0c8d0],
-  snow:         [0xaeb8cc, 0xcdd6e4, 0xe6ecf4, 0xf8faff],
-};
-
-export const matRamps: Record<MatId, Ramp> = {
-  grass:        [0x2e5a1e, 0x44782c, 0x5e963c, 0x7ab452],
-  dryGrass:     [0x8a7a34, 0xa8964a, 0xc4b062, 0xdcc87e],
-  moss:         [0x2a4a28, 0x3c6238, 0x50794a, 0x64905c],
-  lichen:       [0x6e7a5e, 0x8c967a, 0xa8b096, 0xc2c8b2],
-  leafLitter:   [0x5e4423, 0x7d5b30, 0x9a7440, 0xb08c52],
-  needleLitter: [0x4c3a24, 0x644e2f, 0x7a613c, 0x8e744a],
-  sedge:        [0x4a6a2e, 0x628840, 0x7aa454, 0x92bc68],
-  cushion:      [0x4e5e3c, 0x687a50, 0x829664, 0x9cb07a],
-};
-
 // --- Per-biome overrides ---
-// A biome supplies only the ramps it wants to change; everything else falls
-// back to the globals above. Shifting the global/per-biome balance later is
-// a data edit, not a code change.
+// A biome may repoint a material at a different master ramp and/or move its
+// shade window. It cannot supply colors, so no override can leave the palette.
 
-export type PaletteOverride = {
-  substrates?: Partial<Record<SubstrateId, Ramp>>;
-  mats?: Partial<Record<MatId, Ramp>>;
-};
+export type PaletteOverride = Partial<Record<MaterialId, Partial<MaterialStyle>>>;
 
-export type ResolvedPalette = {
-  substrates: Record<SubstrateId, Ramp>;
-  mats: Record<MatId, Ramp>;
-};
+export type ResolvedPalette = Record<MaterialId, Ramp>;
+
+export function resolveMaterialRamp(style: MaterialStyle): Ramp {
+  return shadeRamp(MASTER_RAMPS[style.ramp], style.shade);
+}
+
+export function getMaterialStyles(biomeId: number | null): Record<MaterialId, MaterialStyle> {
+  const o = biomeId === null ? undefined : biomeOverrides[biomeId];
+  const out = {} as Record<MaterialId, MaterialStyle>;
+  for (const id of MATERIAL_IDS) {
+    out[id] = { ...MATERIAL_STYLES[id], ...o?.[id] };
+  }
+  return out;
+}
 
 export function getPalette(biomeId: number | null): ResolvedPalette {
-  const o = biomeId === null ? undefined : biomeOverrides[biomeId];
-  return {
-    substrates: { ...substrateRamps, ...o?.substrates },
-    mats: { ...matRamps, ...o?.mats },
-  };
+  const styles = getMaterialStyles(biomeId);
+  const out = {} as ResolvedPalette;
+  for (const id of MATERIAL_IDS) out[id] = resolveMaterialRamp(styles[id]);
+  return out;
 }

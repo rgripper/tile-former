@@ -11,10 +11,10 @@
 
 import type { MatId, Ramp, RenderStyle, StyleParams } from "../types.ts";
 import { hash2D } from "../rng.ts";
-import { fbm, grainCoord, smoothstep } from "../noise.ts";
+import { fbm, grainCoord } from "../noise.ts";
 import { rampAt } from "../palette/index.ts";
 import { resolveTone } from "../tone.ts";
-import { edgeInset, put, rowSpan, type PixelBuffer } from "../pixels.ts";
+import { isolateEdgeGate, put, rowSpan, type PixelBuffer } from "../pixels.ts";
 import { spotField, stampField } from "../stamps.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -23,14 +23,21 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 // (index >= 1) are held off the rim by the same edge gate as the substrate and
 // drawn at a higher patch frequency so they read as smaller isolated blobs. The
 // primary mat (index 0, the base biome cover) keeps spreading to the edges.
-const EDGE_MARGIN = 0.16;
-const EDGE_FEATHER = 0.14;
 const PRIMARY_PATCH_FREQ = 0.045;
 const ISOLATED_PATCH_FREQ = 0.07;
+// Width (in `inside`'s own units) of the fray band straddling an isolated
+// mat's patch boundary in crisp mode. Without it, `inside > 0` is a razor-sharp
+// cut — an isolated mat at a decent coverage fraction (e.g. grass at 45% over
+// dryGrass in Savanna) collapses into hard-edged islands. Same technique, same
+// reason, as the isolated-substrate fray in substrate/index.ts's
+// `pickSubstrate`. The primary mat's own boundary is untouched: its high
+// coverage plus `rimFill` already keep it from reading as a hard-edged decal.
+const ISOLATE_FRAY_BAND = 0.12;
 
 // Per-tile render context for the mat generators (the per-tile dominant-tone
-// bias fed into resolveTone).
-type MatCtx = { tileBias: number };
+// bias fed into resolveTone). `rimFill` in [0,1] boosts a generator's own
+// internal coverage holes toward solid — see the primary-mat rim fix below.
+type MatCtx = { tileBias: number; rimFill: number };
 
 // s: edge strength — 0 just outside the patch fringe, 1 well inside it.
 type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number, mc: MatCtx) => number | null;
@@ -43,7 +50,10 @@ type MatGen = (wx: number, wy: number, s: number, ramp: Ramp, seed: number, mc: 
 // painted pixels, not from holes.
 function turf(wx: number, wy: number, s: number, ramp: Ramp, seed: number, fill: number, mc: MatCtx): number | null {
   const cover = fill * Math.min(1, s * 1.6);
-  if (fbm(wx, wy * 2, seed ^ 0x1f123bb5, 0.16) > cover) return null;
+  // Blend the hole threshold toward "always covered" as rimFill rises to 1 —
+  // see the primary-mat rim fix below for why this needs to exist at all.
+  const boosted = cover + (1 - cover) * mc.rimFill;
+  if (fbm(wx, wy * 2, seed ^ 0x1f123bb5, 0.16) > boosted) return null;
   const blade = hash2D(wx, wy, seed ^ 0x51ed270b);
   return resolveTone(2.0 + (blade - 0.5) * 0.9, wx, wy, ramp, seed, mc.tileBias);
 }
@@ -71,6 +81,17 @@ function needleStamp(dx: number, dy: number, h: number, ramp: Ramp): number | nu
 // into a grain×grain-scaled blob instead of just its intended shape.
 const STAMP_MATS = new Set<MatId>(["leafLitter", "needleLitter"]);
 
+// Mats ineligible to be the rim-spreading primary (see primaryIndex below):
+// stamp mats for the reason already documented there, plus `sedge`, which
+// looks like a normal diffuse mat (coordinate-wise) but is internally clumped
+// — its generator returns null outright for ~55% of its own 6×3px cells (see
+// the `clump < 0.45` gate in sedge() below) *before* ever reaching turf(), so
+// no amount of turf-level rim-fill can make it read solid at the border. A
+// biome where sedge outscores grass on raw coverage (e.g. Tropical Swamp:
+// sedge 100% / grass 94%) would otherwise pick sedge as primary and produce
+// the same bare-substrate rim this file already fixed once for stamp mats.
+const SPARSE_PRIMARY_MATS = new Set<MatId>([...STAMP_MATS, "sedge"]);
+
 const matGens: Record<MatId, MatGen> = {
   grass: (wx, wy, s, ramp, seed, mc) => turf(wx, wy, s, ramp, seed, 0.92, mc),
 
@@ -85,7 +106,8 @@ const matGens: Record<MatId, MatGen> = {
 
   moss(wx, wy, s, ramp, seed, mc) {
     // Dense soft carpet, low-contrast mottle.
-    if (hash2D(wx, wy, seed ^ 0x7feb352d) > 0.97 * Math.min(1, s * 2)) return null;
+    const holeThreshold = 0.97 * Math.min(1, s * 2);
+    if (hash2D(wx, wy, seed ^ 0x7feb352d) > holeThreshold + (1 - holeThreshold) * mc.rimFill) return null;
     const mottle = fbm(wx, wy * 2, seed ^ 0x2c1b3c6d, 0.12);
     return resolveTone(1.4 + (mottle - 0.5) * 1.1, wx, wy, ramp, seed, mc.tileBias);
   },
@@ -127,25 +149,64 @@ export function paintMats(
 ): void {
   const mats = style.surface.mats;
   if (mats.length === 0) return;
-  const mc: MatCtx = { tileBias };
+  // Non-primary mats never consult rimFill (see below), so they can share one
+  // static context object instead of allocating per pixel.
+  const nonPrimaryMc: MatCtx = { tileBias, rimFill: 0 };
   // The mat that spreads to the tile's rim (never held off by the edge gate)
-  // must be a dense ground cover, not a sparse litter *stamp* — otherwise the
-  // actual turf is pulled off the border and the bare substrate reads as an
-  // ugly brown ring (forest biomes score leafLitter/needleLitter above grass,
-  // so mi 0 alone is the wrong pick). Use the first non-stamp mat as the
-  // spreading primary; if a biome has only stamp mats, none is gated (sparse
-  // litter crosses seams cleanly on its own).
-  const primaryIndex = Math.max(0, mats.findIndex((m) => !STAMP_MATS.has(m.id)));
+  // must be a dense ground cover, not a sparse litter *stamp* or clumped
+  // tussock mat — otherwise the actual cover is pulled off the border and the
+  // bare substrate reads as an ugly ring (forest biomes score leafLitter/
+  // needleLitter above grass, wetlands score sedge above grass, so mi 0 alone
+  // is the wrong pick either way). Use the first dense mat as the spreading
+  // primary; if a biome has only sparse mats, none is gated (they cross seams
+  // cleanly on their own).
+  const primaryIndex = Math.max(0, mats.findIndex((m) => !SPARSE_PRIMARY_MATS.has(m.id)));
+  // How much ground cover actually *disappears* at the rim because the isolate
+  // gate switches the non-primary diffuse mats off there. This is the correct
+  // budget for `rimFill` below, and scaling by it is load-bearing: an earlier
+  // version pushed the primary mat's effective coverage to a flat 1.0 at the
+  // rim unconditionally, which is right when a dense mat is losing a dense
+  // partner (Tropical Swamp: sedge 100% vanishes, so grass must fill all of
+  // it) but catastrophic when the primary is itself sparse and nothing is
+  // being lost — Desert has a single mat (dryGrass 17%), so no mat is gated
+  // off at all, yet dryGrass was manufactured up to 97% of the rim against 1%
+  // in the interior, painting an olive ring around bare sand. With this
+  // budget, a biome whose mats are all primary/stamp gets no boost at all.
+  const rimCoverLoss = render.isolatedPatches
+    ? Math.min(
+        1,
+        mats.reduce(
+          (sum, m, i) => (i !== primaryIndex && !STAMP_MATS.has(m.id) ? sum + m.coverage : sum),
+          0,
+        ),
+      )
+    : 0;
+  // Every mat generator punches its OWN coverage holes even at full strength
+  // (see turf()'s doc comment) so a flat fill doesn't look dead. In the
+  // interior that's fine — a hole in one mat is usually plugged by another mat
+  // painting under it. At the rim, `isolatedPatches` gates every non-primary
+  // mat off entirely (see `isolate` below) so the primary's own holes have
+  // nothing to plug them, and bare substrate shows through as a distinct ring
+  // (soil's `earth` ramp — dark brown — was the reported case). `rimFill`
+  // fixes that by boosting the *primary* mat's internal hole threshold toward
+  // fully solid as the real edge inset approaches the rim, restoring the "pure
+  // primary at the border" the isolate gate already promises. Only the
+  // primary needs this: non-primary mats are correctly absent at the rim, not
+  // holed.
+  //
   // Both caches are keyed on the grained world coordinate, packed as a small
   // tile-local integer (cheap, no string alloc, safe from precision loss no
   // matter how far ox/oy are from the origin). `patch` is always a pure
   // function of it (pure memoization). The full color is only cacheable when
   // `s` doesn't also depend on the real (ungrained) edgeGate — i.e. the
   // non-isolated case — and the mat isn't a stamp mat (which samples color at
-  // the real coordinate for precise leaf/needle placement). One cache per mat
-  // slot (there are only ever up to MAX_MATS) avoids keying by mat id too. At
-  // grain 1 every pixel is its own block, so the cache would only add Map
-  // overhead with zero reuse — skip it there.
+  // the real coordinate for precise leaf/needle placement) — AND, now, the mat
+  // isn't the rim-boosted primary, since `rimFill` above is itself a function
+  // of the real edgeGate and would otherwise let one cached color leak across
+  // a grain block that straddles the rim band. One cache per mat slot (there
+  // are only ever up to MAX_MATS) avoids keying by mat id too. At grain 1
+  // every pixel is its own block, so the cache would only add Map overhead
+  // with zero reuse — skip it there.
   const cached = render.grain > 1;
   const patchCaches = cached ? mats.map(() => new Map<number, number>()) : null;
   const colorCaches = cached ? mats.map(() => new Map<number, number | null>()) : null;
@@ -158,21 +219,24 @@ export function paintMats(
       const wx = ox + x;
       const gx = grainCoord(wx, render.grain);
       const key = (gx - ox) * 4096 + ly;
-      const edgeGate = render.isolatedPatches
-        ? smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y))
-        : 1;
+      const edgeGate = render.isolatedPatches ? isolateEdgeGate(x, y, wx, wy, seed) : 1;
       for (let mi = 0; mi < mats.length; mi++) {
         const mat = mats[mi]!;
         // Diffuse mats sample color from the grained coordinate (chunky
         // turf/moss/lichen/cushion texture); stamp mats keep the real
         // coordinate so leaf/needle placement and shape stay precise.
         const isStamp = STAMP_MATS.has(mat.id);
+        const isPrimary = mi === primaryIndex;
         // Compact edge-avoiding patches for the non-primary *diffuse* mats; the
         // spreading primary and every sparse stamp mat reach the rim so the
         // border keeps its ground cover instead of baring the substrate.
-        const isolate = render.isolatedPatches && !isStamp && mi !== primaryIndex;
+        const isolate = render.isolatedPatches && !isStamp && !isPrimary;
         const gate = isolate ? edgeGate : 1;
         if (gate <= 0) continue;
+        // See the rimFill comment above paintMats: only the primary needs its
+        // own coverage holes backstopped near the rim.
+        const rimFill = isPrimary && render.isolatedPatches ? (1 - edgeGate) * rimCoverLoss : 0;
+        const mc: MatCtx = rimFill > 0 ? { tileBias, rimFill } : nonPrimaryMc;
         const freq = isolate ? ISOLATED_PATCH_FREQ : PRIMARY_PATCH_FREQ;
         // Patch macro-shape is grained for every mat (even stamp-based ones):
         // it only decides *where* the mat covers, so a chunky boundary is
@@ -186,13 +250,36 @@ export function paintMats(
         // Signed inside-ness → edge strength; the +0.05 lets sparse frays
         // spill a few pixels past the nominal patch boundary. Crisp mode
         // collapses the fringe to a hard in/out step.
-        const inside = mat.coverage * 0.9 - patch + 0.05;
-        let s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
+        //
+        // This is a SECOND, coarser hole mechanism than turf()'s internal
+        // per-pixel misses: `mat.coverage` < 100% means the primary's own
+        // low-frequency patch macro-shape excludes real chunks of the tile
+        // (~28% of it for a 72%-coverage mat) regardless of rim proximity —
+        // `s` goes straight to 0 there and the mat's generator is never even
+        // called (see `if (s <= 0) continue` below), so boosting inside
+        // turf()/moss() can't reach it. `rimFill` has to also widen the
+        // primary's effective coverage here, one level up, or the rim can
+        // still land in one of those excluded patches with nothing behind it.
+        const effectiveCoverage = isPrimary ? mat.coverage + (1 - mat.coverage) * rimFill : mat.coverage;
+        const inside = effectiveCoverage * 0.9 - patch + 0.05;
+        let s: number;
+        if (render.crispEdges && isolate) {
+          // Frayed macro boundary — see ISOLATE_FRAY_BAND above. Dithered on
+          // the grained coordinate so the fray sits at the same chunky
+          // resolution as `patch` itself, not a finer-grained pattern on top
+          // of it.
+          const edge = inside / ISOLATE_FRAY_BAND;
+          if (edge >= 1) s = 1;
+          else if (edge <= -1) s = 0;
+          else s = hash2D(gx, gy, seed ^ (0x1f3d5c79 + mi)) < (edge + 1) / 2 ? 1 : 0;
+        } else {
+          s = render.crispEdges ? (inside > 0 ? 1 : 0) : clamp01(inside / 0.2);
+        }
         if (isolate) s *= gate;
         if (s <= 0) continue;
         const [mx, my] = isStamp ? [wx, wy] : [gx, gy];
         let c: number | null;
-        if (!isolate && !isStamp && colorCaches) {
+        if (!isolate && !isStamp && rimFill === 0 && colorCaches) {
           const colorCache = colorCaches[mi]!;
           const cachedColor = colorCache.get(key);
           if (cachedColor !== undefined) {

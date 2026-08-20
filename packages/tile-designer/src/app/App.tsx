@@ -9,6 +9,7 @@ import { PropertyPanel } from "./PropertyPanel.tsx";
 import { TileCanvas } from "./TileCanvas.tsx";
 import { BiomeGallery } from "./BiomeGallery.tsx";
 import { MixedBiomePreview } from "./MixedBiomePreview.tsx";
+import { PalettePanel } from "./PalettePanel.tsx";
 
 const initialInput: DesignInput = biomeToInput(biomes[0]!);
 
@@ -58,6 +59,8 @@ export function App() {
             </div>
           </div>
         </div>
+
+        <PalettePanel input={input} />
 
         <MixedBiomePreview input={input} seed={seed} render={render} />
 

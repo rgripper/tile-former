@@ -1,23 +1,38 @@
 import type { PaletteOverride } from "./index.ts";
 
-// Per-biome ramp overrides, keyed by biome id from tilegen's biomes.ts.
-// Seed examples — expand as the designer surfaces biomes that need character.
+// Per-biome material restyling, keyed by biome id from tilegen's biomes.ts.
+//
+// An override repoints a material at a different master ramp and/or moves its
+// shade window. It cannot supply raw colors, so no biome can drift off-palette
+// — which is the whole reason biome character is expressed this way now. Giving
+// rainforest soil the `clay` ramp says "the soil here is lateritic" in one edit
+// and is guaranteed to harmonize with every other biome.
+//
+// Seed set — expand as the biome gallery surfaces biomes that need character.
 export const biomeOverrides: Record<number, PaletteOverride> = {
-  // 1: Tropical Rainforest — lateritic red soil, saturated deep grass.
-  1: {
-    substrates: { soil: [0x5e3222, 0x7e452e, 0x9c5c3c, 0xb8744c] },
-    mats: { grass: [0x1e5518, 0x2e7224, 0x3e9032, 0x52ae44] },
-  },
-  // 3: Savanna — golden dry grass over laterite.
-  3: {
-    mats: { dryGrass: [0x9c8028, 0xbe9e3a, 0xdcba52, 0xf0d470] },
-  },
-  // 17: Hot Desert — paler wind-sorted sand.
-  17: {
-    substrates: { sand: [0xbe9a68, 0xdcba80, 0xf0d49a, 0xfae8bc] },
-  },
-  // 8: Taiga — darker, colder needle duff.
-  8: {
-    mats: { needleLitter: [0x3a2e20, 0x4e3f2a, 0x605034, 0x726040] },
-  },
+  // Tropical Rainforest — deep lateritic red soil under the canopy.
+  1: { soil: { ramp: "clay" } },
+
+  // Savanna — bleached golden standing grass.
+  3: { dryGrass: { shade: 1 } },
+
+  // Hot Desert — paler wind-sorted sand than the global default.
+  17: { sand: { shade: 1 } },
+
+  // Tropical Swamp / Temperate Wetland — the mineral soil between the pools
+  // reads as waterlogged muck rather than a distinct earth horizon.
+  12: { soil: { ramp: "muck" } },
+  13: { soil: { ramp: "muck" } },
+
+  // Alpine / Alpine Fell — thin skeletal soil over frost-shattered bedrock.
+  10: { soil: { ramp: "stone", shade: 1 } },
+  28: { soil: { ramp: "stone", shade: 1 } },
+
+  // Cloud Forest / Montane Rainforest — everything is under moss.
+  11: { soil: { ramp: "muck" }, leafLitter: { ramp: "moss", shade: 1 } },
+  37: { soil: { ramp: "muck" }, leafLitter: { ramp: "moss", shade: 1 } },
 };
+
+// Note: Taiga's old "darker, colder needle duff" override is gone because it is
+// now the global default — `needleLitter` sits at `duff` shade -1 in
+// MATERIAL_STYLES, so every needle-litter biome gets it.

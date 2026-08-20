@@ -5,6 +5,7 @@ export * from "./src/core/rng.ts";
 export * from "./src/core/resolve.ts";
 export * from "./src/core/palette/index.ts";
 export * from "./src/core/pixels.ts";
+export * from "./src/core/lattice.ts";
 export * from "./src/core/noise.ts";
 export * from "./src/core/bake.ts";
 export * from "./src/core/substrate/index.ts";

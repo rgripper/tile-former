@@ -5,7 +5,7 @@
 // selection (Stage 6) and CA (Stage 7).
 //
 // Drainage combines slope gradient with rock permeability:
-//   slopeDrainage = clamp(gradient / 0.3, 0, 1)
+//   slopeDrainage = clamp(gradient / PATCH_GRADIENT_REF, 0, 1)
 //   drainage      = slopeDrainage × 0.7 + rockPermeability × 0.3
 // Convention: 0 = fully waterlogged, 1 = fully free-draining.
 //
@@ -14,7 +14,7 @@
 // computed at tile scale in Stages 8 and 12.
 
 import type { PatchCell } from "./types";
-import { clamp, computeDrainage } from "./utils";
+import { clamp, computeDrainage, PATCH_GRADIENT_REF } from "./utils";
 import { getRockType } from "../tile/rockTypes";
 
 export function stage4_gradientAxes(grid: PatchCell[][]): void {
@@ -30,7 +30,9 @@ export function stage4_gradientAxes(grid: PatchCell[][]): void {
       const gy = alt(x, y + 1) - alt(x, y - 1); // south − north
 
       const { permeability } = getRockType(grid[x][y].rockType);
-      grid[x][y].drainage = computeDrainage(gx, gy, permeability);
+      // Patch-scale differences: gx/gy span 2 patches, so the reference
+      // gradient is the patch-scale one (see utils.ts).
+      grid[x][y].drainage = computeDrainage(gx, gy, permeability, PATCH_GRADIENT_REF);
     }
   }
 }

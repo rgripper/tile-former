@@ -129,6 +129,49 @@ body {
   gap: 4px;
 }
 
+.pal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 2px 14px;
+}
+
+.pal-row {
+  display: grid;
+  grid-template-columns: 84px auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.pal-name {
+  color: #a8aebc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pal-note {
+  color: #70768a;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swatches {
+  display: inline-flex;
+}
+
+.swatch {
+  width: 22px;
+  height: 15px;
+  display: inline-block;
+  /* Butted together with no gap: ramp steps must be judged against their own
+     neighbours, and any border or background between them would read as an
+     extra value step that isn't in the palette. */
+  outline: 1px solid #16181d;
+}
+
 .scroll-x {
   overflow: auto;
   max-height: 640px;

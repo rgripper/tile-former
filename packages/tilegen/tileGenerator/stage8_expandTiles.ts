@@ -22,6 +22,7 @@ import {
   computeDrainage,
   makeNoise2D,
   sampleNormal,
+  TILE_GRADIENT_REF,
 } from "./utils";
 import { getRockType } from "../tile/rockTypes";
 
@@ -94,7 +95,8 @@ export function stage8_expandTiles(
       const gy = tileAltitude(tx, ty + 1) - tileAltitude(tx, ty - 1);
 
       const { permeability } = getRockType(patch.rockType);
-      const drainage = computeDrainage(gx, gy, permeability);
+      // Tile-scale differences (±1 tile), so the tile-scale reference gradient.
+      const drainage = computeDrainage(gx, gy, permeability, TILE_GRADIENT_REF);
       const light = config.segmentBase.light;
 
       const biome = biomeById.get(patch.biomeId);
