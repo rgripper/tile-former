@@ -44,6 +44,65 @@ export type ScatterId = (typeof SCATTER_IDS)[number];
 export const MATERIAL_IDS = [...SUBSTRATE_IDS, ...MAT_IDS, ...SCATTER_IDS] as const;
 export type MaterialId = (typeof MATERIAL_IDS)[number];
 
+// --- The unified material stack (v2) ---
+//
+// The substrate/mat distinction is a *selection* concept: `resolve.ts` scores
+// the two families with different functions and emits them separately. It has
+// no meaning at render time — from the dual-grid redesign on, both are just
+// entries in one priority-ordered list (PLAN.md, "One unified material stack").
+//
+// Order is ASCENDING priority, which is also the draw order: a dual cell draws
+// each material present around it in this order, so a later material's sprite
+// overlaps an earlier one. Two consequences the mask design depends on:
+//
+//  - The *lowest*-priority material present at a cell necessarily has all four
+//    corners "itself or higher", so it draws the full cell and nothing can peek
+//    through underneath (see masks.ts, the overhang-only rule).
+//  - The visible boundary between two materials is always the *higher*-priority
+//    one's mask edge, since it is painted last.
+//
+// The ordering itself is a physical read of what lies on what: bedrock and its
+// debris at the bottom, then finer and wetter ground, then frozen cover, then
+// the living mats (crust → carpet → turf → cushions), then shed litter, then
+// loose scatter. `snow` sits above `frozenGround` and every mat sits above every
+// substrate for the same reason: they are deposited *onto* what precedes them.
+export const MATERIAL_STACK = [
+  // substrates
+  "bareRock",
+  "scree",
+  "sand",
+  "clay",
+  "soil",
+  "mud",
+  "peat",
+  "frozenGround",
+  "snow",
+  // mats
+  "lichen",
+  "moss",
+  "dryGrass",
+  "grass",
+  "sedge",
+  "cushion",
+  "needleLitter",
+  "leafLitter",
+  // scatter (placed as discrete stamps from milestone F, but they still need a
+  // slot in the order so depth sorting has one rule rather than two)
+  "pebble",
+  "twig",
+  "leaf",
+] as const satisfies readonly MaterialId[];
+
+export const MATERIAL_PRIORITY: Record<MaterialId, number> = Object.fromEntries(
+  MATERIAL_STACK.map((id, i) => [id, i]),
+) as Record<MaterialId, number>;
+
+// Ascending-priority sort, so a caller can hand the renderer a draw order
+// without knowing the stack.
+export function byPriority<T extends { id: MaterialId }>(items: readonly T[]): T[] {
+  return [...items].sort((a, b) => MATERIAL_PRIORITY[a.id] - MATERIAL_PRIORITY[b.id]);
+}
+
 // Blended substrate base (top-2 by score, weights sum to 1) plus 0..n mat
 // coverage layers, ordered by coverage descending.
 export type SurfaceSpec = {

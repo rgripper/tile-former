@@ -153,13 +153,19 @@ export function periodicFbm(u: number, v: number, seed: number, cells: number): 
 // Periodic per-block hash — the lattice-space replacement for `hash2D` on
 // grained world pixels. `blocks` must be an integer; returns a value that is
 // constant across each authoring block and wraps at the tile edge.
+//
+// `blocksV` defaults to `blocks` (square blocks, which is what you want almost
+// everywhere since lattice space is already isotropic). Pass it explicitly only
+// for deliberately anisotropic texture — peat's fibrous streaks are the one
+// current case: wide in u, fine in v.
 export function periodicBlockHash(
   u: number,
   v: number,
   seed: number,
   blocks: number,
+  blocksV: number = blocks,
 ): number {
-  return hash2D(imod(Math.floor(u * blocks), blocks), imod(Math.floor(v * blocks), blocks), seed);
+  return hash2D(imod(Math.floor(u * blocks), blocks), imod(Math.floor(v * blocksV), blocksV), seed);
 }
 
 // Periodic cellular (Worley) edge closeness, for crack networks and frost

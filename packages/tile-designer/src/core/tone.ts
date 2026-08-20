@@ -13,6 +13,8 @@
 
 import type { Ramp } from "./types.ts";
 import { hash2D } from "./rng.ts";
+import { periodicBlockHash } from "./noise.ts";
+import { DEFAULT_BLOCKS } from "./lattice.ts";
 
 // Fraction of pixels that get a single-step accent. Kept low so accents read
 // as occasional flecks, not grain — the bulk of variation is the base patches.
@@ -36,6 +38,33 @@ export function resolveTone(
   let idx = Math.round(clampIdx(base + tileBias));
   if (hash2D(wx, wy, seed ^ 0x1971d9d5) >= ACCENT) {
     idx += hash2D(wx, wy, seed ^ 0x1a2b3c4d) < 0.5 ? -1 : 1;
+  }
+  return ramp[clampIdx(idx)]!;
+}
+
+// --- v2: the same resolver in lattice space -----------------------------------
+//
+// Identical rule, but the accent hash is a *periodic block* hash rather than a
+// world-pixel hash, so the fleck pattern wraps with the rest of the variant and
+// sits on the authoring block grid instead of on native pixels.
+//
+// There is no `tileBias` parameter. v1's whole-tile dominant offset is exactly
+// the mechanism milestone L measured as harmful (PLAN.md, "Decided": a uniform
+// ramp-index shift makes every diamond a distinct flat brightness and the tile
+// grid becomes obvious). v2's tone variation is a *threshold* bias applied by
+// the generator to its own base field before it reaches this function, which
+// changes the mix of light and dark blocks with no flat step at the tile edge.
+export function resolveLatticeTone(
+  base: number,
+  u: number,
+  v: number,
+  ramp: Ramp,
+  seed: number,
+  blocks: number = DEFAULT_BLOCKS,
+): number {
+  let idx = Math.round(clampIdx(base));
+  if (periodicBlockHash(u, v, seed ^ 0x1971d9d5, blocks) >= ACCENT) {
+    idx += periodicBlockHash(u, v, seed ^ 0x1a2b3c4d, blocks) < 0.5 ? -1 : 1;
   }
   return ramp[clampIdx(idx)]!;
 }

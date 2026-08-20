@@ -227,7 +227,7 @@ src/app/              ← designer UI
   the resolved per-material ramp for the current input.
 - [x] **L — Lattice + periodic noise.** `lattice.ts`, periodic primitives,
   a wrap-check preview (same variant tiled 3×3 must show no seam).
-- [ ] **A — Atlas + masks.** Procedural mask set, per-material variants,
+- [x] **A — Atlas + masks.** Procedural mask set, per-material variants,
   atlas pages, atlas inspector panel in the designer.
 - [ ] **D — Dual-grid composition.** `compose.ts`, priority stacking, altitude
   partition, coverage quantisation in `resolve.ts`.
@@ -606,13 +606,164 @@ and Savanna re-rendered to confirm the earlier fray fix still holds. `bunx tsc
 --noEmit` clean in-package, root `bun run type-check` clean, 13/13 lattice tests
 pass, palette closure still 0 off-palette pixels over all 44 biomes at 3 origins.
 
+**A done (2026-08-20).** New `core/masks.ts`, `core/materials/index.ts`,
+`core/atlas.ts`, `app/AtlasPanel.tsx`, and three test files (79 cases). v1's
+`bake.ts` path is untouched and still drives the live designer; it goes away in
+G.
+
+*The mask set.* A dual cell's four corners are the centres of tiles `(c,r)`,
+`(c+1,r)`, `(c,r+1)`, `(c+1,r+1)`, and in lattice space they land exactly on the
+unit square's corners — so a corner's index is `(v ? 2 : 0) | (u ? 1 : 0)`, `u`
+runs along +col and `v` along +row, and a code is that 4-bit set. The nominal
+region of a code is the union of its corners' quadrants; `nominalSigned` measures
+distance only to the mid-line *segments* that separate a member corner from a
+non-member one, never to the cell's own edges, since the region continues into
+the neighbour there. Unioned over the four cells meeting at a tile centre, those
+quadrants reconstruct that tile's diamond — "nominal" is the material's own tile
+footprint, drawn a quarter at a time.
+
+The overhang-only rule is one clamp (`if (signed >= 0) return true`) evaluated
+before the spill is consulted, so it holds by construction rather than by tuning.
+Because higher-priority materials draw last, the visible boundary is always the
+higher material's *spilled* edge, which means the spill can be generous rather
+than a few pixels: `SPILL_AMP = 0.2` lattice units (~14 native px), bounded well
+under 0.5, past which a material would reach a tile centre it does not own.
+
+*Cross-cell continuity was the one real design decision.* Adjacent cells share
+two corners, so their nominal fields agree exactly; their spills do not, because
+neighbouring cells draw different mask variants. Tapering the spill to zero on
+the cell edge fixes it — and pins every boundary crossing to the exact nominal
+midpoint, so a long boundary pinches to a waist once per tile. Built it that way
+first, then replaced it: the spill is a **blend of a shared, variant-independent
+field and a variant-specific one**, variant-specific in the interior and fading
+to the shared field at the edge. The shared field is period-1, so its values
+either side of an edge are neighbouring samples of one smooth function.
+
+Exact equality across an edge is unachievable anyway once the spill is sampled on
+the authoring block grid — the two sides are genuinely different blocks — so the
+contract is the one `lattice.test.ts` already holds the primitives to: the jump
+across an edge must be no larger than jumps occurring naturally inside a cell.
+**Measured 1.20% disagreement across a shared edge against a 3.86% within-cell
+block-to-block control**, over all consistent code pairs × all variant pairs.
+
+*First build of the mask set was wrong and the measurement caught it.* `fBm`
+concentrates around 0.5, so a spill of `AMP · fbm` only varied over the middle
+third of its range: the boundary came out as a **constant-width ribbon along a
+straight nominal line**, and the two variants of a code were near
+indistinguishable. Fixed with a contrast stretch about the midpoint
+(`SPILL_CONTRAST = 2.4`) plus a floor, after rendering the mask sheet with
+nominal/overhang/recession colour-coded, which is also how the overhang rule was
+confirmed visually before it was a test.
+
+*The generator port.* All 17 substrate/mat generators moved to lattice space.
+Frequencies convert as `cells ≈ round(72 · freq)` (one lattice unit ≈ 72 native
+px) and must be integers or the wrap boundary leaves the tile edge. v1's
+hand-doubled y-frequencies and `spotField`'s `* 2` iso correction are gone —
+lattice space is the undistorted ground plane. `RenderStyle.grain` becomes
+`MaterialCtx.blocks` (32 blocks per lattice unit ≈ 2 native px, matching v1's
+`grain: 2`), and litter stamps are now defined on that block grid, so they come
+out iso-projected, which is what something lying flat on the ground should do.
+Two of v1's three stacked hole mechanisms are simply gone: the patch macro-shape
+is now the mask, and there is no rim to hold anything off, so all of
+`rimFill` / `rimCoverLoss` / `SPARSE_PRIMARY_MATS` / `isolateEdgeGate` have no v2
+counterpart.
+
+*The port exposed a defect that had been in v1 all along.* Measuring the
+distribution of emitted colours per generator showed **sand, grass, dryGrass and
+sedge each emitting one colour 96–98% of the time**, with mud and peat close
+behind. Their base fields were centred *on* a ramp rounding threshold rather than
+beside it, so the field never crossed one and the only variation left was
+`resolveTone`'s ~3.5% accent — a flat fill wearing a texture's clothes. Sand's
+ripples were mathematically present and completely invisible. `tone.ts`'s own
+doc comment states the intent as ~85% dominant / ~12% one step off / ~3.5%
+accent, so this was measurably wrong, not a matter of taste. Recentred the
+affected bases; **the whole set now spans 53–82% dominant.** `materials.test.ts`
+asserts no material exceeds 90%, which is the regression guard.
+
+Three other port findings: `sedge`'s tussock gate was a hard threshold on an
+axis-aligned block hash, which in lattice space drew a visible lattice of rhombi
+rather than clumps (now a fBm field); `scree`'s 3 px clumps read as grain rather
+than rubble at v2's scale (doubled); and `sand` needed a **shared structural
+layer** — the caveat `noise.ts` states outright. Periodicity makes a variant abut
+*itself* seamlessly, which is enough for statistically uniform texture, but dune
+ripples have direction and continuity and broke visibly where two variants met.
+Its ripple wavevector and most of its wandering phase now come from a
+variant-independent `structureSeed`, with a smaller per-variant phase term so
+every tile does not carry an identical motif. Rock cracks and frost polygons
+deliberately do *not* use it: their networks have no long-range direction, and a
+9×9 tiled field shows no grid.
+
+*The atlas.* A sprite is `texture(material, density, shape, bias) × mask(code,
+maskShape)`. The two factors are independent, so the generator — the expensive
+part — runs only `fullShapes × biasLevels` times per material-density, and the 16
+codes are produced by masking. Masks are material-independent and built once for
+the whole atlas. Defaults: 8 full-cell shapes (milestone L's measured floor) × 3
+tone-bias levels, 2 shapes per partial code, 52 sprites per material-density.
+Sprites are cropped to their bounding box before shelf-packing.
+
+Cropping is worth stating precisely because it is easy to overrate: a full-cell
+sprite's box *is* the diamond and saves nothing, so the win is entirely in the 14
+partial codes — a single-corner box is 33% of a full cell's, and the atlas comes
+out **24% smaller** than storing every sprite uncropped. The remaining obvious
+waste is that a diamond fills only half its bounding box; recovering it means
+interlocking diamonds at pack time, not worth it while a map fits in one or two
+pages.
+
+Measured cost:
+
+| scope | material-densities | sprites | pages | content | build |
+|---|---|---|---|---|---|
+| single biome (worst of 44) | 8 | 416 | 1 | 9.1 MB | 426 ms |
+| temperate 4-biome map | 10 | 520 | 1 | 11.1 MB | 543 ms |
+| montane 4-biome map | 15 | 780 | 2 | 16.5 MB | 747 ms |
+| polar 4-biome map | 5 | 260 | 1 | 5.7 MB | 259 ms |
+| every material at once (never happens) | 25 | 1300 | 2 | 28.3 MB | 1.1 s |
+
+Real maps land at **5.7–16.5 MB in one or two 2048² pages**, inside the plan's
+~18 MB budget and consistent with the real-map measurement above (a map holds
+1–4 biomes, never the whole taxonomy).
+
+*The designer* gains an `AtlasPanel` with three tabs — the 16-code mask set, a
+material's full-cell shape × tone-bias grid alongside its 16 masked codes, and
+the packed page — plus live shape/tone-level controls and a build-cost readout,
+so the variant-count question milestone T has to answer is a dropdown rather than
+a rebuild.
+
+Verified: 79 new cases pass (9 mask, 60 material, 10 atlas) alongside the 13
+lattice cases; `bunx tsc --noEmit` clean in-package and `bun run type-check`
+clean at root. (Six failures in the repo's `sun`/`temperature` suites are
+pre-existing — confirmed identical on a stashed tree.) **Palette closure holds
+through the new pipeline: 0 off-palette pixels over the atlas pages of all 44
+biomes, 47 of 56 colours reached — the same reach as v1.** The mask set was
+rendered with nominal/overhang/recession colour-coded (no recessions, every code
+overhangs); all 17 materials were rendered tiled 4×4 and individually seam-checked
+9×9; and a throwaway dual-grid compositor stood in for milestone D to render
+organic two-material boundaries and a 14×14 mixed field with **0 interior gaps**.
+The 8-shapes-vs-1 control from L reproduces exactly through the atlas: one shape
+shows an obvious lattice, eight show none. Designer rendered headless on all
+three atlas tabs.
+
+*Deliberately deferred.* Partial codes carry no tone-bias levels, so a boundary
+cell sits at bias 0 while its neighbours may not — much less visible than shape
+repetition, and it costs 14 × (levels − 1) sprites per material to fix; revisit
+at T. Water is still `bake.ts`'s flat fill and has no atlas entry.
+
 ## Open questions
 
-- Variant count per material: start at 4 full-cell + 2 per partial mask, tune
-  against the terrain preview once T lands.
+- Variant count per material: A ships 8 full-cell shapes × 3 tone-bias levels
+  + 2 per partial mask, and the designer exposes both as dropdowns. Still to be
+  judged against the terrain preview once T lands, along with whether partial
+  codes need their own bias levels.
 - Water: currently a flat noise fill in `bake.ts`. It should join the material
   stack as a top-priority material so shorelines get the same rounding, but
   animation is out of scope until F.
+- **A mat's density levels should be two entries in the priority stack, not one
+  entry with a per-cell density.** Found while standing up a throwaway
+  compositor to judge A: picking one density per cell puts the sparse→full step
+  on cell edges and paints flat diamonds across the field — exactly the read the
+  dual grid exists to prevent. Drawing `sparse` and then `full` above it, each
+  with its own corner code, rounds that step like any other material boundary
+  and needs nothing new from the atlas. For D to settle.
 - **Where to fix the drainage range defect** — see the measurement note below.
   Blocks nothing in L/A, but every substrate-selection judgment is wrong until
   it is resolved.
