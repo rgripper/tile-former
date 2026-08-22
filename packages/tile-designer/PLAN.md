@@ -229,7 +229,7 @@ src/app/              ← designer UI
   a wrap-check preview (same variant tiled 3×3 must show no seam).
 - [x] **A — Atlas + masks.** Procedural mask set, per-material variants,
   atlas pages, atlas inspector panel in the designer.
-- [ ] **D — Dual-grid composition.** `compose.ts`, priority stacking, altitude
+- [x] **D — Dual-grid composition.** `compose.ts`, priority stacking, altitude
   partition, coverage quantisation in `resolve.ts`.
 - [ ] **T — Altitude terrain preview.** Preview patch spanning several floor
   levels with cliff faces and rims, biome mixing and altitude steps judged
@@ -748,6 +748,84 @@ cell sits at bias 0 while its neighbours may not — much less visible than shap
 repetition, and it costs 14 × (levels − 1) sprites per material to fix; revisit
 at T. Water is still `bake.ts`'s flat fill and has no atlas entry.
 
+**D done (2026-08-22).** New `core/compose.ts` and `compose.test.ts` (14 cases);
+`resolve.ts` gained the quantisation the atlas needs and `types.ts` gained
+`RenderMaterialId`, `Density`/`Coverage`, and the altitude constants (mirrored
+from `isoRenderer.ts`, unified at G). `materials/index.ts` gained
+`MaterialInstance` / `materialInstance()`; `atlas.ts` now keys sprites by
+instance, not by id, and gained `mergeMaterials` for a whole field's request
+list.
+
+*The stacking rule the plan wrote down turned out to be one rule, not three.*
+"For each material present around the corner, compute the binary mask 'which of
+these 4 tiles is this material or higher'" is exactly right for substrates —
+one per tile, opaque, must leave no gap — and wrong for mats and for density
+levels, both discovered while writing `composeCell`:
+  - **Substrates nest**, as written: ascending by priority, each one's code is
+    "this corner's substrate ranks at or above mine", so the lowest-ranked
+    substrate present necessarily gets every corner and draws the full cell.
+  - **Mats add.** A tile carries a *set* of mats and every mat generator already
+    leaves holes for what is under it (that is the whole point of a mat).
+    Nesting them the substrate way would let a mat draw over a corner that
+    belongs to a different, higher-priority mat, and the substrate under *that*
+    corner would show through the wrong material's holes. A mat's code is
+    simply "this corner has me" — no ranking against other mats at all.
+  - **Density levels partition**, settling the open question standing since A:
+    `sparse` and `full` are separate stack entries and a corner belongs to
+    whichever one it actually is, never both. Nesting them (as if `full`
+    implied `sparse`) would double-paint a `full` corner and read as measurably
+    denser than the `full` texture alone.
+
+*Altitude is a bitwise AND, exactly as planned* — no new mechanism, just every
+code above computed only from the corners present at one floor level, one pass
+per level. Measured over the same nine climate segments used throughout v2 (9
+segments × 2 seeds, 39,762 dual cells at 48×48): **17.2% of cells straddle two
+floor levels, 0.00% straddle three or more.** That confirms the plan's "almost
+always 2" as a measurement, not an assumption, and the extra-pass cost is real
+but bounded — it's not a rare edge case, one cell in six pays it.
+
+*Coverage quantisation exposed an atlas-cost problem that wasn't specified.*
+`resolve.ts` already produced continuous `coverage` and `texture.{arid,wet}`
+scalars and a continuous grass climate tint; feeding those straight to the
+atlas — one instance per distinct value — measured **51 material instances on
+a real 48×48 map** (worst case across nine segments), against 11.6 material
+*ids*, almost all of it the per-tile grass tint. `resolve.ts` now snaps all
+three to a handful of levels before they reach a generator: `quantiseCoverage`
+(none/sparse/full, split at 0.4 — the measured median of 82,757 real mat
+coverage instances, chosen so both density levels earn their atlas space),
+3-level climate tint, 3-level arid, 2-level wet. Arid and wet are keyed only
+into instances of the three generators that actually read them
+(`READS_ARID`/`READS_WET` in `materials/index.ts`, checked against the real
+generator bodies rather than assumed) — keying every material by both measured
+22 → 51 instances for no reason, since 14 of 17 materials ignore both. End to
+end through `resolveStyle` → `tileSurface` → `fieldMaterials` on the same nine
+segments: **mean 14.6 instances per map, worst 21**, and composing a full field
+against its own built atlas produced zero missing lookups on every segment —
+the compositor's codes and the atlas's keys agree by construction, not by luck.
+
+*Found by measurement, not by eye: `turf`'s fill fractions were lying.* The doc
+comment states mats leave holes for the ground to show through; measuring the
+generators' actual output showed `grass` at `full` density painting **100%** of
+the cell and `dryGrass` 98% — the fBm gate concentrates around 0.5 the same way
+masks.ts's spill field does, so a fill fraction near either end of the range
+saturated instead of thinning out. Same fix as `SPILL_CONTRAST`: a contrast
+stretch about the midpoint (`TURF_CONTRAST = 2.4` in `materials/index.ts`)
+before the threshold compare, so `fill` means what its comment says.
+
+Verified: 106 tests pass (14 new in `compose.test.ts` — instance ordering,
+substrate nesting, additive mat stacking, sparse/full partition, the altitude
+AND at 2 and 3+ straddling levels, fringe clamping, and an integration test
+compositing a real 6×6 mixed field against a real atlas with **0 interior
+gaps**); `bunx tsc --noEmit` clean in-package, root `bun run type-check` clean.
+Real-map measurements above (altitude straddle rate, instance counts, turf
+fill) were re-run against the actual shipped code, not just the scratch scripts
+used to pick the constants.
+
+*Deliberately deferred to T.* `compose.ts` has no designer-visible surface yet
+— D's own milestone line doesn't ask for one, and T's is explicitly "becomes
+the designer's primary surface", so wiring a live multi-tile preview is that
+milestone's job, not this one's.
+
 ## Open questions
 
 - Variant count per material: A ships 8 full-cell shapes × 3 tone-bias levels
@@ -757,13 +835,6 @@ at T. Water is still `bake.ts`'s flat fill and has no atlas entry.
 - Water: currently a flat noise fill in `bake.ts`. It should join the material
   stack as a top-priority material so shorelines get the same rounding, but
   animation is out of scope until F.
-- **A mat's density levels should be two entries in the priority stack, not one
-  entry with a per-cell density.** Found while standing up a throwaway
-  compositor to judge A: picking one density per cell puts the sparse→full step
-  on cell edges and paints flat diamonds across the field — exactly the read the
-  dual grid exists to prevent. Drawing `sparse` and then `full` above it, each
-  with its own corner code, rounds that step like any other material boundary
-  and needs nothing new from the atlas. For D to settle.
 - **Where to fix the drainage range defect** — see the measurement note below.
   Blocks nothing in L/A, but every substrate-selection judgment is wrong until
   it is resolved.

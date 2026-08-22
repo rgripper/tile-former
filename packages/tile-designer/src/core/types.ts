@@ -44,6 +44,10 @@ export type ScatterId = (typeof SCATTER_IDS)[number];
 export const MATERIAL_IDS = [...SUBSTRATE_IDS, ...MAT_IDS, ...SCATTER_IDS] as const;
 export type MaterialId = (typeof MATERIAL_IDS)[number];
 
+// The subset that the atlas draws as texture: scatter is placed as discrete
+// stamps from milestone F, not as a masked coverage layer.
+export type RenderMaterialId = SubstrateId | MatId;
+
 // --- The unified material stack (v2) ---
 //
 // The substrate/mat distinction is a *selection* concept: `resolve.ts` scores
@@ -101,6 +105,34 @@ export const MATERIAL_PRIORITY: Record<MaterialId, number> = Object.fromEntries(
 // without knowing the stack.
 export function byPriority<T extends { id: MaterialId }>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => MATERIAL_PRIORITY[a.id] - MATERIAL_PRIORITY[b.id]);
+}
+
+// --- Quantised coverage ---
+//
+// A mat's continuous `coverage` fraction collapses to three levels (PLAN.md,
+// "One unified material stack, quantised coverage"). `none` needs no sprite, so
+// the atlas only ever builds the two densities.
+//
+// The two levels are *separate entries in the priority stack*, not one entry
+// carrying a per-cell density: `sparse` draws first and `full` draws over it,
+// each with its own corner code, so the sparse→full step gets rounded by the
+// dual grid like any other material boundary. Picking one density per cell
+// instead puts that step on cell edges and paints flat diamonds across the
+// field — exactly the read the dual grid exists to prevent.
+export const DENSITIES = ["sparse", "full"] as const;
+export type Density = (typeof DENSITIES)[number];
+export type Coverage = "none" | Density;
+
+// --- Altitude ---
+//
+// Mirrors isoRenderer.ts, which quantises altitude the same way. CLIFF_UNIT is
+// in *native bake* pixels: the renderer's 12 screen px at the 2x bake
+// resolution. Milestone G unifies the two copies.
+export const MAX_FLOORS = 10;
+export const CLIFF_UNIT = 24;
+
+export function floorLevel(altitude: number): number {
+  return Math.round(altitude * MAX_FLOORS);
 }
 
 // Blended substrate base (top-2 by score, weights sum to 1) plus 0..n mat

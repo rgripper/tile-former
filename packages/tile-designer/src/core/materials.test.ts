@@ -3,7 +3,13 @@ import { MAT_IDS, SUBSTRATE_IDS, TILE_H, TILE_W, type MaterialId } from "./types
 import { DEFAULT_BLOCKS, latticeAt } from "./lattice.ts";
 import { rowSpan } from "./pixels.ts";
 import { getPalette } from "./palette/index.ts";
-import { MATERIAL_GENS, defaultCtx, type MaterialCtx } from "./materials/index.ts";
+import {
+  MATERIAL_GENS,
+  READS_ARID,
+  READS_WET,
+  defaultCtx,
+  type MaterialCtx,
+} from "./materials/index.ts";
 
 const PALETTE = getPalette(null);
 const ALL = [...SUBSTRATE_IDS, ...MAT_IDS] as MaterialId[];
@@ -136,5 +142,43 @@ describe("threshold bias", () => {
     // ...but most must not, or it is a flat brightness step and every cell
     // becomes a visibly distinct diamond.
     expect(changed).toBeLessThan(flat.length * 0.5);
+  });
+});
+
+describe("climate-input declarations", () => {
+  // `materialInstance` keys an instance by `arid`/`wet` only for the ids in
+  // READS_ARID / READS_WET, because keying all 17 by both measured 22 -> 51
+  // instances on a real map. That is a cache key, so an undeclared read is a
+  // *silent* fault: two tiles at different wetness would collapse onto one key,
+  // the atlas would build one texture, and both would draw it — no null lookup,
+  // no crash, just the wrong pixels.
+  //
+  // Asserted against generator behaviour rather than against the source text,
+  // so it also catches a read arriving through a shared helper.
+  const readsField = (id: MaterialId, field: "arid" | "wet") => {
+    const gen = MATERIAL_GENS[id as never] as (u: number, v: number, x: MaterialCtx) => number | null;
+    for (let seed = 0; seed < 4; seed++) {
+      const base = { seed: 0x5eed1234 ^ ((seed + 1) * 0x9e3779b9), arid: 0, wet: 0 };
+      const lo = ctxFor(id, base);
+      const hi = ctxFor(id, { ...base, [field]: 1 });
+      for (let y = 0; y < TILE_H; y++) {
+        const [x0, x1] = rowSpan(y);
+        for (let x = x0; x <= x1; x++) {
+          const [u, v] = latticeAt(x, y);
+          if (gen(u, v, lo) !== gen(u, v, hi)) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Both directions: an undeclared read collides in the atlas, and a declared
+  // read that no longer happens splits instances that are the same texture.
+  it("READS_ARID lists exactly the generators whose output depends on arid", () => {
+    expect(new Set(ALL.filter((id) => readsField(id, "arid")))).toEqual(READS_ARID);
+  });
+
+  it("READS_WET lists exactly the generators whose output depends on wet", () => {
+    expect(new Set(ALL.filter((id) => readsField(id, "wet")))).toEqual(READS_WET);
   });
 });

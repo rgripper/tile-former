@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { TILE_H, TILE_W } from "./types.ts";
+import { DENSITIES, TILE_H, TILE_W } from "./types.ts";
 import { insideDiamond } from "./pixels.ts";
 import { CODE_EMPTY, CODE_FULL, MASK_CODES } from "./masks.ts";
 import { getPalette } from "./palette/index.ts";
+import { materialInstance } from "./materials/index.ts";
 import { resolveStyle } from "./resolve.ts";
 import { biomeToInput } from "./biomeInput.ts";
 import { biomes } from "@tile-former/tilegen";
 import {
   buildAtlas,
-  DENSITIES,
   materialsFromStyle,
   type Atlas,
   type MaterialRequest,
@@ -18,9 +18,11 @@ import {
 const PALETTE = getPalette(null);
 
 const REQUESTS: MaterialRequest[] = [
-  { id: "soil", ramp: PALETTE.soil, arid: 0.4, wet: 0.3, densities: ["full"] },
-  { id: "grass", ramp: PALETTE.grass, arid: 0.4, wet: 0.3, densities: [...DENSITIES] },
+  { ...materialInstance("soil", PALETTE.soil, 0.4, 0.3), densities: ["full"] },
+  { ...materialInstance("grass", PALETTE.grass, 0.4, 0.3), densities: [...DENSITIES] },
 ];
+
+const SOIL = REQUESTS[0]!.key;
 
 // One shared build — it is the expensive fixture in this file.
 const atlas: Atlas = buildAtlas(REQUESTS, { seed: 99, pageSize: 1024 });
@@ -36,7 +38,7 @@ describe("atlas lookup", () => {
           for (let shape = 0; shape < atlas.shapeCount(code); shape++) {
             for (let bias = 0; bias < atlas.biasCount(code); bias++) {
               expect(
-                atlas.lookup(req.id, density, code, shape, bias),
+                atlas.lookup(req.key, density, code, shape, bias),
                 `${req.id}/${density}/${code}/${shape}/${bias}`,
               ).not.toBeNull();
             }
@@ -47,7 +49,7 @@ describe("atlas lookup", () => {
   });
 
   it("has nothing for the empty code", () => {
-    expect(atlas.lookup("soil", "full", CODE_EMPTY, 0, 0)).toBeNull();
+    expect(atlas.lookup(SOIL, "full", CODE_EMPTY, 0, 0)).toBeNull();
     expect(atlas.shapeCount(CODE_EMPTY)).toBe(0);
   });
 
@@ -55,12 +57,12 @@ describe("atlas lookup", () => {
   // without knowing how many the atlas built for that code, so out-of-range
   // indices have to reduce rather than miss.
   it("reduces out-of-range shape and bias indices", () => {
-    const base = atlas.lookup("soil", "full", CODE_FULL, 2, 1);
-    expect(atlas.lookup("soil", "full", CODE_FULL, 2 + atlas.shapeCount(CODE_FULL), 1)).toEqual(base);
-    expect(atlas.lookup("soil", "full", CODE_FULL, 2, 1 + atlas.biasCount(CODE_FULL))).toEqual(base);
+    const base = atlas.lookup(SOIL, "full", CODE_FULL, 2, 1);
+    expect(atlas.lookup(SOIL, "full", CODE_FULL, 2 + atlas.shapeCount(CODE_FULL), 1)).toEqual(base);
+    expect(atlas.lookup(SOIL, "full", CODE_FULL, 2, 1 + atlas.biasCount(CODE_FULL))).toEqual(base);
     // Partial codes carry fewer variants than full ones; a compositor index
     // meant for a full cell must still land somewhere.
-    expect(atlas.lookup("soil", "full", 7, atlas.shapeCount(CODE_FULL) - 1, 2)).not.toBeNull();
+    expect(atlas.lookup(SOIL, "full", 7, atlas.shapeCount(CODE_FULL) - 1, 2)).not.toBeNull();
   });
 });
 
@@ -70,7 +72,7 @@ describe("sprite geometry", () => {
       for (const density of req.densities) {
         for (let code = 1; code < MASK_CODES; code++) {
           for (let shape = 0; shape < atlas.shapeCount(code); shape++) {
-            const ref = atlas.lookup(req.id, density, code, shape, 0)!;
+            const ref = atlas.lookup(req.key, density, code, shape, 0)!;
             expect(ref.offsetX).toBeGreaterThanOrEqual(0);
             expect(ref.offsetY).toBeGreaterThanOrEqual(0);
             expect(ref.offsetX + ref.w).toBeLessThanOrEqual(TILE_W);
@@ -103,7 +105,7 @@ describe("sprite geometry", () => {
         maxY = Math.max(maxY, y);
       }
     }
-    const ref = atlas.lookup("soil", "full", CODE_FULL, 0, 1)!;
+    const ref = atlas.lookup(SOIL, "full", CODE_FULL, 0, 1)!;
     expect([ref.offsetX, ref.offsetY, ref.w, ref.h]).toEqual([minX, minY, maxX - minX + 1, maxY - minY + 1]);
     let mismatches = 0;
     for (let y = 0; y < ref.h; y++) {
@@ -123,8 +125,8 @@ describe("sprite geometry", () => {
   // 33% of a full cell's, and the atlas as a whole is 24% smaller than storing
   // every sprite as an uncropped rect.
   it("crops partial codes well below the full cell", () => {
-    const oneCorner = atlas.lookup("soil", "full", 1, 0, 0)!;
-    const fullCell = atlas.lookup("soil", "full", CODE_FULL, 0, 0)!;
+    const oneCorner = atlas.lookup(SOIL, "full", 1, 0, 0)!;
+    const fullCell = atlas.lookup(SOIL, "full", CODE_FULL, 0, 0)!;
     expect(oneCorner.w * oneCorner.h).toBeLessThan(fullCell.w * fullCell.h * 0.4);
     expect(atlas.stats.spritePixels * 4).toBeLessThan(atlas.stats.uncroppedBytes * 0.8);
   });
@@ -160,7 +162,7 @@ describe("atlas build", () => {
         for (let code = 1; code < MASK_CODES; code++) {
           for (let shape = 0; shape < atlas.shapeCount(code); shape++) {
             for (let bias = 0; bias < atlas.biasCount(code); bias++) {
-              const ref = atlas.lookup(req.id, density, code, shape, bias)!;
+              const ref = atlas.lookup(req.key, density, code, shape, bias)!;
               const page = claimed[ref.page]!;
               const w = atlas.pages[ref.page]!.width;
               for (let y = 0; y < ref.h; y++) {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { StyleParams } from "../core/types.ts";
+import type { Density, StyleParams } from "../core/types.ts";
 import { TILE_H, TILE_W } from "../core/types.ts";
 import { makeBuffer, type PixelBuffer } from "../core/pixels.ts";
 import { CODE_FULL, MASK_CODES, type MaskBitmap } from "../core/masks.ts";
@@ -8,7 +8,6 @@ import {
   DEFAULT_ATLAS_CONFIG,
   materialsFromStyle,
   type Atlas,
-  type Density,
   type SpriteRef,
 } from "../core/atlas.ts";
 import { TileCanvas } from "./TileCanvas.tsx";
@@ -78,13 +77,13 @@ function maskSheet(atlas: Atlas): PixelBuffer {
 // The full-cell variant space of one material: shape across, tone bias down.
 // Shapes are what break the repeating-lattice read; bias re-mixes light and dark
 // blocks without shifting the whole cell a ramp step.
-function variantSheet(atlas: Atlas, id: string, density: Density): PixelBuffer {
+function variantSheet(atlas: Atlas, key: string, density: Density): PixelBuffer {
   const shapes = atlas.shapeCount(CODE_FULL);
   const biases = atlas.biasCount(CODE_FULL);
   const buf = makeBuffer(shapes * CELL_W, biases * CELL_H);
   for (let s = 0; s < shapes; s++) {
     for (let b = 0; b < biases; b++) {
-      const ref = atlas.lookup(id as never, density, CODE_FULL, s, b);
+      const ref = atlas.lookup(key, density, CODE_FULL, s, b);
       if (ref) blitSprite(buf, atlas, ref, s * CELL_W, b * CELL_H);
     }
   }
@@ -92,11 +91,11 @@ function variantSheet(atlas: Atlas, id: string, density: Density): PixelBuffer {
 }
 
 // One material cut by all 16 codes — what the compositor actually indexes.
-function codeSheet(atlas: Atlas, id: string, density: Density): PixelBuffer {
+function codeSheet(atlas: Atlas, key: string, density: Density): PixelBuffer {
   const rows = Math.ceil(MASK_CODES / PER_ROW);
   const buf = makeBuffer(PER_ROW * CELL_W, rows * CELL_H);
   for (let code = 1; code < MASK_CODES; code++) {
-    const ref = atlas.lookup(id as never, density, code, 0, 0);
+    const ref = atlas.lookup(key, density, code, 0, 0);
     if (ref) blitSprite(buf, atlas, ref, (code % PER_ROW) * CELL_W, Math.floor(code / PER_ROW) * CELL_H);
   }
   return buf;
@@ -133,11 +132,11 @@ export function AtlasPanel({ style, seed }: { style: StyleParams; seed: number }
     if (tab === "masks") return maskSheet(atlas);
     if (tab === "page") return atlas.pages[0]!;
     if (!material) return makeBuffer(CELL_W, CELL_H);
-    return variantSheet(atlas, material.id, activeDensity);
+    return variantSheet(atlas, material.key, activeDensity);
   }, [tab, atlas, material, activeDensity]);
 
   const codes = useMemo(
-    () => (tab === "variants" && material ? codeSheet(atlas, material.id, activeDensity) : null),
+    () => (tab === "variants" && material ? codeSheet(atlas, material.key, activeDensity) : null),
     [tab, atlas, material, activeDensity],
   );
 
@@ -202,8 +201,8 @@ export function AtlasPanel({ style, seed }: { style: StyleParams; seed: number }
           <div className="segmented">
             {requests.map((r, i) => (
               <button
-                key={`${r.id}`}
-                className={material?.id === r.id ? "active" : undefined}
+                key={r.key}
+                className={material?.key === r.key ? "active" : undefined}
                 onClick={() => setSelected(i)}
               >
                 {r.id}

@@ -48,34 +48,27 @@
 // treating sprites as rectangles, which the renderer would also have to
 // understand; not worth it while a whole map's atlas fits in one page.
 
-import type { MatId, Ramp, StyleParams, SubstrateId } from "./types.ts";
-import { TILE_H, TILE_W } from "./types.ts";
+import type { Density, RenderMaterialId, StyleParams } from "./types.ts";
+import { DENSITIES, TILE_H, TILE_W } from "./types.ts";
 import { DEFAULT_BLOCKS, latticeAt } from "./lattice.ts";
 import { rowSpan, type PixelBuffer } from "./pixels.ts";
 import { buildMaskSet, CODE_EMPTY, CODE_FULL, MASK_CODES, type MaskBitmap } from "./masks.ts";
-import { MATERIAL_GENS, isCoverageMaterial, type MaterialCtx } from "./materials/index.ts";
-
-export type AtlasMaterialId = SubstrateId | MatId;
-
-// Quantised coverage (PLAN.md, "One unified material stack, quantised
-// coverage"). `none` needs no sprite, so only two levels are ever built.
-export const DENSITIES = ["sparse", "full"] as const;
-export type Density = (typeof DENSITIES)[number];
+import {
+  MATERIAL_GENS,
+  materialInstance,
+  type MaterialCtx,
+  type MaterialInstance,
+} from "./materials/index.ts";
 
 // How full a mat's own texture is at each level. `full` is not 1.0 anywhere in
 // the generators either — every mat deliberately leaves holes so the ground
 // shows through; this scales that on top.
 export const DENSITY_FILL: Record<Density, number> = { sparse: 0.55, full: 1 };
 
-export type MaterialRequest = {
-  id: AtlasMaterialId;
-  ramp: Ramp;
-  arid: number;
-  wet: number;
-  // Substrates are always `["full"]` — they are the ground, not something lying
-  // on it. `materialsFromStyle` enforces that.
-  densities: Density[];
-};
+// One instance plus the density levels to build for it. Substrates are always
+// `["full"]` — they are the ground, not something lying on it.
+// `materialsFromStyle` enforces that.
+export type MaterialRequest = MaterialInstance & { densities: Density[] };
 
 export type AtlasConfig = {
   seed: number;
@@ -125,7 +118,7 @@ export type AtlasStats = {
   packedBytes: number;
   uncroppedBytes: number;
   spritePixels: number;
-  perMaterial: Array<{ id: AtlasMaterialId; density: Density; sprites: number; pixels: number }>;
+  perMaterial: Array<{ key: string; id: RenderMaterialId; density: Density; sprites: number; pixels: number }>;
 };
 
 export type Atlas = {
@@ -138,8 +131,10 @@ export type Atlas = {
   // without duplicating the policy above.
   shapeCount(code: number): number;
   biasCount(code: number): number;
+  // Keyed by `MaterialInstance.key`, not by material id: one map can hold two
+  // instances of `grass` under different biome ramps.
   lookup(
-    id: AtlasMaterialId,
+    key: string,
     density: Density,
     code: number,
     shape: number,
@@ -153,7 +148,7 @@ export type Atlas = {
 // where the material does not cover.
 type VariantTexture = Int32Array; // length TILE_W * TILE_H
 
-function renderVariant(id: AtlasMaterialId, ctx: MaterialCtx): VariantTexture {
+function renderVariant(id: RenderMaterialId, ctx: MaterialCtx): VariantTexture {
   const gen = MATERIAL_GENS[id];
   const out = new Int32Array(TILE_W * TILE_H);
   for (let y = 0; y < TILE_H; y++) {
@@ -221,12 +216,12 @@ type PendingSprite = {
 };
 
 const spriteKey = (
-  id: AtlasMaterialId,
+  key: string,
   density: Density,
   code: number,
   shape: number,
   bias: number,
-): string => `${id}|${density}|${code}|${shape}|${bias}`;
+): string => `${key}|${density}|${code}|${shape}|${bias}`;
 
 // Cuts a variant texture with a mask and crops to the result's bounding box.
 // Returns null when nothing survives (only possible for a very sparse mat under
@@ -316,13 +311,13 @@ export function buildAtlas(
             const mask = masks[code]![shape % masks[code]!.length]!;
             const cutSprite = cut(tex, mask);
             if (cutSprite === null) continue;
-            pending.push({ key: spriteKey(req.id, density, code, shape, bias), ...cutSprite });
+            pending.push({ key: spriteKey(req.key, density, code, shape, bias), ...cutSprite });
             sprites++;
             pixels += cutSprite.w * cutSprite.h;
           }
         }
       }
-      perMaterial.push({ id: req.id, density, sprites, pixels });
+      perMaterial.push({ key: req.key, id: req.id, density, sprites, pixels });
     }
   }
 
@@ -399,13 +394,12 @@ export function buildAtlas(
     stats,
     shapeCount,
     biasCount,
-    lookup(id, density, code, shape, bias) {
+    lookup(key, density, code, shape, bias) {
       if (code === CODE_EMPTY) return null;
       const shapes = shapeCount(code);
       const biases = biasCount(code);
       if (shapes === 0) return null;
-      const key = spriteKey(id, density, code, shape % shapes, bias % biases);
-      return refs.get(key) ?? null;
+      return refs.get(spriteKey(key, density, code, shape % shapes, bias % biases)) ?? null;
     },
   };
 }
@@ -422,16 +416,45 @@ export function materialsFromStyle(style: StyleParams): MaterialRequest[] {
   const { arid, wet } = style.texture;
   const out: MaterialRequest[] = [];
   for (const s of style.surface.substrates) {
-    out.push({ id: s.id, ramp: style.substrateRamps[s.id]!, arid, wet, densities: ["full"] });
+    out.push({ ...materialInstance(s.id, style.substrateRamps[s.id]!, arid, wet), densities: ["full"] });
   }
   for (const m of style.surface.mats) {
     out.push({
-      id: m.id,
-      ramp: style.matRamps[m.id]!,
-      arid,
-      wet,
-      densities: isCoverageMaterial(m.id) ? [...DENSITIES] : ["full"],
+      ...materialInstance(m.id, style.matRamps[m.id]!, arid, wet),
+      densities: [...DENSITIES],
     });
   }
   return out;
+}
+
+// The atlas for a whole field is the union of its tiles' instances. Requests
+// with the same key are the same texture by construction (the key covers every
+// generator input), so merging them is a set union with the density levels
+// OR-ed together — a mat that is `sparse` in one tile and `full` in another
+// needs both.
+//
+// Measured over nine climate segments: a real 48x48 map holds 11.6 material ids
+// but 15.8 instances (worst 22), the extra ~36% being the climate tint on grass
+// and the arid/wet levels on soil, clay and mud. That is the number the atlas
+// budget has to be read against, not the id count.
+export function mergeMaterials(lists: Iterable<readonly MaterialRequest[]>): MaterialRequest[] {
+  const byKey = new Map<string, MaterialRequest>();
+  for (const list of lists) {
+    for (const req of list) {
+      const existing = byKey.get(req.key);
+      if (existing === undefined) {
+        byKey.set(req.key, { ...req, densities: [...req.densities] });
+        continue;
+      }
+      for (const d of req.densities) {
+        if (!existing.densities.includes(d)) existing.densities.push(d);
+      }
+    }
+  }
+  // Density order has to be the canonical one: `buildAtlas` iterates it and the
+  // compositor draws `sparse` under `full`.
+  for (const req of byKey.values()) {
+    req.densities.sort((a, b) => DENSITIES.indexOf(a) - DENSITIES.indexOf(b));
+  }
+  return [...byKey.values()];
 }

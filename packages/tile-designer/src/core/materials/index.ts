@@ -38,7 +38,7 @@
 // Nothing here knows about tiles, dual cells, masks or the atlas. A generator is
 // a pure function of (u, v) in the unit lattice square plus its context.
 
-import type { MatId, Ramp, SubstrateId } from "../types.ts";
+import type { MatId, Ramp, RenderMaterialId, SubstrateId } from "../types.ts";
 import {
   periodicAnchors,
   periodicBlockHash,
@@ -87,6 +87,46 @@ export type MaterialCtx = {
 // A material's color at (u, v), or null where it does not cover — mats leave
 // holes for what is underneath, substrates never do.
 export type MaterialGen = (u: number, v: number, c: MaterialCtx) => number | null;
+
+// --- Material instances -------------------------------------------------------
+//
+// The atlas stores one set of variants per *instance*, not per material id: a
+// map holds several biomes, and the same `grass` under two of them can carry
+// different ramps (biome overrides, and the climate tint in resolve.ts). Two
+// instances of one id are two independent entries in the draw stack, so the
+// boundary between them gets dual-grid rounding like any other.
+//
+// The key therefore has to cover everything the generator reads — but only what
+// it reads. Keying every material by `arid` and `wet` measured 22 -> 51
+// instances on real maps, almost all of it spurious: only three generators look
+// at them at all. `READS_ARID` / `READS_WET` declare which, and
+// `materials.test.ts` asserts the declaration matches what the generators
+// actually do, so it cannot drift into cache collisions.
+export const READS_ARID: ReadonlySet<RenderMaterialId> = new Set<RenderMaterialId>(["soil", "clay"]);
+export const READS_WET: ReadonlySet<RenderMaterialId> = new Set<RenderMaterialId>(["clay", "mud"]);
+
+// One material as the atlas builds it: an id plus every generator input that is
+// not a variant index.
+export type MaterialInstance = {
+  id: RenderMaterialId;
+  key: string;
+  ramp: Ramp;
+  arid: number;
+  wet: number;
+};
+
+const rampKey = (ramp: Ramp) => ramp.map((c) => c.toString(16).padStart(6, "0")).join("");
+
+export function materialInstance(
+  id: RenderMaterialId,
+  ramp: Ramp,
+  arid: number,
+  wet: number,
+): MaterialInstance {
+  const a = READS_ARID.has(id) ? arid : 0;
+  const w = READS_WET.has(id) ? wet : 0;
+  return { id, key: `${id}|${rampKey(ramp)}|${a}|${w}`, ramp, arid: a, wet: w };
+}
 
 export function defaultCtx(ramp: Ramp, seed: number): MaterialCtx {
   return {
@@ -224,12 +264,23 @@ export const SUBSTRATE_GENS: Record<SubstrateId, MaterialGen> = {
 // now the mask, and there is no rim to hold anything off. What is left is the
 // generator's own texture, scaled by `density`.
 
+// fBm concentrates around 0.5, so gating on it raw saturates both ends of the
+// fill range: measured, `turf` at fill 0.92 painted **100%** of the cell and at
+// 0.78 painted 98% — grass and dryGrass at `full` density left no holes at all,
+// against the stated intent right above. Stretching the field about its midpoint
+// by this much makes the CDF very nearly the identity (0.3 -> 30%, 0.5 -> 50%,
+// 0.92 -> 88%), so `fill` reads as "fraction of the cell painted" and the
+// density levels mean what they say. Same fix, and coincidentally the same
+// constant, as masks.ts's SPILL_CONTRAST.
+const TURF_CONTRAST = 2.4;
+
 // Turf fill shared by the grassy mats. The show-through is a low-frequency mask,
 // not per-pixel, so bare ground forms small worn patches rather than brown
 // speckle. Tonal life comes from the accent in `resolveLatticeTone`.
 function turf(u: number, v: number, c: MaterialCtx, fill: number, densityScale = 1): number | null {
   const cover = fill * c.density * densityScale;
-  if (periodicFbm(u, v, c.seed ^ 0x1f123bb5, 12) > cover) return null;
+  const n = periodicFbm(u, v, c.seed ^ 0x1f123bb5, 12);
+  if ((n - 0.5) * TURF_CONTRAST + 0.5 > cover) return null;
   const blade = periodicBlockHash(u, v, c.seed ^ 0x51ed270b, c.blocks);
   return resolveLatticeTone(
     1.85 + (blade - 0.5) * 1.05 + c.bias,
@@ -358,8 +409,3 @@ export const MATERIAL_GENS: Record<SubstrateId | MatId, MaterialGen> = {
   ...MAT_GENS,
 };
 
-// Substrates are the ground; they always fill. Mats lie on it and are the only
-// materials that take a density level.
-export function isCoverageMaterial(id: SubstrateId | MatId): boolean {
-  return id in MAT_GENS;
-}

@@ -6,6 +6,7 @@
 // "Surface taxonomy"). Scores are heuristics tuned via the biome gallery.
 
 import type {
+  Coverage,
   DesignInput,
   MatId,
   StyleParams,
@@ -148,6 +149,48 @@ export function scoreMats(i: DesignInput): Record<MatId, number> {
   };
 }
 
+// --- Quantisation (v2) ---
+//
+// v1 fed every scalar the resolver produced straight into per-pixel generators,
+// so a continuous value cost nothing. v2 bakes a variant per distinct value, so
+// each one costs atlas space: two tiles whose grass ramps differ by one climate
+// step are two independent entries in the material stack. Everything continuous
+// that reaches a generator is therefore snapped to a small number of levels
+// here, at the one place that produces it.
+//
+// Measured over nine climate segments (48×48 maps): unquantised, a real map
+// needs 51 material instances against 11.6 material ids, three quarters of it
+// the per-tile climate tint on grass. Quantised as below it needs 15.8 (worst
+// 22) — see atlas.ts, `mergeMaterials`.
+//
+// Snapping is to *level midpoints* (`Math.round`), not floors, so a quantised
+// value is never further than half a level from the truth.
+const qLevel = (x: number, levels: number) =>
+  Math.round(clamp01(x) * (levels - 1)) / (levels - 1);
+
+// Climate tint on grass: dry → yellow-green, wet → deep green, cold desaturates.
+const TINT_LEVELS = 3;
+// Crack-network strength (soil, clay) and sheen strength (clay, mud). Only
+// three generators read these at all — see `READS_ARID` / `READS_WET`.
+const ARID_LEVELS = 3;
+const WET_LEVELS = 2;
+
+// Coverage above this renders at `full` density, below it at `sparse`.
+//
+// The two are separate stack entries, so the boundary between them is rounded
+// like any other material boundary (types.ts, "Quantised coverage"). The
+// threshold is the *measured median* of mat coverage over real maps (0.41 over
+// 82,757 mat instances across nine climate segments), which splits the map
+// roughly evenly and so makes both levels earn their atlas space. It is not a
+// fill fraction: `scoreMats` emits a selection score, and what a generator
+// paints at a given density varies from 16% (leafLitter) to 88% (grass).
+export const COVERAGE_FULL_MIN = 0.4;
+
+export function quantiseCoverage(coverage: number): Coverage {
+  if (coverage <= MAT_COVERAGE_MIN) return "none";
+  return coverage >= COVERAGE_FULL_MIN ? "full" : "sparse";
+}
+
 // Below this fraction of the winner's score, the runner-up substrate is
 // dropped and the tile renders as a single material.
 const SECOND_SUBSTRATE_MIN_RATIO = 0.35;
@@ -204,8 +247,15 @@ export function resolveStyle(i: DesignInput): StyleParams {
       // tintRamp snaps the result back onto the master palette, so a dry
       // climate slides grass onto `straw` steps rather than inventing an
       // intermediate green — climate moves between authored ramps.
-      const dryness = 1 - i.effectiveMoisture;
-      const coldness = fall(i.temperature, 0, 12);
+      //
+      // Quantised before tinting, not after: snapping the *result* would still
+      // let every tile in a gradient land on its own ramp, and a per-tile ramp
+      // shift is the exact failure the tone axis is a threshold bias to avoid
+      // (PLAN.md, "Decided"). At three levels a map holds at most a handful of
+      // grass instances, and the boundary between two of them is dual-grid
+      // rounded like any other material boundary.
+      const dryness = qLevel(1 - i.effectiveMoisture, TINT_LEVELS);
+      const coldness = qLevel(fall(i.temperature, 0, 12), TINT_LEVELS);
       ramp = tintRamp(ramp, dryness * 0.045, -coldness * 0.25, dryness * 0.04);
     }
     matRamps[mat.id] = ramp;
@@ -230,8 +280,8 @@ export function resolveStyle(i: DesignInput): StyleParams {
       leaf: palette.leaf,
     },
     texture: {
-      arid: fall(i.effectiveMoisture, 0.08, 0.35) * rise(i.temperature, -5, 8),
-      wet: Math.max(i.riparian, rise(i.effectiveMoisture, 0.7, 0.95)),
+      arid: qLevel(fall(i.effectiveMoisture, 0.08, 0.35) * rise(i.temperature, -5, 8), ARID_LEVELS),
+      wet: qLevel(Math.max(i.riparian, rise(i.effectiveMoisture, 0.7, 0.95)), WET_LEVELS),
     },
     scatter: {
       fern:
