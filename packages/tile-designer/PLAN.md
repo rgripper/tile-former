@@ -231,7 +231,7 @@ src/app/              ← designer UI
   atlas pages, atlas inspector panel in the designer.
 - [x] **D — Dual-grid composition.** `compose.ts`, priority stacking, altitude
   partition, coverage quantisation in `resolve.ts`.
-- [ ] **T — Altitude terrain preview.** Preview patch spanning several floor
+- [x] **T — Altitude terrain preview.** Preview patch spanning several floor
   levels with cliff faces and rims, biome mixing and altitude steps judged
   together. Becomes the designer's primary surface (a single zoomed tile stops
   being the meaningful unit).
@@ -825,6 +825,94 @@ used to pick the constants.
 — D's own milestone line doesn't ask for one, and T's is explicitly "becomes
 the designer's primary surface", so wiring a live multi-tile preview is that
 milestone's job, not this one's.
+
+**T done (2026-08-22).** New `core/terrain.ts`, `core/terrain.test.ts` (14 cases),
+and `app/TerrainPreview.tsx`; `previewUtils.ts` gained the biome-cluster
+placement generalized from `MixedBiomePreview` (width×height, not just square,
+so both previews share one implementation). Wired into `App.tsx` as the
+designer's primary preview, ahead of the atlas/palette panels, per the
+milestone's own framing.
+
+*What this milestone actually had to solve.* `compose.ts` only ever asked "which
+sprites cover this dual cell" — cliff faces and altitude rims are a *tile*
+concept (compose.ts says so explicitly: "the renderer's job… not the atlas's"),
+offset from the dual grid by half a tile (masks.ts). Nothing before T combined
+the two grids into one picture. `tileOrigin` is that relationship read
+backwards from `compose.ts`'s `cellOrigin` (shift up by `TILE_H/2`); cliff walls
+and rim strokes are ports of `isoRenderer.ts`'s existing per-tile `Graphics`
+code, unchanged in geometry, just at the 2× native-bake scale and rasterised
+into a `PixelBuffer` instead of a Pixi `Graphics` object (new `fillPolygon` /
+`drawLine` primitives in `pixels.ts`, since the designer has no scene graph).
+
+*Depth-sorting two grids with different origins was the one real design
+decision.* Both `isoRenderer.ts` (tiles) and `compose.ts` (dual cells) already
+sort back-to-front by `col + row`, but a dual cell sits, on screen, between
+tile `(c, r)` and tile `(c+1, r+1)` — its apparent depth is the tile grid's key
+shifted by half a cell in each axis, i.e. `cellDepth + 1`, not `cellDepth`.
+Using that offset for dual-cell items and the bare `col + row` for tile items
+in one merged, depth-sorted paint list interleaves the two correctly: an
+elevated tile's wall is occluded by the floor sprites in front of it and itself
+occludes the ones behind it. This is a prototype of an interleaving problem
+milestone G has to solve for real inside Pixi's container ordering — the file
+header says so, and it is why `renderTerrain` produces a plain `PixelBuffer`
+rather than trying to be the shape G's renderer will end up taking.
+
+*That heuristic is not exact, and the tests are written to not pretend it is.*
+Two independent grids can legitimately land on the same screen point, and which
+one wins there depends on the depth tie-break. Measuring this directly (a
+throwaway script, not a kept test): a uniformly-elevated flat field shows the
+predicted "every tile's own pillar is hidden behind the next one" behavior at
+low elevations, but **not** at high ones or near the map fringe, where the
+finite grid runs out of neighbours to do the occluding — cliff wall pixels went
+from 0 at level 1 to several thousand at level 3 on a 4×4 uniformly-raised
+field. So no test asserts an exact pixel color at a hand-computed coordinate;
+`terrain.test.ts` instead scans the whole buffer for exact-color counts
+(present/absent, not "at this pixel"), and the one true-by-construction case —
+a perfectly flat, level-0 field, where `drawTileWalls` never calls
+`fillPolygon`/`drawLine` at all — is what pins down the "nothing drawn when
+nothing should be" contract exactly.
+
+*Synthetic altitude field, calibrated against D's own measurement.*
+`terrainLevel` picks integer floor levels directly from a low-frequency `fbm`
+field around a base level (not from a continuous altitude value that happens to
+round the way you want), so `floorLevel(level / MAX_FLOORS)` round-trips
+exactly for any integer level — verified for all 11 levels under floating-point
+rounding, not just assumed. `defaultLevelFrequency` and the panel's default
+"relief" of 2 were picked by measuring `straddleFraction` (new, and reused by
+both the panel's readout and the test suite) across grid sizes 12–32 and 3
+seeds at relief 1/2/3: relief 2 lands straddle rates in the 10–28% range and
+3–4 distinct levels per field, the same neighbourhood as D's real-map figures
+(17.2% straddle, ~4 levels) — not an exact match (a hand-authored scenario
+doesn't need one), but evidence the synthetic scenario isn't degenerate (either
+a flat field or wall-to-wall single-tile noise, both of which would defeat the
+preview's purpose).
+
+*Composition itself needed no new machinery.* `renderTerrain` calls the exact
+same `composeCell` milestone D shipped, unmodified — the only new floor-side
+code is depth-sorting its output against the tile-wall items. The "no interior
+gaps" property compose.test.ts already established for `composeField` in
+isolation is re-verified here through the full merged pipeline (cliffs + rims +
+floor in one buffer) on a flat field, closing the gap D's own log flagged as
+deferred ("no designer-visible surface yet").
+
+Verified: 14 new tests (raster primitive correctness, the `tileOrigin`/
+`cellOrigin` relationship at multiple levels, `terrainLevel` bounds and
+plateau-coherence, `straddleFraction` against both a checkerboard extreme and a
+hand-counted mixed field, and the renderTerrain suite above) alongside the
+existing 108; `bunx tsc --noEmit` clean in-package, root `bun run type-check`
+clean. Headless render of the running designer (Chrome `--headless=new`) at the
+default 16×16/relief-2 scenario over a real biome (Tropical Rainforest) shows
+the intended picture at a glance: a cliff face where the patch's outer edge
+meets ground level, and an organic wandering rim line — not a straight
+diamond-contour cut — tracing an interior plateau boundary, both sitting under
+the same biome-mixed, textured floor composition milestone D produced.
+
+*Deliberately deferred.* Exact cross-grid occlusion (the depth-tie approximation
+above) is explicitly G's problem, not fixed here. The panel's biome-cluster
+placement reuses `MixedBiomePreview`'s wobbly-circle blobs rather than a purpose
+-built terrain-scale biome layout; revisit if T's read on biome seams next to
+altitude steps turns out to need one. Water is still absent from the composed
+floor (same gap A and D both logged).
 
 ## Open questions
 

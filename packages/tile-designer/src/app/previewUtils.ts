@@ -1,11 +1,15 @@
 // Shared helpers for the multi-tile preview panels: world-coordinate jitter
 // so seam checks exercise the realistic near-identical-neighbor case (not the
-// trivial identical-tile one), and an alpha-aware blit for compositing baked
-// tiles into one big canvas buffer.
+// trivial identical-tile one), an alpha-aware blit for compositing baked tiles
+// into one big canvas buffer, and minority-biome cluster placement so a
+// preview field reads as a mix rather than one flat biome.
 
+import { biomes, type Biome } from "@tile-former/tilegen";
 import type { DesignInput } from "../core/types.ts";
 import { hash2D } from "../core/rng.ts";
 import type { PixelBuffer } from "../core/pixels.ts";
+import { makeRng } from "../core/rng.ts";
+import { biomeToInput } from "../core/biomeInput.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
@@ -39,4 +43,86 @@ export function blit(dst: PixelBuffer, src: PixelBuffer, dx: number, dy: number)
       dst.data[dof + 3] = 255;
     }
   }
+}
+
+// --- Minority-biome clusters ---------------------------------------------------
+// Wobbly-circle blobs of a different biome cut into an otherwise uniform field,
+// placed on opposite sides so the base biome keeps the majority of the area.
+// Originally milestone L's `MixedBiomePreview`; generalized to width×height (not
+// just a square grid) so the terrain preview can reuse it.
+
+type Harmonic = { amp: number; freq: number; phase: number };
+export type Cluster = {
+  biome: Biome;
+  input: DesignInput;
+  cx: number;
+  cy: number;
+  radius: number;
+  harmonics: Harmonic[];
+};
+
+function pickBiome(pool: Biome[], rng: () => number, avoid: Set<number>): Biome {
+  let biome = pool[Math.floor(rng() * pool.length)]!;
+  for (let guard = 0; avoid.has(biome.id) && guard < 8; guard++) {
+    biome = pool[Math.floor(rng() * pool.length)]!;
+  }
+  return biome;
+}
+
+function makeCluster(biome: Biome, cx: number, cy: number, radius: number, rng: () => number): Cluster {
+  const harmonics: Harmonic[] = [1, 2, 3].map((freq) => ({
+    amp: radius * (0.15 + rng() * 0.15),
+    freq,
+    phase: rng() * Math.PI * 2,
+  }));
+  return { biome, input: biomeToInput(biome), cx, cy, radius, harmonics };
+}
+
+// `count` clusters of a different biome than `selectedBiomeId`, placed roughly
+// opposite each other within a `width`×`height` field centred on (0, 0). Sized
+// off `min(width, height)` so a non-square field still gets clusters that fit
+// inside its narrower axis.
+export function pickClusters(
+  selectedBiomeId: number | null,
+  seed: number,
+  width: number,
+  height: number,
+  radiusRange: readonly [number, number],
+  count = 2,
+): Cluster[] {
+  const half = Math.min(width, height) / 2;
+  const [minRadius, maxRadius] = radiusRange;
+  const rng = makeRng((seed ^ 0x5eed1) >>> 0);
+  const pool = biomes.filter((b) => b.id !== selectedBiomeId);
+  if (pool.length === 0) return [];
+
+  const avoid = new Set<number>(selectedBiomeId === null ? [] : [selectedBiomeId]);
+  const baseAngle = rng() * Math.PI * 2;
+  const clusters: Cluster[] = [];
+  for (let i = 0; i < count; i++) {
+    const biome = pickBiome(pool, rng, avoid);
+    avoid.add(biome.id);
+    const radius = minRadius + rng() * (maxRadius - minRadius);
+    const angle = baseAngle + (i * Math.PI * 2) / count + (rng() - 0.5) * 1.2;
+    const dist = half * 0.35 + rng() * half * 0.35;
+    const cx = Math.round(Math.cos(angle) * dist);
+    const cy = Math.round(Math.sin(angle) * dist);
+    clusters.push(makeCluster(biome, cx, cy, radius, rng));
+  }
+  return clusters;
+}
+
+// Which cluster (if any) owns tile (tx, ty), given field coordinates centred on
+// (0, 0) as `pickClusters` produces.
+export function clusterAt(tx: number, ty: number, clusters: readonly Cluster[]): Cluster | null {
+  for (const cluster of clusters) {
+    const dx = tx - cluster.cx;
+    const dy = ty - cluster.cy;
+    const dist = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    let r = cluster.radius;
+    for (const h of cluster.harmonics) r += h.amp * Math.sin(h.freq * angle + h.phase);
+    if (dist <= r) return cluster;
+  }
+  return null;
 }

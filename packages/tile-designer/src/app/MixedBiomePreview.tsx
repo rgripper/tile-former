@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
-import { biomes } from "@tile-former/tilegen";
-import type { Biome } from "@tile-former/tilegen";
 import type { DesignInput, RenderStyle } from "../core/types.ts";
 import { TILE_H, TILE_W } from "../core/types.ts";
 import { resolveStyle } from "../core/resolve.ts";
 import { bakeTile } from "../core/bake.ts";
 import { makeBuffer, type PixelBuffer } from "../core/pixels.ts";
-import { makeRng } from "../core/rng.ts";
-import { biomeToInput } from "../core/biomeInput.ts";
 import { TileCanvas } from "./TileCanvas.tsx";
-import { blit, jitterInput } from "./previewUtils.ts";
+import { blit, clusterAt, jitterInput, pickClusters, type Cluster } from "./previewUtils.ts";
 
 // Selectable grid extents in tiles. The largest (576 tiles) is ~1.5s to bake
 // on a modern machine, so this preview only bakes on demand (see
@@ -29,66 +25,6 @@ const RADIUS_RANGE: Record<GridSize, [number, number]> = {
   16: [1.5, 3.5],
   24: [2, 5],
 };
-
-type Harmonic = { amp: number; freq: number; phase: number };
-type Cluster = { biome: Biome; input: DesignInput; cx: number; cy: number; radius: number; harmonics: Harmonic[] };
-
-function pickBiome(pool: Biome[], rng: () => number, avoid: Set<number>): Biome {
-  let biome = pool[Math.floor(rng() * pool.length)]!;
-  for (let guard = 0; avoid.has(biome.id) && guard < 8; guard++) {
-    biome = pool[Math.floor(rng() * pool.length)]!;
-  }
-  return biome;
-}
-
-// Wobbly-circle blob: radius perturbed by a few random sine harmonics so the
-// cluster boundary reads as an organic patch instead of a hard disc.
-function makeCluster(biome: Biome, cx: number, cy: number, radius: number, rng: () => number): Cluster {
-  const harmonics: Harmonic[] = [1, 2, 3].map((freq) => ({
-    amp: radius * (0.15 + rng() * 0.15),
-    freq,
-    phase: rng() * Math.PI * 2,
-  }));
-  return { biome, input: biomeToInput(biome), cx, cy, radius, harmonics };
-}
-
-// Two clusters of different sizes, placed on roughly opposite sides of the
-// grid so the selected biome keeps the majority of the area.
-function pickClusters(selectedBiomeId: number | null, seed: number, grid: GridSize): Cluster[] {
-  const half = grid / 2;
-  const [minRadius, maxRadius] = RADIUS_RANGE[grid];
-  const rng = makeRng((seed ^ 0x5eed1) >>> 0);
-  const pool = biomes.filter((b) => b.id !== selectedBiomeId);
-  if (pool.length === 0) return [];
-
-  const avoid = new Set<number>(selectedBiomeId === null ? [] : [selectedBiomeId]);
-  const baseAngle = rng() * Math.PI * 2;
-  const clusters: Cluster[] = [];
-  for (let i = 0; i < CLUSTER_COUNT; i++) {
-    const biome = pickBiome(pool, rng, avoid);
-    avoid.add(biome.id);
-    const radius = minRadius + rng() * (maxRadius - minRadius);
-    const angle = baseAngle + i * Math.PI + (rng() - 0.5) * 1.2;
-    const dist = half * 0.35 + rng() * half * 0.35;
-    const cx = Math.round(Math.cos(angle) * dist);
-    const cy = Math.round(Math.sin(angle) * dist);
-    clusters.push(makeCluster(biome, cx, cy, radius, rng));
-  }
-  return clusters;
-}
-
-function clusterAt(tx: number, ty: number, clusters: Cluster[]): Cluster | null {
-  for (const cluster of clusters) {
-    const dx = tx - cluster.cx;
-    const dy = ty - cluster.cy;
-    const dist = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    let r = cluster.radius;
-    for (const h of cluster.harmonics) r += h.amp * Math.sin(h.freq * angle + h.phase);
-    if (dist <= r) return cluster;
-  }
-  return null;
-}
 
 type BakedSnapshot = { input: DesignInput; seed: number; render: RenderStyle; grid: GridSize };
 
@@ -121,7 +57,7 @@ export function MixedBiomePreview({
     let cancelled = false;
     const grid = baked.grid;
     const half = grid / 2;
-    const activeClusters = pickClusters(baked.input.biomeId, baked.seed, grid);
+    const activeClusters = pickClusters(baked.input.biomeId, baked.seed, grid, grid, RADIUS_RANGE[grid], CLUSTER_COUNT);
     const composite = makeBuffer(TILE_W * grid, TILE_H * grid);
     setClusters(activeClusters);
     setBuffer(composite);

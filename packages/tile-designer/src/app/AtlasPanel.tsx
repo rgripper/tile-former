@@ -4,11 +4,11 @@ import { TILE_H, TILE_W } from "../core/types.ts";
 import { makeBuffer, type PixelBuffer } from "../core/pixels.ts";
 import { CODE_FULL, MASK_CODES, type MaskBitmap } from "../core/masks.ts";
 import {
+  blitSprite,
   buildAtlas,
   DEFAULT_ATLAS_CONFIG,
   materialsFromStyle,
   type Atlas,
-  type SpriteRef,
 } from "../core/atlas.ts";
 import { TileCanvas } from "./TileCanvas.tsx";
 
@@ -16,25 +16,6 @@ const PAD = 4;
 const CELL_W = TILE_W + PAD;
 const CELL_H = TILE_H + PAD;
 const PER_ROW = 8;
-
-function blitSprite(dst: PixelBuffer, atlas: Atlas, ref: SpriteRef, dx: number, dy: number): void {
-  const page = atlas.pages[ref.page]!;
-  for (let y = 0; y < ref.h; y++) {
-    const py = dy + ref.offsetY + y;
-    if (py < 0 || py >= dst.height) continue;
-    for (let x = 0; x < ref.w; x++) {
-      const so = ((ref.y + y) * page.width + ref.x + x) * 4;
-      if (page.data[so + 3] === 0) continue;
-      const px = dx + ref.offsetX + x;
-      if (px < 0 || px >= dst.width) continue;
-      const o = (py * dst.width + px) * 4;
-      dst.data[o] = page.data[so]!;
-      dst.data[o + 1] = page.data[so + 1]!;
-      dst.data[o + 2] = page.data[so + 2]!;
-      dst.data[o + 3] = 255;
-    }
-  }
-}
 
 function blitMask(dst: PixelBuffer, mask: MaskBitmap, dx: number, dy: number): void {
   for (let y = 0; y < TILE_H; y++) {

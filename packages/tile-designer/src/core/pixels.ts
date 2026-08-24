@@ -51,6 +51,70 @@ export function put(buf: PixelBuffer, x: number, y: number, color: number): void
   buf.data[o + 3] = 255;
 }
 
+// --- Vector primitives -------------------------------------------------------
+// Flat-shaded polygon fill and 1px lines, for the terrain preview's cliff faces
+// and altitude rims (core/terrain.ts) — the one place this package draws
+// vector shapes rather than sampling a generator per pixel.
+
+// Solid fill of a convex polygon via horizontal scanline intersection. Only
+// ever called with axis-aligned parallelograms (cliff faces), so a plain
+// even-odd scan is sufficient; no attempt at general polygon support.
+export function fillPolygon(buf: PixelBuffer, points: ReadonlyArray<readonly [number, number]>, color: number): void {
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [, y] of points) {
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const y0 = Math.max(0, Math.floor(minY));
+  const y1 = Math.min(buf.height - 1, Math.ceil(maxY));
+  const n = points.length;
+  for (let y = y0; y <= y1; y++) {
+    const yc = y + 0.5;
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const [ax, ay] = points[i]!;
+      const [bx, by] = points[(i + 1) % n]!;
+      if ((ay <= yc && by > yc) || (by <= yc && ay > yc)) {
+        xs.push(ax + ((yc - ay) / (by - ay)) * (bx - ax));
+      }
+    }
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const x0 = Math.max(0, Math.round(xs[i]!));
+      const x1 = Math.min(buf.width - 1, Math.round(xs[i + 1]!) - 1);
+      for (let x = x0; x <= x1; x++) put(buf, x, y, color);
+    }
+  }
+}
+
+// 1px Bresenham line — this is pixel art, so a stroke is a hard 1px path, never
+// an antialiased or width-scaled one.
+export function drawLine(buf: PixelBuffer, x0: number, y0: number, x1: number, y1: number, color: number): void {
+  let cx = Math.round(x0);
+  let cy = Math.round(y0);
+  const ex = Math.round(x1);
+  const ey = Math.round(y1);
+  const dx = Math.abs(ex - cx);
+  const sx = cx < ex ? 1 : -1;
+  const dy = -Math.abs(ey - cy);
+  const sy = cy < ey ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    if (cx >= 0 && cx < buf.width && cy >= 0 && cy < buf.height) put(buf, cx, cy, color);
+    if (cx === ex && cy === ey) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      cx += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      cy += sy;
+    }
+  }
+}
+
 // --- Isolate edge gate -------------------------------------------------------
 // Shared by the substrate and mat stages (both previously carried an identical
 // private copy of these constants and the smoothstep below).
