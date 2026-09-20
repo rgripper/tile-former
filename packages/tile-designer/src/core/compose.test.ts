@@ -5,9 +5,12 @@ import {
   compareInstances,
   composeCell,
   composeField,
+  featuresForTile,
+  fieldFeatureInstances,
   fieldMaterials,
   makeField,
   shapeIndex,
+  tileSurface,
   type TileSurface,
 } from "./compose.ts";
 import { materialInstance } from "./materials/index.ts";
@@ -22,13 +25,14 @@ const PALETTE = getPalette(null);
 // A synthetic tile: real biomes always carry a substrate, so tests only vary
 // what's needed to exercise one rule at a time.
 function surface(
-  substrateId: "sand" | "clay" | "soil",
+  substrateId: "sand" | "clay" | "soil" | "scree" | "snow",
   mats: Array<{ id: "grass" | "moss"; density: Density }> = [],
   level = 0,
 ): TileSurface {
   return {
     substrate: materialInstance(substrateId, PALETTE[substrateId], 0, 0),
     mats: mats.map((m) => ({ instance: materialInstance(m.id, PALETTE[m.id], 0, 0), density: m.density })),
+    scatter: [],
     level,
   };
 }
@@ -274,3 +278,91 @@ describe("composeField against a real atlas", () => {
 function atlasFor(field: ReturnType<typeof makeField>) {
   return buildAtlas(fieldMaterials(field), { seed: 1, fullShapes: 2, biasLevels: 1, partialShapes: 2 });
 }
+
+// --- Feature placement (milestone F) ---------------------------------------------
+
+describe("featuresForTile", () => {
+  // A surface with pebble-bearing substrate and a full scatter density.
+  function surfaceWithScatter(): TileSurface {
+    const base = surface("scree");
+    return {
+      ...base,
+      scatter: [{ inst: { id: "pebble", key: "pebble|test", ramp: PALETTE.pebble }, density: "full" }],
+    };
+  }
+
+  it("is deterministic per (tile, seed)", () => {
+    const s = surfaceWithScatter();
+    expect(featuresForTile(s, 3, 4, 99)).toEqual(featuresForTile(s, 3, 4, 99));
+  });
+
+  it("places at most one feature per (kind, density) on a tile", () => {
+    const s = surfaceWithScatter();
+    for (let seed = 0; seed < 8; seed++) {
+      const placed = featuresForTile(s, 2, 2, seed);
+      const keys = placed.map((f) => f.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
+
+  // Sparse is a probability gate on the same hash as full, so every sparse
+  // placement must be a subset of what full would show — not a different set.
+  it("makes sparse placements a subset of full", () => {
+    let subsetSeen = false;
+    for (let c = 0; c < 12; c++) {
+      for (let r = 0; r < 12; r++) {
+        const full = featuresForTile({ ...surfaceWithScatter(), scatter: [{ inst: { id: "pebble", key: "pebble|test", ramp: PALETTE.pebble }, density: "full" }] }, c, r, 5);
+        const sparse = featuresForTile({ ...surfaceWithScatter(), scatter: [{ inst: { id: "pebble", key: "pebble|test", ramp: PALETTE.pebble }, density: "sparse" }] }, c, r, 5);
+        if (sparse.length === 0) continue;
+        expect(full.length).toBeGreaterThan(0);
+        subsetSeen = true;
+      }
+    }
+    expect(subsetSeen).toBe(true);
+  });
+
+  it("positions features at their host tile's origin", () => {
+    const s = surfaceWithScatter();
+    for (let seed = 0; seed < 6; seed++) {
+      for (const f of featuresForTile(s, 1, 2, seed)) {
+        const [ox, oy] = cellOrigin(1, 2, s.level);
+        expect(f.x).toBe(ox);
+        expect(f.y).toBe(oy - TILE_H / 2); // tileOrigin shifts up half a tile
+      }
+    }
+  });
+});
+
+describe("fieldFeatureInstances", () => {
+  it("unions instances by key across the field", () => {
+    const mk = (key: string) => ({ inst: { id: "pebble" as const, key, ramp: PALETTE.pebble }, density: "full" as const });
+    const field = makeField(3, 3, (c) => ({
+      ...surface("scree"),
+      scatter: [mk(c === 0 ? "pebble|a" : "pebble|b")],
+    }));
+    const instances = fieldFeatureInstances(field);
+    expect(instances.map((i) => i.key).sort()).toEqual(["pebble|a", "pebble|b"]);
+  });
+});
+
+describe("tileSurface scatter gating", () => {
+  // Host compatibility end-to-end through resolveStyle's output: a scree tile
+  // hosts pebbles; a snow tile with no compatible mats hosts nothing.
+  it("gates scatter by host material", () => {
+    const screeStyle = {
+      water: false,
+      surface: { substrates: [{ id: "scree" as const, weight: 1 }], mats: [] },
+      substrateRamps: { scree: PALETTE.scree },
+      matRamps: {},
+      texture: { arid: 0, wet: 0 },
+      staticScatter: { pebble: 0.8, twig: 0.8, leaf: 0.8 },
+      scatterRamps: { pebble: PALETTE.pebble, twig: PALETTE.twig, leaf: PALETTE.leaf },
+      scatter: { fern: 0, reed: 0, flower: 0 },
+    };
+    const scree = tileSurface(screeStyle, 0);
+    expect(scree.scatter.map((s) => s.inst.id)).toEqual(["pebble"]);
+
+    const snowStyle = { ...screeStyle, surface: { substrates: [{ id: "snow" as const, weight: 1 }], mats: [] }, substrateRamps: { snow: PALETTE.snow } };
+    expect(tileSurface(snowStyle, 0).scatter).toEqual([]);
+  });
+});

@@ -42,11 +42,11 @@ export function MixedBiomePreview({
 }) {
   const [baked, setBaked] = useState<BakedSnapshot>({ input, seed, render, grid: 8 });
   const stale = baked.input !== input || baked.seed !== seed || baked.render !== render;
-  // Bake resolution is 2× the real screen tile (see TILE_W/TILE_H), so 0.25×
-  // here reads as half native game size — a compact overview — and the 2×
-  // toggle lands exactly on 1:1 native game pixels.
+  // The bake is 1:1 with the real screen tile (see TILE_W/TILE_H), so 0.5×
+  // here reads as half native game size — a compact overview — and the toggle
+  // lands exactly on 1:1 native game pixels.
   const [zoomedIn, setZoomedIn] = useState(false);
-  const zoom = zoomedIn ? 0.5 : 0.25;
+  const zoom = zoomedIn ? 1 : 0.5;
 
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [buffer, setBuffer] = useState<PixelBuffer>(() => makeBuffer(TILE_W * baked.grid, TILE_H * baked.grid));
@@ -120,7 +120,7 @@ export function MixedBiomePreview({
         <button disabled={baking} onClick={() => setBaked({ ...baked, input, seed, render })}>
           {stale ? "Bake (out of date)" : "Rebake"}
         </button>
-        <button onClick={() => setZoomedIn((z) => !z)}>{zoomedIn ? "2× zoom (native)" : "2× zoom"}</button>
+        <button onClick={() => setZoomedIn((z) => !z)}>{zoomedIn ? "1:1 native" : "zoom to 1:1"}</button>
         <span className="legend">
           {clusters.map((c, i) => (
             <span className="chip" key={i}>

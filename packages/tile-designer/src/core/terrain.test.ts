@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cellOrigin, fieldMaterials, makeField, type TileSurface } from "./compose.ts";
+import { cellOrigin, featuresForTile, fieldMaterials, makeField, type TileSurface } from "./compose.ts";
 import { CORNER_TILE_OFFSETS } from "./masks.ts";
 import { materialInstance } from "./materials/index.ts";
+import { buildFeatureAtlas, featureInstance } from "./features/index.ts";
 import { buildAtlas } from "./atlas.ts";
 import { getPalette } from "./palette/index.ts";
 import { drawLine, fillPolygon, insideDiamond, makeBuffer, rowSpan, type PixelBuffer } from "./pixels.ts";
@@ -20,8 +21,8 @@ import {
 
 const PALETTE = getPalette(null);
 
-function surface(substrateId: "sand" | "clay" | "soil", level = 0): TileSurface {
-  return { substrate: materialInstance(substrateId, PALETTE[substrateId], 0, 0), mats: [], level };
+function surface(substrateId: "sand" | "clay" | "soil" | "scree", level = 0): TileSurface {
+  return { substrate: materialInstance(substrateId, PALETTE[substrateId], 0, 0), mats: [], scatter: [], level };
 }
 
 const opaqueAt = (buf: PixelBuffer, x: number, y: number) => buf.data[(y * buf.width + x) * 4 + 3] === 255;
@@ -237,6 +238,61 @@ describe("renderTerrain", () => {
     let opaque = 0;
     for (let i = 3; i < buffer.data.length; i += 4) if (buffer.data[i] === 255) opaque++;
     expect(opaque).toBeGreaterThan(0);
+  });
+
+  // --- Feature overhang layer (milestone F) ---
+
+  it("draws feature sprites on top of their own tile's floor", () => {
+    const inst = featureInstance("pebble", PALETTE.pebble);
+    const withScatter = makeField(4, 4, () => ({
+      ...surface("scree", 0),
+      scatter: [{ inst, density: "full" as const }],
+    }));
+    // Identical field minus the scatter — the correct control now that
+    // renderTerrain always draws features (building its own feature atlas from
+    // the field when none is passed), so a same-field no-atlas call would
+    // produce an identical buffer and a meaningless zero diff.
+    const withoutScatter = makeField(4, 4, () => surface("scree", 0));
+    const atlas = atlasFor(withScatter);
+    // Density "full" gates at probability 1, so every tile places its pebble.
+    expect(featuresForTile(withScatter.at(1, 1), 1, 1, 42).length).toBeGreaterThan(0);
+
+    const withFeatures = renderTerrain(withScatter, atlas, { seed: 42 }).buffer;
+    const without = renderTerrain(withoutScatter, atlas, { seed: 42 }).buffer;
+    let diff = 0;
+    for (let i = 0; i < withFeatures.data.length; i += 4) {
+      if (
+        withFeatures.data[i] !== without.data[i] ||
+        withFeatures.data[i + 1] !== without.data[i + 1] ||
+        withFeatures.data[i + 2] !== without.data[i + 2]
+      ) {
+        diff++;
+      }
+    }
+    expect(diff).toBeGreaterThan(0);
+  });
+
+  it("leaves no interior gaps in a flat, mixed field even with features layered in", () => {
+    const ids = ["sand", "clay", "soil"] as const;
+    const field = makeField(6, 6, (c, r) => ({
+      ...surface(ids[(c + r * 2) % 3]!, 0),
+      scatter: [{ inst: featureInstance("pebble", PALETTE.pebble), density: "full" as const }],
+    }));
+    const atlas = buildAtlas(fieldMaterials(field), { seed: 7, fullShapes: 3, biasLevels: 1, partialShapes: 2 });
+    const { buffer, originX, originY } = renderTerrain(field, atlas, { seed: 7 });
+
+    const [ox, oy] = cellOrigin(2, 2, 0);
+    let gaps = 0;
+    for (let y = 0; y < TILE_H; y++) {
+      const [x0, x1] = rowSpan(y);
+      for (let x = x0; x <= x1; x++) {
+        if (!insideDiamond(x, y)) continue;
+        const px = Math.round(originX + ox + x);
+        const py = Math.round(originY + oy + y);
+        if (buffer.data[(py * buffer.width + px) * 4 + 3] !== 255) gaps++;
+      }
+    }
+    expect(gaps).toBe(0);
   });
 });
 

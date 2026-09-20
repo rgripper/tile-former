@@ -88,7 +88,15 @@ const mb = (bytes: number) => `${(bytes / 1048576).toFixed(2)} MB`;
 // answers three questions that are otherwise invisible — what the mask set looks
 // like, whether a material has enough variants to stop reading as a lattice, and
 // what the whole thing costs.
-export function AtlasPanel({ style, seed }: { style: StyleParams; seed: number }) {
+export function AtlasPanel({
+  style,
+  seed,
+  defaultAtlas,
+}: {
+  style: StyleParams;
+  seed: number;
+  defaultAtlas: Atlas;
+}) {
   const [tab, setTab] = useState<"masks" | "variants" | "page">("variants");
   const [shapes, setShapes] = useState(DEFAULT_ATLAS_CONFIG.fullShapes);
   const [biases, setBiases] = useState(DEFAULT_ATLAS_CONFIG.biasLevels);
@@ -96,13 +104,18 @@ export function AtlasPanel({ style, seed }: { style: StyleParams; seed: number }
   const [density, setDensity] = useState<Density>("full");
 
   const requests = useMemo(() => materialsFromStyle(style), [style]);
-  // A build runs every generator `shapes × biases` times per material, so it is
-  // the one genuinely expensive thing in this panel. Keyed on everything that
-  // changes a pixel.
-  const atlas = useMemo(
-    () => buildAtlas(requests, { seed, fullShapes: shapes, biasLevels: biases }),
+  // The default-config atlas is built once in App and shared (TerrainPreview's
+  // field atlas overlaps it, and the variant-texture cache in atlas.ts makes
+  // even this custom build cut-and-pack only). A build runs here only when the
+  // shapes/biases selectors leave the defaults.
+  const customAtlas = useMemo(
+    () =>
+      shapes === DEFAULT_ATLAS_CONFIG.fullShapes && biases === DEFAULT_ATLAS_CONFIG.biasLevels
+        ? null
+        : buildAtlas(requests, { seed, fullShapes: shapes, biasLevels: biases }),
     [requests, seed, shapes, biases],
   );
+  const atlas = customAtlas ?? defaultAtlas;
 
   const material = requests[Math.min(selected, requests.length - 1)];
   const activeDensity: Density = material?.densities.includes(density)
@@ -151,7 +164,7 @@ export function AtlasPanel({ style, seed }: { style: StyleParams; seed: number }
         <label>
           shapes
           <select value={shapes} onChange={(e) => setShapes(Number(e.target.value))}>
-            {[1, 2, 4, 8, 12].map((n) => (
+            {[1, 2, 4, 8, 16, 32].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>

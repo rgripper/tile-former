@@ -1,8 +1,25 @@
 import type { RockTypeId } from "@tile-former/tilegen";
 
-// Native bake resolution: 2× the 64×32 screen diamond.
-export const TILE_W = 128;
-export const TILE_H = 64;
+// Native bake resolution: 1:1 with the 64×32 screen diamond.
+//
+// This was 128×64 (a 2× bake) until it was measured to carry no authored
+// detail. Every material generator and the mask builder quantise through
+// `blocks` (lattice.ts), and at the default `blocks = 32` one authoring block
+// spans e_u/32 = (2,1) px and e_v/32 = (−2,1) px in a 128×64 diamond — area
+// exactly 4 native px, which is one screen pixel once the renderer halves it.
+// The 2× bake was therefore storing a 64×32 image in 128×64 pixels: 4× the
+// bytes for zero information, and a GPU downsample that *softened* the block
+// edges this whole design exists to keep hard.
+//
+// Measured on the whole-world atlas (all 35 biomes, 29 material instances):
+// sprite bytes fall 48.5 MB → 11.9 MB, 4 pages → 1. The freed budget goes to
+// shape variants, which is what actually fights the repeated-pattern read —
+// 64×32 at 32 shapes (32.8 MB) costs less than 128×64 at 8 (48.5 MB).
+//
+// Zooming past 1:1 in game is an integer camera scale (1 texel → N screen px),
+// not a higher-resolution atlas.
+export const TILE_W = 64;
+export const TILE_H = 32;
 
 // --- Surface taxonomy (replaces tilegen's legacy surfaceType hack) ---
 
@@ -126,10 +143,10 @@ export type Coverage = "none" | Density;
 // --- Altitude ---
 //
 // Mirrors isoRenderer.ts, which quantises altitude the same way. CLIFF_UNIT is
-// in *native bake* pixels: the renderer's 12 screen px at the 2x bake
-// resolution. Milestone G unifies the two copies.
+// in *native bake* pixels, now 1:1 with the renderer's 12 screen px.
+// Milestone G unifies the two copies.
 export const MAX_FLOORS = 10;
-export const CLIFF_UNIT = 24;
+export const CLIFF_UNIT = 12;
 
 export function floorLevel(altitude: number): number {
   return Math.round(altitude * MAX_FLOORS);

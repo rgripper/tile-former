@@ -87,8 +87,8 @@ describe("sprite geometry", () => {
   // anything other than the exact diamond, either a gap would open at a cell
   // edge or the sprite would bleed into its neighbour.
   //
-  // Note the diamond's own bounding box is 126×64 at x = 1, not the full 128×64
-  // rect: `rowSpan` never yields x = 0 or x = 127, because with TILE_H = 64 no
+  // Note the diamond's own bounding box is 62×32 at x = 1, not the full 64×32
+  // rect: `rowSpan` never yields x = 0 or x = 63, because with TILE_H = 32 no
   // pixel row falls exactly on the horizontal axis. Derived here rather than
   // hardcoded so it stays right if the tile size changes.
   it("makes a full-cell substrate exactly the diamond", () => {
@@ -119,16 +119,42 @@ describe("sprite geometry", () => {
   });
 
   // Cropping is what keeps partial codes cheap. It is worth being precise about
-  // how much it buys, because it is easy to overrate: a full-cell sprite's box is
-  // the whole diamond and saves nothing, so the win comes only from the 14
+  // how much it buys, because it is easy to overrate: a full-cell sprite's box
+  // is the whole diamond and saves nothing, so the win comes only from the 14
   // partial codes. Measured over a representative spec: a single-corner box is
-  // 33% of a full cell's, and the atlas as a whole is 24% smaller than storing
-  // every sprite as an uncropped rect.
+  // 33% of a full cell's, and the partial codes together are ~55% of what they
+  // would cost stored as uncropped rects. (Not lower, because the four
+  // three-corner codes span the full rect in both axes and so barely crop at
+  // all — the win is concentrated in the single- and two-corner codes.)
+  //
+  // This is deliberately measured over the partial codes alone rather than over
+  // the whole atlas. An atlas-wide ratio is a function of the *shape mix*, not
+  // of cropping: raising `fullShapes` adds only sprites that cannot crop, so it
+  // dilutes the aggregate figure without cropping having got any worse. The
+  // earlier atlas-wide bound of 0.8 silently encoded `fullShapes: 8` and broke
+  // when the default moved to 16 (partial codes fell from 54% to 37% of the
+  // atlas), which is the failure this phrasing avoids.
   it("crops partial codes well below the full cell", () => {
     const oneCorner = atlas.lookup(SOIL, "full", 1, 0, 0)!;
     const fullCell = atlas.lookup(SOIL, "full", CODE_FULL, 0, 0)!;
     expect(oneCorner.w * oneCorner.h).toBeLessThan(fullCell.w * fullCell.h * 0.4);
-    expect(atlas.stats.spritePixels * 4).toBeLessThan(atlas.stats.uncroppedBytes * 0.8);
+
+    let cropped = 0;
+    let uncropped = 0;
+    for (const req of REQUESTS) {
+      for (const density of req.densities) {
+        for (let code = 1; code < CODE_FULL; code++) {
+          for (let shape = 0; shape < atlas.shapeCount(code); shape++) {
+            const ref = atlas.lookup(req.key, density, code, shape, 0);
+            if (ref === null) continue;
+            cropped += ref.w * ref.h;
+            uncropped += TILE_W * TILE_H;
+          }
+        }
+      }
+    }
+    expect(uncropped).toBeGreaterThan(0);
+    expect(cropped).toBeLessThan(uncropped * 0.6);
   });
 });
 

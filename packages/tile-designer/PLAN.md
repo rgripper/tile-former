@@ -235,7 +235,7 @@ src/app/              ← designer UI
   levels with cliff faces and rims, biome mixing and altitude steps judged
   together. Becomes the designer's primary surface (a single zoomed tile stops
   being the meaningful unit).
-- [ ] **F — Feature overhang layer.** Decoration sprites allowed past the
+- [x] **F — Feature overhang layer.** Decoration sprites allowed past the
   diamond, host-material compatibility, depth sorted.
 - [ ] **G — Game hookup + teardown.** Point `isoRenderer.ts`'s floor layer at
   the atlas composition, add viewport culling, delete `floorTextureCache.ts`,
@@ -913,6 +913,64 @@ placement reuses `MixedBiomePreview`'s wobbly-circle blobs rather than a purpose
 -built terrain-scale biome layout; revisit if T's read on biome seams next to
 altitude steps turns out to need one. Water is still absent from the composed
 floor (same gap A and D both logged).
+
+**F done (2026-08-24).** New `core/features/index.ts` and `index.test.ts` (10
+cases); `compose.ts` gained `TileSurface.scatter`, `tileOrigin` (mirrored from
+terrain.ts), `featuresForTile` and `fieldFeatureInstances`; `terrain.ts`
+gained the feature pass in `renderTerrain`. Two new tests in compose.test.ts,
+two in terrain.test.ts (140 total, up from 122).
+
+*What F actually is.* Static scatter (pebbles/twigs/leaves — v1's per-pixel
+stamp stage) becomes atlas sprites: 4 variants per kind, stamped on the same
+authoring block grid as the litter mats so shapes come out iso-projected and
+chunky at texture scale. Unlike ground materials there is no periodicity
+requirement and no corner mask — a feature is a self-contained object, rasterised
+over the WHOLE cell rect and cropped, so it may legitimately spill past its own
+tile's diamond edge onto the neighbour's rect. That is the milestone's headline
+property, and it is asserted directly: across 8 seeds every kind must draw at
+least one pixel outside the unit lattice square.
+
+*Host-material compatibility is a placement gate, not a texture property.*
+`FEATURE_HOSTS` maps each kind to the substrates/mats that can bear it (a pebble
+needs stony or bare ground; a leaf can land on grass); `tileSurface` applies it
+when building the tile's scatter list, alongside a two-level coverage
+quantisation (`quantiseScatter`: none below 0.05, sparse to 0.35, full above —
+deliberately lower thresholds than the mats', because dense leaf cover is what
+the leafLitter mat is for). Placement itself (`featuresForTile`) hashes
+(tile, seed, instance key) against the density level, so sparse tiles show a
+subset of what full would show, never a different random set.
+
+*The depth slot was the one real bug, found by a zero pixel-diff.* Features were
+first drawn at their host tile's depth slot — and vanished completely: a tile's
+own diamond is covered by the four dual cells whose corners meet at its centre,
+all of which sort at tileDepth+1 or deeper, so every floor sprite painted over
+every feature pixel. Features now emit at tileDepth + 1.5 — strictly above all
+floor, which is correct semantics anyway: scatter lies ON whatever ground is
+under it, host or not. The test that caught this compared renderTerrain against
+itself (both calls drew features once the internal feature-atlas fallback
+landed); it now compares a with-scatter field against an identical field minus
+scatter.
+
+*A measurement note on the overhang test.* The first version asserted that ONE
+seed's build overhangs for every kind; it failed for pebble because anchor
+jitter only puts a shape past the diamond edge when its anchor lands near an
+cell boundary — measured, roughly 11/30 seeds do that for pebble, 21/30 for
+twig, 17/30 for leaf, with every individual shape index capable across seeds.
+So the test now aggregates over 8 seeds per kind instead of demanding one lucky
+build prove the property — same failure mode if someone adds an insideDiamond
+clip, without flaking on legitimate anchor luck.
+
+Verified: 140/140 tests pass (18 new across features/compose/terrain);
+`bunx tsc --noEmit` clean in-package, root `bun run type-check` clean. Feature
+colors are asserted to come only from their material's ramp (palette closure
+holds), sprites stay ≥90% inside their own tile rect (overhang is a few px of
+spill, not half the object on the wrong tile), and the flat-field no-gaps
+integration test re-passes with features layered in.
+
+*Deliberately deferred to G.* The feature atlas is not shelf-packed into the
+main pages — three kinds × 4 small sprites don't justify packer machinery until
+the real renderer wires both atlases together. Animated scatter (ferns/reeds/
+flowers) remains out of scope, as PLAN.md's open question always scoped it.
 
 ## Open questions
 

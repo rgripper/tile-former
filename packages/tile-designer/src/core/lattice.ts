@@ -46,7 +46,7 @@ import { TILE_H, TILE_W } from "./types.ts";
 // Screen-pixel length of one lattice unit along either basis vector:
 // |e_u| = hypot(TILE_W/2, TILE_H/2). Use this to pick generator frequencies —
 // a feature of size 1/n lattice units is roughly PX_PER_LATTICE_UNIT/n pixels
-// across at native bake resolution (and half that on screen).
+// across at native bake resolution, which is 1:1 with screen pixels.
 export const PX_PER_LATTICE_UNIT = Math.hypot(TILE_W / 2, TILE_H / 2);
 
 // Tile-local pixel (x, y) → lattice (u, v), using pixel centres so this agrees
@@ -80,13 +80,16 @@ export function wrapLattice(v: number, period = 1): number {
 // being periodic and seams reappear. Chunkiness is now a property of the
 // authoring grid rather than something applied to world pixels after the fact.
 //
-// At the native 128×64 bake a whole lattice cell covers 4096 px, so `blocks`
-// of 32 gives blocks of about 4 native px (≈2 screen px).
+// At the native 64×32 bake a whole lattice cell covers 1024 px, so `blocks`
+// of 32 gives exactly one native px — and one screen px — per block.
 export function quantizeLattice(v: number, blocks: number): number {
   return Math.floor(v * blocks) / blocks;
 }
 
 // Number of authoring blocks per lattice unit that lands one block on one
-// screen pixel, given the bake is 2× the screen diamond. Provided as the
-// default "chunky but not mushy" starting grid for generators.
+// screen pixel. The bake is now 1:1 with the screen diamond, so one block is
+// one native pixel is one screen pixel — which is also *why* the bake is 1:1:
+// a 2× bake stored each of these blocks as 4 pixels carrying no extra
+// information (types.ts, TILE_W). Provided as the default "chunky but not
+// mushy" starting grid for generators.
 export const DEFAULT_BLOCKS = 32;

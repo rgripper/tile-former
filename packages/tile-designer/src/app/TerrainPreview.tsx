@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DesignInput } from "../core/types.ts";
 import { MAX_FLOORS } from "../core/types.ts";
 import { resolveStyle } from "../core/resolve.ts";
@@ -21,6 +21,20 @@ const RADIUS_RANGE: Record<GridSize, [number, number]> = {
   32: [2.5, 6],
 };
 const CLUSTER_COUNT = 2;
+
+// The field → atlas → render chain is synchronous and costs ~0.5–1s at the
+// larger grids, so rebuilding it on every slider tick (base floor, relief, or
+// the property panel's inputs through `input`) queues a rebuild storm and
+// piles up the multi-MB buffers each rebuild produces. Debouncing collapses a
+// drag into one rebuild at the end.
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
 
 // "relief" 0 collapses to a flat field; 2 is the measured sweet spot (see
 // terrain.test.ts) — a handful of plateaus at a straddle rate in the
@@ -57,14 +71,24 @@ export function TerrainPreview({ input, seed }: { input: DesignInput; seed: numb
   const [baseLevel, setBaseLevel] = useState(3);
   const [relief, setRelief] = useState(2);
   const [zoomedIn, setZoomedIn] = useState(false);
-  // Bake resolution is 2× the real screen tile, so 0.25× reads as half native
-  // game size and 0.5× lands on 1:1 native game pixels — same convention as
-  // the other multi-tile previews.
-  const zoom = zoomedIn ? 0.5 : 0.25;
+  // The bake is 1:1 with the real screen tile, so 0.5× reads as half native
+  // game size — a compact overview — and 1× is an exact texel-for-pixel blit
+  // of what the game shows. Same convention as the other multi-tile previews.
+  // (These were 0.25/0.5 at the old 2× bake; doubling them keeps the panel the
+  // same size on screen, and the zoomed state stops being a downsample.)
+  const zoom = zoomedIn ? 1 : 0.5;
+
+  const dInput = useDebounced(input, 150);
+  const dSeed = useDebounced(seed, 150);
+  const dGrid = useDebounced(grid, 150);
+  const dBaseLevel = useDebounced(baseLevel, 150);
+  const dRelief = useDebounced(relief, 150);
+  const rebuilding =
+    dInput !== input || dSeed !== seed || dGrid !== grid || dBaseLevel !== baseLevel || dRelief !== relief;
 
   const field = useMemo(
-    () => buildField(input, seed, grid, baseLevel, relief),
-    [input, seed, grid, baseLevel, relief],
+    () => buildField(dInput, dSeed, dGrid, dBaseLevel, dRelief),
+    [dInput, dSeed, dGrid, dBaseLevel, dRelief],
   );
 
   const requests = useMemo(() => fieldMaterials(field), [field]);
@@ -114,7 +138,7 @@ export function TerrainPreview({ input, seed }: { input: DesignInput; seed: numb
             </button>
           ))}
         </div>
-        <button onClick={() => setZoomedIn((z) => !z)}>{zoomedIn ? "2× zoom (native)" : "2× zoom"}</button>
+        <button onClick={() => setZoomedIn((z) => !z)}>{zoomedIn ? "1:1 native" : "zoom to 1:1"}</button>
       </div>
       <div className="row">
         <span className="legend">
@@ -125,6 +149,7 @@ export function TerrainPreview({ input, seed }: { input: DesignInput; seed: numb
             {atlas.stats.pages} page{atlas.stats.pages === 1 ? "" : "s"}
           </span>
           <span className="chip">{atlas.stats.buildMs} ms build</span>
+          {rebuilding && <span className="chip">rebuilding…</span>}
         </span>
       </div>
       <div className="scroll-x">

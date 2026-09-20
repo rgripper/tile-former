@@ -39,14 +39,21 @@
 // overrate: a full-cell sprite's box is the whole diamond and saves nothing, so
 // the win is entirely in the 14 partial codes — a single-corner box measures 33%
 // of a full cell's, and the atlas as a whole comes out **24% smaller** than
-// storing every sprite as an uncropped 128×64 rect. Placement is a shelf packer
+// storing every sprite as an uncropped 64×32 rect. Placement is a shelf packer
 // over rows sorted by height, which is close to optimal when heights only ever
-// run 1..64.
+// run 1..32.
 //
 // The remaining obvious waste is that a diamond fills only half its bounding
 // box. Recovering it means interlocking diamonds at pack time rather than
 // treating sprites as rectangles, which the renderer would also have to
 // understand; not worth it while a whole map's atlas fits in one page.
+//
+// It does, but only since the bake went 1:1 (types.ts, TILE_W). Measured over
+// all 35 biomes — 29 material instances, 41 instance×density, 2132 sprites —
+// the whole-world atlas is 11.9 MB of sprite pixels in one 2048² page. At the
+// old 2× bake the same set was 48.5 MB across four pages, and interlocking
+// would have been worth doing. Raising `fullShapes` is the thing most likely
+// to push this back over a page; 32 shapes lands at 32.8 MB / 3 pages.
 
 import type { Density, RenderMaterialId, StyleParams } from "./types.ts";
 import { DENSITIES, TILE_H, TILE_W } from "./types.ts";
@@ -73,7 +80,9 @@ export type MaterialRequest = MaterialInstance & { densities: Density[] };
 
 export type AtlasConfig = {
   seed: number;
-  // Shape variants of the full-cell sprite. 8 is milestone L's measured floor.
+  // Shape variants of the full-cell sprite. 8 is milestone L's measured floor;
+  // the default sits at 16 because the 1:1 bake made shapes cheap enough that
+  // there is no reason to run at the floor (see DEFAULT_ATLAS_CONFIG).
   fullShapes: number;
   // Threshold-bias levels, applied to full-cell sprites only.
   biasLevels: number;
@@ -88,18 +97,35 @@ export type AtlasConfig = {
   pageSize: number;
 };
 
+// Measured at the 1:1 bake (types.ts, TILE_W), single-style atlas, as
+// content / allocated / page fill:
+//
+//   shapes  page 1024              page 2048
+//        8  2.2 MB / 4 MB / 56%    2.2 MB / 16 MB / 14%
+//       16  3.5 MB / 4 MB / 89%    3.5 MB / 16 MB / 22%
+//       32  6.2 MB / 8 MB / 77%    6.2 MB / 16 MB / 38%
+//
+// A page is allocated at full size whatever lands on it, so 2048 was spending
+// 16 MB to hold 2.2 MB. At 1024 the same atlas is one 4 MB page — and the room
+// that frees goes straight into `fullShapes`, which is the axis that actually
+// fights the repeated-pattern read. 16 shapes at page 1024 is 4 MB: a quarter
+// of today's allocation for twice the shape variety.
+//
+// The game wants the opposite trade and should pass `pageSize: 2048`: the
+// whole-world atlas (all 35 biomes) is one 16 MB page at 74% fill there, versus
+// four pages at 1024.
 export const DEFAULT_ATLAS_CONFIG: AtlasConfig = {
   seed: 1234,
-  fullShapes: 8,
+  fullShapes: 16,
   biasLevels: 3,
   biasStep: 0.18,
   partialShapes: 2,
   blocks: DEFAULT_BLOCKS,
-  pageSize: 2048,
+  pageSize: 1024,
 };
 
 // Where a sprite lives, plus where its cropped box sits inside the nominal
-// 128×64 cell rect so the renderer can place it without storing the crop.
+// 64×32 cell rect so the renderer can place it without storing the crop.
 export type SpriteRef = {
   page: number;
   x: number;
@@ -115,7 +141,7 @@ export type AtlasStats = {
   sprites: number;
   pages: number;
   // Bytes of the packed pages, and of the same sprites stored uncropped as full
-  // 128×64 rects — the ratio is what the cropping buys.
+  // 64×32 rects — the ratio is what the cropping buys.
   packedBytes: number;
   uncroppedBytes: number;
   spritePixels: number;
@@ -183,6 +209,32 @@ function renderVariant(id: RenderMaterialId, ctx: MaterialCtx): VariantTexture {
     }
   }
   return out;
+}
+
+// --- Variant texture cache ----------------------------------------------------
+//
+// renderVariant is the whole cost of a build: one texture is a per-pixel run of
+// the material generator (fBm octaves, Worley scans, anchor fields), and a
+// build asks for shapes × biases × densities of them. Consecutive builds — the
+// two panels on load, a grid or base-floor switch, a re-bake — request the same
+// set over and over, because a texture is a pure function of exactly the ctx
+// fields keyed below. Caching them turns repeat builds into cut-and-pack only.
+//
+// Bounded: entries are 32 KB Int32Arrays, and a seed re-roll multiplies the
+// live key space, so at the cap the whole cache drops rather than evicting
+// per-entry (builds always request a whole batch, so a full flush is coherent).
+const variantCache = new Map<string, VariantTexture>();
+const VARIANT_CACHE_MAX = 2048;
+
+function cachedVariant(id: RenderMaterialId, ctx: MaterialCtx): VariantTexture {
+  const key = `${id}|${ctx.ramp.map((c) => c.toString(16)).join("")}|${ctx.seed}|${ctx.structureSeed}|${ctx.bias}|${ctx.density}|${ctx.arid}|${ctx.wet}|${ctx.blocks}`;
+  let tex = variantCache.get(key);
+  if (tex === undefined) {
+    tex = renderVariant(id, ctx);
+    if (variantCache.size >= VARIANT_CACHE_MAX) variantCache.clear();
+    variantCache.set(key, tex);
+  }
+  return tex;
 }
 
 // Levels centred on zero: 3 levels at step s give −s, 0, +s.
@@ -301,8 +353,8 @@ export function buildAtlas(
 
   for (const req of materials) {
     for (const density of req.densities) {
-      // The generator runs only here — once per (shape, bias). Everything below
-      // reuses these textures.
+      // The generator runs only here — once per (shape, bias) — and only on a
+      // cache miss (cachedVariant); everything below reuses these textures.
       const textures: VariantTexture[][] = [];
       for (let shape = 0; shape < config.fullShapes; shape++) {
         const row: VariantTexture[] = [];
@@ -317,7 +369,7 @@ export function buildAtlas(
             wet: req.wet,
             blocks: config.blocks,
           };
-          row.push(renderVariant(req.id, ctx));
+          row.push(cachedVariant(req.id, ctx));
         }
         textures.push(row);
       }

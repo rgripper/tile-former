@@ -3,43 +3,65 @@ import type { PixelBuffer } from "../core/pixels.ts";
 
 // Blits a PixelBuffer to a canvas at a given zoom (integer or fractional)
 // with crisp (unfiltered) pixels.
+//
+// The expensive part is not the draw, it's the upload: a full copy of the
+// buffer into an ImageData plus an async createImageBitmap decode. Two rules
+// keep that from piling up:
+//
+//  - The decoded bitmap is cached by buffer identity, so a zoom-only change
+//    (which clears the canvas via its width/height attributes) redraws from
+//    the cache instead of re-copying and re-decoding tens of MB.
+//  - A stale effect run closes its bitmap the moment the decode resolves, so
+//    rapid buffer swaps (slider drags, progressive bakes) never hold more
+//    than one in-flight decode plus one cached bitmap at a time.
 export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const cache = useRef<{ buffer: PixelBuffer; bmp: ImageBitmap } | null>(null);
 
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const image = new ImageData(
-      // Copy: ImageData requires its own backing buffer.
-      new Uint8ClampedArray(buffer.data),
-      buffer.width,
-      buffer.height,
-    );
     ctx.imageSmoothingEnabled = false;
-    // Changing width/height (below, keyed off zoom) clears the canvas, so this
-    // effect must rerun on zoom changes too, not just when buffer is rebaked.
+    // Changing width/height (keyed off zoom) clears the canvas, so this effect
+    // must rerun on zoom changes too, not just when buffer is rebaked.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Bakes publish several intermediate buffers in quick succession, so a
-    // newer effect run can start before an older bitmap decode resolves.
-    // Without this guard, the stale decode still draws (a harmless-looking
-    // race) and its ImageData/ImageBitmap are kept alive by the pending
-    // promise until it settles, letting several large buffer copies pile up
-    // in memory at once instead of one being GC'd before the next starts.
+
+    // Zoom-only change: the cached bitmap is still valid, just redraw.
+    const cached = cache.current;
+    if (cached !== null && cached.buffer === buffer) {
+      ctx.drawImage(cached.bmp, 0, 0, canvas.width, canvas.height);
+      return;
+    }
+
     let stale = false;
+    // Copy: ImageData aliases the array it is given, and some callers
+    // (MixedBiomePreview's progressive bake) keep mutating their buffer after
+    // publishing it — the copy keeps the in-flight decode from tearing.
+    const image = new ImageData(new Uint8ClampedArray(buffer.data), buffer.width, buffer.height);
     createImageBitmap(image).then((bmp) => {
       if (stale) {
         bmp.close();
         return;
       }
+      cache.current?.bmp.close();
+      cache.current = { buffer, bmp };
       ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-      bmp.close();
     });
     return () => {
       stale = true;
     };
   }, [buffer, zoom]);
+
+  // Release the cached bitmap when the canvas goes away entirely.
+  useEffect(
+    () => () => {
+      cache.current?.bmp.close();
+      cache.current = null;
+    },
+    [],
+  );
 
   return (
     <canvas

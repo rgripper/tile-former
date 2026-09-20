@@ -43,7 +43,12 @@ describe("lattice transform", () => {
 
   it("maps the four diamond corners to the unit square corners", () => {
     // Pixel centres sit half a pixel inside each corner, so allow that slack.
-    const near = (a: number, b: number) => Math.abs(a - b) < 0.02;
+    // Derived, not a constant: `latticeAt` adds 0.5/TILE_H along u+v and
+    // 0.5/TILE_W along u−v, so the worst corner is off by their sum — 0.0117
+    // at a 128×64 diamond but 0.0234 at 64×32. A hardcoded tolerance silently
+    // encodes one bake resolution.
+    const slack = 0.5 / TILE_H + 0.5 / TILE_W;
+    const near = (a: number, b: number) => Math.abs(a - b) <= slack + 1e-12;
     const [tu, tv] = latticeAt(TILE_W / 2, 0); // top
     const [ru, rv] = latticeAt(TILE_W - 1, TILE_H / 2); // right
     const [lu, lv] = latticeAt(0, TILE_H / 2 - 1); // left

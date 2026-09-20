@@ -65,14 +65,15 @@
 //
 // --- Coordinates ---
 //
-// Everything here is in *native bake* pixels — the 128×64 diamond, twice the
-// renderer's on-screen 64×32 — matching `tileWorldOrigin` in the game. The
-// renderer halves them.
+// Everything here is in *native bake* pixels — the 64×32 diamond, now 1:1
+// with the renderer's on-screen 64×32 and matching `tileWorldOrigin` in the
+// game. No scaling anywhere in the chain.
 
 import {
   CLIFF_UNIT,
   DENSITIES,
   MATERIAL_PRIORITY,
+  SCATTER_IDS,
   TILE_H,
   TILE_W,
   floorLevel,
@@ -83,18 +84,27 @@ import {
 import { hash2D } from "./rng.ts";
 import { fbm } from "./noise.ts";
 import { CORNER_TILE_OFFSETS } from "./masks.ts";
+import { FEATURE_SHAPES, hasHost } from "./features/index.ts";
 import { materialInstance, type MaterialInstance } from "./materials/index.ts";
 import { mergeMaterials, type Atlas, type MaterialRequest } from "./atlas.ts";
 import { quantiseCoverage } from "./resolve.ts";
+import { featureInstance, quantiseScatter, type FeatureInstance } from "./features/index.ts";
 
 // --- The field ----------------------------------------------------------------
 
 // One tile as the compositor sees it: which materials it carries, at what
 // quantised density, on which floor. Everything continuous has already been
 // decided by resolve.ts.
+//
+// `scatter` is milestone F's addition: the discrete decoration features the
+// tile hosts (pebbles/twigs/leaves), host-gated and coverage-quantised. They
+// are NOT part of the dual-cell material stack — they are placed per tile and
+// drawn after that tile's floor (see terrain.ts) — but they ride along here so
+// one pass over a field decides everything about its surface.
 export type TileSurface = {
   substrate: MaterialInstance;
   mats: ReadonlyArray<{ instance: MaterialInstance; density: Density }>;
+  scatter: ReadonlyArray<{ inst: FeatureInstance; density: Density }>;
   level: number;
 };
 
@@ -119,9 +129,18 @@ export function tileSurface(style: StyleParams, altitude: number): TileSurface {
     if (density === "none") continue;
     mats.push({ instance: materialInstance(m.id, style.matRamps[m.id]!, arid, wet), density });
   }
+  // Milestone F: static scatter becomes atlas sprites, placed per tile and
+  // gated on host compatibility — a pebble needs stony ground, a leaf needs
+  // somewhere leafy to have fallen from.
+  const scatter = SCATTER_IDS.flatMap((id) => {
+    const density = quantiseScatter(style.staticScatter[id]);
+    if (density === null || !hasHost(id, winner.id, style.surface.mats)) return [];
+    return [{ inst: featureInstance(id, style.scatterRamps[id]), density }];
+  });
   return {
     substrate: materialInstance(winner.id, style.substrateRamps[winner.id]!, arid, wet),
     mats,
+    scatter,
     level: floorLevel(altitude),
   };
 }
@@ -347,4 +366,66 @@ export function composeField(field: TileField, atlas: Atlas, opts: ComposeOption
   const out: CellSprite[] = [];
   for (const [c, r] of cells) out.push(...composeCell(field, atlas, c, r, opts));
   return out;
+}
+
+// --- Feature placement (milestone F) --------------------------------------------
+
+// Top-left of tile (col, row)'s TILE_W×TILE_H cell rect at a given floor level,
+// in native world pixels — the dual grid's `cellOrigin` shifted back up by the
+// half-tile offset that defines it. Mirrors terrain.ts's copy (that one stays
+// the canonical definition; this is the compositor-side placement origin for
+// milestone F features, which belong to their host tile, not a dual cell).
+export function tileOrigin(col: number, row: number, level = 0): [x: number, y: number] {
+  const [x, y] = cellOrigin(col, row, level);
+  return [x, y - TILE_H / 2];
+}
+
+// One placed feature: which sprite variant, where. `x`/`y` are the tile's own
+// bounding-box origin at its floor level (tileOrigin, not cellOrigin — features
+// belong to their host tile, not to a dual cell), in native world pixels.
+export type FeaturePlacement = {
+  key: string;
+  id: string;
+  shape: number;
+  density: Density;
+  x: number;
+  y: number;
+};
+
+// Placement probability multiplier per density level — the compositor-side
+// counterpart of DENSITY_FILL. Sparse means "a few", full means "scattered".
+const FEATURE_PROB: Record<Density, number> = { sparse: 0.35, full: 1 };
+
+// Every feature of tile (col, row), deterministically from (seed, col, row).
+// Each (kind, density) pair gets its own hash gate so sparse tiles pick a
+// subset of what a full tile would show rather than a different random set.
+// Shape is hashed per feature so neighbours don't repeat the same variant.
+export function featuresForTile(
+  surface: TileSurface,
+  col: number,
+  row: number,
+  seed: number,
+): FeaturePlacement[] {
+  const out: FeaturePlacement[] = [];
+  for (const s of surface.scatter) {
+    const h = hash2D(col, row, seed ^ Math.floor(s.inst.key.length * 2654435761) ^ keySalt(s.inst.key));
+    if (h >= FEATURE_PROB[s.density]) continue;
+    const shape = shapeIndex(col * 3 + 1, row * 2 + 2, seed, s.inst.key + ":f", FEATURE_SHAPES);
+    const [x, y] = tileOrigin(col, row, surface.level);
+    out.push({ key: s.inst.key, id: s.inst.id, shape, density: s.density, x, y });
+  }
+  return out;
+}
+
+// Union of the feature instances a whole field needs — the feature-atlas
+// counterpart of `fieldMaterials`. Keyed by instance, so two ramps for one
+// scatter kind (biome overrides) build separately.
+export function fieldFeatureInstances(field: TileField): FeatureInstance[] {
+  const byKey = new Map<string, FeatureInstance>();
+  for (let r = 0; r < field.height; r++) {
+    for (let c = 0; c < field.width; c++) {
+      for (const s of field.at(c, r).scatter) byKey.set(s.inst.key, s.inst);
+    }
+  }
+  return [...byKey.values()];
 }

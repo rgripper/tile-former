@@ -32,7 +32,8 @@
 
 import type { Atlas } from "./atlas.ts";
 import { blitSprite } from "./atlas.ts";
-import { cellBounds, cellDepth, cellOrigin, composeCell, type ComposeOptions, type TileField, type TileSurface } from "./compose.ts";
+import { blitFeature, buildFeatureAtlas, type FeatureAtlas } from "./features/index.ts";
+import { cellBounds, cellDepth, cellOrigin, composeCell, featuresForTile, fieldFeatureInstances, type ComposeOptions, type TileField, type TileSurface } from "./compose.ts";
 import { CORNER_TILE_OFFSETS } from "./masks.ts";
 import { fbm } from "./noise.ts";
 import { drawLine, fillPolygon, makeBuffer, type PixelBuffer } from "./pixels.ts";
@@ -180,12 +181,29 @@ export type TerrainRender = {
 // Renders every tile's cliff walls + rims and every dual cell's composed floor
 // sprites into one buffer, in a single back-to-front depth-sorted pass (see the
 // file header for why the two grids' depth keys differ by one).
-export function renderTerrain(field: TileField, atlas: Atlas, opts: ComposeOptions): TerrainRender {
+//
+// Milestone F adds the feature overhang layer. Its depth slot is NOT the host
+// tile's own: a tile's diamond is covered by the four dual cells whose corners
+// meet at its centre, all of which sit at tileDepth+1 or deeper in this sort.
+// Drawing a feature at its tile's depth would have every one of its pixels
+// painted over by those floor sprites. Features are therefore emitted at
+// tileDepth + 1.5 — strictly above every floor sprite (the deepest cell that
+// can touch the tile sits at tileDepth+2... but any cell overlapping the
+// tile's rect has depth ≤ tileDepth+1, so +1.5 clears them all) and below
+// nothing else, because scatter is the topmost floor layer by definition:
+// pebbles and leaves lie ON the ground, whatever ground it is.
+export function renderTerrain(
+  field: TileField,
+  atlas: Atlas,
+  opts: ComposeOptions,
+  features?: FeatureAtlas,
+): TerrainRender {
   const maxLevel = fieldMaxLevel(field);
   const { minX, minY, maxX, maxY } = terrainExtent(field, maxLevel);
   const originX = -minX;
   const originY = -minY;
   const buffer = makeBuffer(Math.ceil(maxX - minX), Math.ceil(maxY - minY));
+  const featureAtlas = features ?? buildFeatureAtlas(fieldFeatureInstances(field), opts.seed);
 
   type Item = { depth: number; draw: () => void };
   const items: Item[] = [];
@@ -197,6 +215,19 @@ export function renderTerrain(field: TileField, atlas: Atlas, opts: ComposeOptio
         depth: col + row,
         draw: () => drawTileWalls(buffer, field, col, row, surface, originX, originY),
       });
+      // Features at their own depth slot, above all floor (comment above).
+      const placements = featuresForTile(surface, col, row, opts.seed);
+      if (placements.length > 0) {
+        items.push({
+          depth: col + row + 1.5,
+          draw: () => {
+            for (const f of placements) {
+              const ref = featureAtlas.lookup(f.key, f.shape);
+              if (ref !== null) blitFeature(buffer, ref, originX + f.x, originY + f.y);
+            }
+          },
+        });
+      }
     }
   }
 
