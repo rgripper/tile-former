@@ -35,6 +35,13 @@ export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number
       return;
     }
 
+    // `data` is non-enumerable (pixels.ts, hidePixelData), so a buffer that
+    // reached here through a spread has lost its pixels. Without this the
+    // symptom is an opaque "ImageData: input data has zero elements".
+    if (buffer.data === undefined) {
+      throw new Error("TileCanvas: buffer has no pixel data — use aliasBuffer(), not { ...buffer }");
+    }
+
     let stale = false;
     // Copy: ImageData aliases the array it is given, and some callers
     // (MixedBiomePreview's progressive bake) keep mutating their buffer after

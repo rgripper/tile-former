@@ -6,16 +6,52 @@
 
 import { biomes, type Biome } from "@tile-former/tilegen";
 import type { DesignInput } from "../core/types.ts";
-import { hash2D } from "../core/rng.ts";
+import { fbm } from "../core/noise.ts";
 import type { PixelBuffer } from "../core/pixels.ts";
 import { makeRng } from "../core/rng.ts";
 import { biomeToInput } from "../core/biomeInput.ts";
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-export function jitterInput(input: DesignInput, tx: number, ty: number): DesignInput {
-  if (tx === 0 && ty === 0) return input;
-  const r = (k: number) => hash2D(tx, ty, 0xbeef ^ k) - 0.5;
+// --- Property jitter -----------------------------------------------------------
+//
+// Tiles per wavelength of the jitter field, and the stretch that puts its
+// useful range back where a uniform hash's was.
+//
+// This field used to be `hash2D(tx, ty, …)` — independent white noise per tile.
+// That is the wrong model of a real map and it looks it. Wherever a biome sits
+// near a substrate threshold (Cold Desert is right on the sand/soil line, and
+// the montane and tropical-forest biomes on several at once), a per-tile coin
+// flip decides the winner, and the dual grid faithfully renders the result: a
+// chessboard of one-tile enclaves, each one a lone diamond with nothing but
+// square in it. Measured over 44 biomes × 5 seeds at 16×16, 4.9% of all tiles
+// were lone one-tile islands of their substrate, 11.6% in the worst biome.
+//
+// The generator this stands in for does not work that way: tilegen's properties
+// come from gradient axes, cluster fields and a CA smoothing pass, so a
+// substrate patch is many tiles across. Low-frequency fBm is the faithful
+// model — and the same one the rest of the package already uses wherever a
+// per-cell independent pick would step visibly (compose.ts's `BIAS_CELLS`,
+// terrain.ts's `defaultLevelFrequency`). Lumps a few tiles wide, rounded by the
+// dual grid, instead of salt and pepper.
+const JITTER_CELLS = 5;
+// fBm concentrates around 0.5, so without a stretch the jitter would only ever
+// reach a fraction of the band the thresholds are tuned against.
+const JITTER_CONTRAST = 2.2;
+
+// Each property gets its own field, so they drift independently rather than a
+// single lump moving every threshold at once.
+function jitterAt(tx: number, ty: number, seed: number, k: number): number {
+  const n = (fbm(tx, ty, (seed ^ (0xbeef * (k + 1))) >>> 0, 1 / JITTER_CELLS) - 0.5) * JITTER_CONTRAST;
+  return n < -0.5 ? -0.5 : n > 0.5 ? 0.5 : n;
+}
+
+// Note there is no "the origin tile is exactly `input`" exemption any more: with
+// a coherent field, pinning one tile back to the base value is precisely how you
+// manufacture a one-tile enclave, at the centre of the preview no less. The 8×
+// single-tile panel still bakes the unjittered style, so nothing lost it.
+export function jitterInput(input: DesignInput, tx: number, ty: number, seed: number): DesignInput {
+  const r = (k: number) => jitterAt(tx, ty, seed, k);
   return {
     ...input,
     temperature: input.temperature + r(1) * 3,

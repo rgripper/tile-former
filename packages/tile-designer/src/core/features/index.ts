@@ -36,7 +36,7 @@ import { SCATTER_IDS, TILE_H, TILE_W } from "../types.ts";
 import { hash2D } from "../rng.ts";
 import { DEFAULT_BLOCKS, latticeAt } from "../lattice.ts";
 import { rampAt } from "../palette/index.ts";
-import type { PixelBuffer } from "../pixels.ts";
+import { hidePixelData, type PixelBuffer } from "../pixels.ts";
 
 export { SCATTER_IDS };
 
@@ -181,7 +181,7 @@ function crop(texture: Int32Array): FeatureSpriteRef | null {
       data[d + 3] = 255;
     }
   }
-  return { w, h, offsetX: minX, offsetY: minY, data };
+  return hidePixelData({ w, h, offsetX: minX, offsetY: minY, data });
 }
 
 // --- The feature atlas -----------------------------------------------------------

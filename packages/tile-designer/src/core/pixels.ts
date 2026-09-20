@@ -10,7 +10,47 @@ export type PixelBuffer = {
 };
 
 export function makeBuffer(width = TILE_W, height = TILE_H): PixelBuffer {
-  return { width, height, data: new Uint8ClampedArray(width * height * 4) };
+  return hidePixelData({ width, height, data: new Uint8ClampedArray(width * height * 4) });
+}
+
+// Marks a pixel payload non-enumerable. Every object in this package that
+// carries a big typed array must go through this before it can reach a React
+// prop, which in practice means all of them — PixelBuffer, MaskBitmap and
+// FeatureSpriteRef all end up inside an Atlas, and `AtlasPanel` takes an Atlas.
+//
+// Why it is needed: React's development build serialises each component's props
+// for its performance track (`logComponentRender` → `addObjectToProperties`),
+// which walks objects with `for...in` down to depth 3. A typed array's indices
+// are enumerable own properties, so one PixelBuffer reaching a prop costs React
+// one [string, string] pair *per pixel byte*. Measured with Chrome's sampling
+// heap profiler on a single 32×32 terrain-preview rebuild: 954 MB allocated, of
+// which 953 MB was `addValueToProperties` + `logComponentRender` and ~1 MB was
+// this package's own code. A production build of the same interaction stays at
+// 4–5 MB, flat — so this is purely a dev-mode tax, but dev is where the tab was
+// running out of memory after a handful of preview-option changes.
+//
+// `for...in` skips non-enumerable keys, while `buf.data[i]` is unaffected.
+//
+// The one real consequence: `{ ...buf }` now silently drops the pixels, because
+// spread copies enumerable own properties only. Use `aliasBuffer` when you need
+// a fresh object identity for the same pixels — that is the only reason this
+// package ever spread a buffer (MixedBiomePreview republishing a buffer it is
+// still progressively baking into). `TileCanvas` guards against the mistake.
+export function hidePixelData<T extends { data: ArrayBufferView }>(obj: T): T {
+  Object.defineProperty(obj, "data", {
+    value: obj.data,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
+  return obj;
+}
+
+// A new object identity over the same pixels. Callers that mutate a buffer in
+// place and republish it need React to see a changed prop; `{ ...buf }` used to
+// do that and no longer can (see hidePixelData).
+export function aliasBuffer(buf: PixelBuffer): PixelBuffer {
+  return hidePixelData({ width: buf.width, height: buf.height, data: buf.data });
 }
 
 // Diamond mask in the 2:1 iso tile: |dx| + |dy| <= 1 in normalized coords.

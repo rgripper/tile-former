@@ -247,11 +247,18 @@ export function shapeIndex(c: number, r: number, seed: number, key: string, coun
 // top-left of the sprite's nominal TILE_W×TILE_H cell rect in native world
 // pixels, with the floor level's cliff height already subtracted; the renderer
 // adds the atlas ref's own crop offset on top.
+//
+// `clip` is the outer hard-edged footprint the sprite must stay inside: the
+// corners of this cell whose floor level is at or below this sprite's. It is
+// `CODE_FULL` — i.e. no clipping — for every cell that does not straddle a
+// level, and for the topmost level of one that does. See "Spill runs downhill"
+// below.
 export type CellSprite = {
   key: string;
   id: RenderMaterialId;
   density: Density;
   code: number;
+  clip: number;
   shape: number;
   bias: number;
   level: number;
@@ -289,7 +296,13 @@ export function composeCell(
   const corners = CORNER_TILE_OFFSETS.map(([du, dv]) => field.at(c + du, r + dv));
   const out: CellSprite[] = [];
 
-  const emit = (inst: MaterialInstance, density: Density, code: number, level: number) => {
+  const emit = (
+    inst: MaterialInstance,
+    density: Density,
+    code: number,
+    level: number,
+    clip: number,
+  ) => {
     if (code === 0) return;
     const [x, y] = cellOrigin(c, r, level);
     out.push({
@@ -297,6 +310,7 @@ export function composeCell(
       id: inst.id,
       density,
       code,
+      clip,
       shape: shapeIndex(c, r, opts.seed, inst.key, atlas.shapeCount(code)),
       bias: biasIndex(c, r, opts.seed, atlas.biasCount(code)),
       level,
@@ -309,6 +323,27 @@ export function composeCell(
   for (const level of levels) {
     let levelMask = 0;
     for (let q = 0; q < 4; q++) if (corners[q]!.level === level) levelMask |= 1 << q;
+
+    // --- Spill runs downhill ---
+    //
+    // Every mask overhangs its nominal region (masks.ts, "the overhang-only
+    // rule"), which is right at a *material* boundary: there is nothing behind
+    // it, so a ragged organic edge is free. It is wrong at a *level* boundary.
+    // Two levels of one cell are drawn CLIFF_UNIT apart vertically with the
+    // upper tile's cliff face standing between them, so the lower level's
+    // overhang lands on that face — floor texture painted a few pixels up the
+    // wall, in chunks that wander along its length. At SPILL_AMP = 0.2 that is
+    // ~3 px of a 12 px face eaten from below (and another ~3 from above, by the
+    // upper lip, which *is* wanted), which reads as the cliff colour being
+    // offset from the ground it belongs to.
+    //
+    // So: a level may spill onto levels below it (the lip overhanging a face is
+    // the intended read) and never onto levels above it. `clip` is the hard
+    // nominal footprint of "corners at or below this level"; CODE_FULL, i.e. no
+    // clip at all, for the top level of any cell — and therefore for every cell
+    // that does not straddle, which is ~83% of them.
+    let clip = 0;
+    for (let q = 0; q < 4; q++) if (corners[q]!.level <= level) clip |= 1 << q;
 
     // 1. Substrates, nested. Sorted ascending, so the first one drawn is the
     //    lowest-ranked and gets the whole level footprint.
@@ -325,7 +360,7 @@ export function composeCell(
       for (let q = 0; q < 4; q++) {
         if ((levelMask >> q) & 1 && compareInstances(corners[q]!.substrate, s) >= 0) code |= 1 << q;
       }
-      emit(s, "full", code, level);
+      emit(s, "full", code, level, clip);
     }
 
     // 2. Mats, additive, each density level partitioning the corners that carry
@@ -344,7 +379,7 @@ export function composeCell(
           const m = corners[q]!.mats.find((e) => e.instance.key === inst.key);
           if (m !== undefined && m.density === density) code |= 1 << q;
         }
-        emit(inst, density, code, level);
+        emit(inst, density, code, level, clip);
       }
     }
   }

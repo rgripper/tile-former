@@ -11,6 +11,7 @@ import {
   MASK_CODES,
   maskAt,
   nominalInside,
+  nominalMask,
   nominalSigned,
   renderMask,
   SPILL_AMP,
@@ -231,5 +232,69 @@ describe("cross-cell edge continuity", () => {
     expect(across).toBeLessThan(within);
     // Absolute guard too, so the test cannot pass by the control degrading.
     expect(across).toBeLessThan(0.02);
+  });
+});
+
+// --- The hard nominal footprint (the level clip) ---------------------------------
+
+describe("nominalMask", () => {
+  const codes = Array.from({ length: MASK_CODES }, (_, code) => code);
+
+  it("covers exactly the nominal region, with none of the spill a drawn mask has", () => {
+    for (const code of codes) {
+      const mask = nominalMask(code);
+      for (let y = 0; y < TILE_H; y++) {
+        const [x0, x1] = rowSpan(y);
+        for (let x = x0; x <= x1; x++) {
+          const [u, v] = latticeAt(x, y);
+          const want = code === CODE_FULL || (code !== CODE_EMPTY && nominalInside(code, u, v));
+          expect(mask[y * TILE_W + x] === 255).toBe(want);
+        }
+      }
+    }
+  });
+
+  it("draws nothing outside the diamond", () => {
+    for (const code of codes) {
+      const mask = nominalMask(code);
+      for (let y = 0; y < TILE_H; y++) {
+        for (let x = 0; x < TILE_W; x++) {
+          if (!insideDiamond(x, y)) expect(mask[y * TILE_W + x]).toBe(0);
+        }
+      }
+    }
+  });
+
+  // What makes it safe to clip a straddling cell's lower level to its own
+  // footprint: the footprints of a code and its complement tile the diamond
+  // exactly, so clipping can never open a hole the cliff face doesn't fill.
+  it("partitions the diamond between a code and its complement", () => {
+    for (const code of codes) {
+      const a = nominalMask(code);
+      const b = nominalMask(CODE_FULL & ~code);
+      for (let y = 0; y < TILE_H; y++) {
+        const [x0, x1] = rowSpan(y);
+        for (let x = x0; x <= x1; x++) {
+          const o = y * TILE_W + x;
+          expect((a[o] === 255 ? 1 : 0) + (b[o] === 255 ? 1 : 0)).toBe(1);
+        }
+      }
+    }
+  });
+
+  // The whole reason it exists: a drawn mask reaches past the nominal boundary
+  // (that is SPILL_AMP), and at a level boundary that overhang lands on the
+  // cliff face below rather than on ground.
+  it("is strictly tighter than the drawn mask it clips", () => {
+    let clipped = 0;
+    for (const code of [0b0011, 0b0101, 0b1110]) {
+      const mask = renderMask(code, 0, SEED, BLOCKS);
+      const nominal = nominalMask(code);
+      for (let i = 0; i < mask.data.length; i++) {
+        if (nominal[i] === 255) expect(mask.data[i]).toBe(255); // never recedes inward
+        else if (mask.data[i] === 255) clipped++;
+      }
+    }
+    expect(clipped).toBeGreaterThan(0);
   });
 });

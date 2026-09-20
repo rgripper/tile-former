@@ -142,6 +142,40 @@ describe("altitude", () => {
     expect(soil.y).toBe(sand.y - CLIFF_UNIT);
   });
 
+  // A level boundary is not a material boundary: the cliff face of the tile
+  // above stands behind it, so an organic overhang there lands on the wall
+  // rather than on more ground. `clip` is what stops it — the hard nominal
+  // footprint of "corners at or below this sprite's level" (compose.ts, "Spill
+  // runs downhill"), and CODE_FULL, i.e. no clip, wherever nothing is uphill.
+  it("clips a straddling cell's lower level to its own footprint and leaves the top level free", () => {
+    const field = makeField(2, 2, (c, r) => surface(r === 0 ? "sand" : "soil", [], r));
+    const sprites = composeCell(field, atlasFor(field), 0, 0, { seed: 1 });
+    const lower = sprites.find((s) => s.level === 0)!;
+    const upper = sprites.find((s) => s.level === 1)!;
+    // Corners 0,1 are level 0 and 2,3 are level 1, so the level-0 pass may not
+    // spill past corners 0,1 — uphill is where the wall is.
+    expect(lower.clip).toBe(0b0011);
+    // Nothing is above the top level, so it keeps its overhang: the lip over
+    // the face is the one spill across a level boundary that is wanted.
+    expect(upper.clip).toBe(CODE_FULL);
+  });
+
+  it("clips nothing at all in a cell that does not straddle", () => {
+    const field = makeField(2, 2, (c) => surface(c === 0 ? "sand" : "soil", [], 3));
+    const sprites = composeCell(field, atlasFor(field), 0, 0, { seed: 1 });
+    expect(sprites.length).toBeGreaterThan(1); // a real material boundary...
+    expect(sprites.every((s) => s.clip === CODE_FULL)).toBe(true); // ...and it still spills
+  });
+
+  it("lets a middle level spill downhill but not uphill", () => {
+    const field = makeField(2, 2, (c, r) => surface("sand", [], c === 0 && r === 0 ? 0 : c + r));
+    const sprites = composeCell(field, atlasFor(field), 0, 0, { seed: 1 });
+    const byLevel = new Map(sprites.map((s) => [s.level, s.clip]));
+    expect(byLevel.get(0)).toBe(0b0001); // corner 0 only: everything else is uphill
+    expect(byLevel.get(1)).toBe(0b0111); // corners 1,2, plus corner 0 below them
+    expect(byLevel.get(2)).toBe(CODE_FULL); // top level: free
+  });
+
   it("handles more than two straddling levels (never observed on real maps, but the AND is general)", () => {
     const field = makeField(2, 2, (c, r) => {
       if (c === 0 && r === 0) return surface("sand", [], 0);

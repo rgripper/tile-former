@@ -58,7 +58,7 @@
 import type { Density, RenderMaterialId, StyleParams } from "./types.ts";
 import { DENSITIES, TILE_H, TILE_W } from "./types.ts";
 import { DEFAULT_BLOCKS, latticeAt } from "./lattice.ts";
-import { rowSpan, type PixelBuffer } from "./pixels.ts";
+import { makeBuffer, rowSpan, type PixelBuffer } from "./pixels.ts";
 
 import { buildMaskSet, CODE_EMPTY, CODE_FULL, MASK_CODES, type MaskBitmap } from "./masks.ts";
 import {
@@ -172,7 +172,19 @@ export type Atlas = {
 // Copies one sprite's non-transparent pixels into `dst` at (dx, dy) — the
 // sprite's own crop offset (`ref.offsetX/Y`) is applied on top, matching the
 // contract `CellSprite.x/y` documents (compose.ts).
-export function blitSprite(dst: PixelBuffer, atlas: Atlas, ref: SpriteRef, dx: number, dy: number): void {
+//
+// `clip`, when given, is a TILE_W×TILE_H coverage bitmap in the sprite's own
+// cell rect (masks.ts, `nominalMask`): a pixel outside it is dropped. That is
+// how a dual cell's lower floor level is held back from spilling up the cliff
+// face above it — see compose.ts, `CellSprite.clip`.
+export function blitSprite(
+  dst: PixelBuffer,
+  atlas: Atlas,
+  ref: SpriteRef,
+  dx: number,
+  dy: number,
+  clip?: Uint8Array,
+): void {
   const page = atlas.pages[ref.page]!;
   for (let y = 0; y < ref.h; y++) {
     const py = dy + ref.offsetY + y;
@@ -180,6 +192,7 @@ export function blitSprite(dst: PixelBuffer, atlas: Atlas, ref: SpriteRef, dx: n
     for (let x = 0; x < ref.w; x++) {
       const so = ((ref.y + y) * page.width + ref.x + x) * 4;
       if (page.data[so + 3] === 0) continue;
+      if (clip !== undefined && clip[(ref.offsetY + y) * TILE_W + ref.offsetX + x] === 0) continue;
       const px = dx + ref.offsetX + x;
       if (px < 0 || px >= dst.width) continue;
       const o = (py * dst.width + px) * 4;
@@ -407,11 +420,7 @@ export function buildAtlas(
   const newPage = () => {
     const p = new PagePacker(config.pageSize, packers.length);
     packers.push(p);
-    pages.push({
-      width: config.pageSize,
-      height: config.pageSize,
-      data: new Uint8ClampedArray(config.pageSize * config.pageSize * 4),
-    });
+    pages.push(makeBuffer(config.pageSize, config.pageSize));
     return p;
   };
 

@@ -3,7 +3,7 @@ import type { DesignInput, RenderStyle } from "../core/types.ts";
 import { TILE_H, TILE_W } from "../core/types.ts";
 import { resolveStyle } from "../core/resolve.ts";
 import { bakeTile } from "../core/bake.ts";
-import { makeBuffer, type PixelBuffer } from "../core/pixels.ts";
+import { aliasBuffer, makeBuffer, type PixelBuffer } from "../core/pixels.ts";
 import { TileCanvas } from "./TileCanvas.tsx";
 import { blit, clusterAt, jitterInput, pickClusters, type Cluster } from "./previewUtils.ts";
 
@@ -76,7 +76,7 @@ export function MixedBiomePreview({
         const base = cluster ? cluster.input : baked.input;
         const ox = ((tx - ty) * TILE_W) / 2;
         const oy = ((tx + ty) * TILE_H) / 2;
-        const style = resolveStyle(jitterInput(base, tx, ty));
+        const style = resolveStyle(jitterInput(base, tx, ty, seed));
         const tile = bakeTile(style, ox, oy, baked.seed, baked.render);
         blit(composite, tile, ox + (TILE_W * (grid - 1)) / 2, oy + TILE_H * half);
       }
@@ -85,7 +85,7 @@ export function MixedBiomePreview({
       setRowsDone(done);
       // New object reference (not every row) so TileCanvas's effect (keyed
       // off buffer identity) picks it up and repaints.
-      if (done % REPAINT_EVERY === 0 || done === grid) setBuffer({ ...composite });
+      if (done % REPAINT_EVERY === 0 || done === grid) setBuffer(aliasBuffer(composite));
       // setTimeout, not requestAnimationFrame: rAF is throttled/paused by the
       // browser whenever the tab or window isn't visible/focused, which would
       // freeze an in-progress bake indefinitely. A timer keeps running

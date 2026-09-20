@@ -6,7 +6,7 @@ import { buildFeatureAtlas, featureInstance } from "./features/index.ts";
 import { buildAtlas } from "./atlas.ts";
 import { getPalette } from "./palette/index.ts";
 import { drawLine, fillPolygon, insideDiamond, makeBuffer, rowSpan, type PixelBuffer } from "./pixels.ts";
-import { MAX_FLOORS, TILE_H, TILE_W } from "./types.ts";
+import { CLIFF_UNIT, MAX_FLOORS, TILE_H, TILE_W } from "./types.ts";
 import {
   CLIFF_LEFT_SHADE,
   CLIFF_RIGHT_SHADE,
@@ -227,6 +227,56 @@ describe("renderTerrain", () => {
       }
     }
     expect(gaps).toBe(0);
+  });
+
+  // --- The level clip (compose.ts, "Spill runs downhill") ------------------
+  //
+  // Every mask overhangs its nominal region, and until the level clip existed
+  // it did so at floor-level boundaries too — so the *lower* level of a
+  // straddling cell painted a few pixels of ground up the cliff face standing
+  // above it, in chunks that wandered along the face's length. What made that
+  // visible is not the lost wall area but that it moved the *foot* of the
+  // cliff: the boundary between wall colour and floor texture stopped tracking
+  // the tile edge it belongs to.
+  //
+  // So that is what this pins. A plateau one level high over flat level-0
+  // ground puts every visible left-shade pixel on one straight iso line's worth
+  // of wall (the tiles' lower-left edges are collinear, all at the same level),
+  // and the bottom of that wall must be a straight line: `y − x/2` constant
+  // down the whole face, give or take the rasteriser's own pixel.
+  it("keeps the foot of a cliff on the tile edge it belongs to", () => {
+    const field = makeField(6, 6, (_c, r) => surface("soil", r <= 2 ? 1 : 0));
+    const { buffer } = renderTerrain(field, atlasFor(field), { seed: 1 });
+    const face = darken(PALETTE.soil[1]!, CLIFF_LEFT_SHADE);
+    const r = (face >> 16) & 0xff;
+    const g = (face >> 8) & 0xff;
+    const b = face & 0xff;
+
+    const base = new Map<number, number>();
+    const top = new Map<number, number>();
+    for (let y = 0; y < buffer.height; y++) {
+      for (let x = 0; x < buffer.width; x++) {
+        const o = (y * buffer.width + x) * 4;
+        if (buffer.data[o] !== r || buffer.data[o + 1] !== g || buffer.data[o + 2] !== b) continue;
+        base.set(x, y);
+        if (!top.has(x)) top.set(x, y);
+      }
+    }
+    expect(base.size).toBeGreaterThan(TILE_W); // the face is actually there
+
+    // Residual against the iso line's slope of 1/2. The foot is clipped hard,
+    // so it is flat; the lip above it still spills, so the top is not — that
+    // overhang is deliberate (masks.ts, "the overhang-only rule") and the
+    // asymmetry below is the whole point of the clip.
+    const residuals = [...base].map(([x, y]) => y - x / 2);
+    expect(Math.max(...residuals) - Math.min(...residuals)).toBeLessThanOrEqual(1);
+
+    // And with the foot pinned, the face keeps most of its CLIFF_UNIT height
+    // instead of being eaten from both sides (measured: mean 7.2 px of 12
+    // before the clip, 9.5 after).
+    const heights = [...base].map(([x, y]) => y - top.get(x)! + 1);
+    const mean = heights.reduce((a, h) => a + h, 0) / heights.length;
+    expect(mean).toBeGreaterThan(CLIFF_UNIT * 0.7);
   });
 
   it("sizes the buffer to actually contain everything drawn (no silent clipping)", () => {

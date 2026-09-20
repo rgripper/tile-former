@@ -34,7 +34,7 @@ import type { Atlas } from "./atlas.ts";
 import { blitSprite } from "./atlas.ts";
 import { blitFeature, buildFeatureAtlas, type FeatureAtlas } from "./features/index.ts";
 import { cellBounds, cellDepth, cellOrigin, composeCell, featuresForTile, fieldFeatureInstances, type ComposeOptions, type TileField, type TileSurface } from "./compose.ts";
-import { CORNER_TILE_OFFSETS } from "./masks.ts";
+import { CODE_FULL, CORNER_TILE_OFFSETS, nominalMask } from "./masks.ts";
 import { fbm } from "./noise.ts";
 import { drawLine, fillPolygon, makeBuffer, type PixelBuffer } from "./pixels.ts";
 import { CLIFF_UNIT, MAX_FLOORS, TILE_H, TILE_W } from "./types.ts";
@@ -241,7 +241,12 @@ export function renderTerrain(
         draw: () => {
           for (const sprite of sprites) {
             const ref = atlas.lookup(sprite.key, sprite.density, sprite.code, sprite.shape, sprite.bias);
-            if (ref !== null) blitSprite(buffer, atlas, ref, originX + sprite.x, originY + sprite.y);
+            if (ref === null) continue;
+            // `clip` is CODE_FULL for every sprite outside a level straddle, so
+            // the common path stays a plain blit (compose.ts, "Spill runs
+            // downhill").
+            const clip = sprite.clip === CODE_FULL ? undefined : nominalMask(sprite.clip);
+            blitSprite(buffer, atlas, ref, originX + sprite.x, originY + sprite.y, clip);
           }
         },
       });

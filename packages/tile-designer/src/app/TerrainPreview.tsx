@@ -58,7 +58,7 @@ function buildField(
     const cluster = clusterAt(tx, ty, clusters);
     const base = cluster ? cluster.input : input;
     const level = terrainLevel(c, r, seed, baseLevel, relief, freq);
-    const withAltitude: DesignInput = { ...jitterInput(base, tx, ty), altitude: level / MAX_FLOORS };
+    const withAltitude: DesignInput = { ...jitterInput(base, tx, ty, seed), altitude: level / MAX_FLOORS };
     return tileSurface(resolveStyle(withAltitude), withAltitude.altitude);
   });
 }

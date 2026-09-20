@@ -79,7 +79,7 @@
 
 import { periodicBlockHash, periodicFbm, smoothstep } from "./noise.ts";
 import { DEFAULT_BLOCKS, latticeAt, quantizeLattice } from "./lattice.ts";
-import { rowSpan } from "./pixels.ts";
+import { hidePixelData, rowSpan } from "./pixels.ts";
 import { TILE_H, TILE_W } from "./types.ts";
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -240,7 +240,7 @@ export function renderMask(
       }
     }
   }
-  return { code, variant, data };
+  return hidePixelData({ code, variant, data });
 }
 
 // The full material-independent mask set: `variants` spill fields for each of
@@ -259,4 +259,45 @@ export function buildMaskSet(seed: number, variants: number, blocks: number = DE
     out.push(row);
   }
   return out;
+}
+
+// --- Hard nominal footprints (the level clip) ---------------------------------
+
+// The same 16 regions with the spill switched off: `nominalInside` rasterised
+// flat, diamond-clipped. These are not drawn — they are used as an *outer clip*
+// where a dual cell straddles two floor levels (compose.ts, "spill runs
+// downhill, never uphill").
+//
+// Why the spill has to stop at a level boundary: two levels of one cell are
+// drawn at y offsets CLIFF_UNIT apart, with the upper tile's cliff face
+// standing in the gap. A mask boundary that separates two *materials* has
+// nothing behind it, so an organic overhang is free; one that separates two
+// *levels* has a wall behind it, and the lower level's overhang lands on that
+// wall — floor texture painted a few pixels up the cliff, in wandering chunks.
+// With SPILL_AMP = 0.2 that is ±0.2·TILE_H/2 ≈ 3 px of a 12 px face eaten from
+// below, which is what made cliff colour read as offset from the ground above
+// it. Clipped, the lower level stops dead at its nominal edge — and that edge
+// is exactly where the cliff face's foot already is, so nothing organic is
+// lost: the straight line was always going to be there, drawn by the wall.
+//
+// Material-independent, seed-independent and variant-independent, so all 16 are
+// built once on first use.
+const nominalMasks: Array<Uint8Array | undefined> = new Array(MASK_CODES);
+
+export function nominalMask(code: number): Uint8Array {
+  let mask = nominalMasks[code];
+  if (mask === undefined) {
+    mask = new Uint8Array(TILE_W * TILE_H);
+    if (code !== CODE_EMPTY) {
+      for (let y = 0; y < TILE_H; y++) {
+        const [x0, x1] = rowSpan(y);
+        for (let x = x0; x <= x1; x++) {
+          const [u, v] = latticeAt(x, y);
+          if (code === CODE_FULL || nominalInside(code, u, v)) mask[y * TILE_W + x] = 255;
+        }
+      }
+    }
+    nominalMasks[code] = mask;
+  }
+  return mask;
 }
