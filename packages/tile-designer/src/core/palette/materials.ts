@@ -27,6 +27,7 @@ export const MATERIAL_STYLES: Record<MaterialId, MaterialStyle> = {
   peat:         { ramp: "muck",    shade: -1 }, // older, wetter, darker organics than mud
   frozenGround: { ramp: "frost",   shade:  0 },
   snow:         { ramp: "snow",    shade:  0 },
+  water:        { ramp: "water",   shade:  0 }, // the one ramp nothing else draws from
 
   // --- mats ---
   grass:        { ramp: "verdant", shade:  0 },

@@ -241,6 +241,9 @@ src/app/              ← designer UI
   dual-grid composition out of one atlas; per-diagonal culling; the v1 bake
   path, its IndexedDB cache and the `RenderStyle` knobs are gone. **Wired and
   building, but not yet seen in a browser** — see the log entry.
+- [x] **W — Water joins the stack.** Water becomes the top-priority substrate,
+  so shorelines get the dual grid's rounding; the flat blue diamond overlay in
+  `isoTerrain.ts` is gone.
 
 ## What survived from v1 (settled at G)
 
@@ -1170,6 +1173,80 @@ textures cut once per build. The debug overlays keep their flat per-tile fill,
 which is correct — they exist to read a scalar field off the map, and a composed
 floor would only obscure it.
 
+**W done (2026-09-21).** Water is a substrate. `"water"` joined
+`SUBSTRATE_IDS` and sits at the top of the substrate block in `MATERIAL_STACK`;
+`palette/materials.ts` maps it onto the `water` master ramp (which existed from
+P but nothing drew from); `materials/index.ts` gained its generator;
+`resolveSurface` asserts it from `DesignInput.water` before any scoring. The
+dead `StyleParams.water` flag was deleted, and so was `isoTerrain.ts`'s flat blue
+diamond — the game renderer no longer knows water exists. 162 tests (up from
+154); root and in-package `tsc` clean; game and designer both build.
+
+*Why a substrate, not a new layer.* Water behaves exactly like one: a tile has
+exactly one, it is opaque, it must leave no gap. So the nesting rule already in
+`compose.ts` produces a shoreline with **no change to the compositor at all** —
+a cell with one water corner draws the lakebed (whatever the neighbouring land
+resolves to) across the whole cell, then water over its corner, and water's
+spilled mask edge *is* the shore. Water is deliberately *not* placed above the
+mats in the stack even though it physically covers vegetation: compose.ts draws
+every substrate before any mat regardless of stack index, so that position
+would claim a precedence it never gets. Mats on land corners therefore spill a
+few px over the water — bank growth leaning out over the edge, which is the
+read wanted anyway. A water tile carries no mats and, since `water` is not in
+any `FEATURE_HOSTS` set, no scatter; both fall out of existing rules.
+
+*Asserted, not scored.* `scoreSubstrates` returns `water: 0` (the record type
+covers every substrate, and no climate should flood a dry tile), and
+`resolveSurface` short-circuits on the boolean. Tilegen decides where lakes
+are; the resolver does not second-guess it.
+
+*The generator, and the first version that was wrong.* The contracts in
+`materials.test.ts` (periodic, fills the cell, <90% one colour, bias moves
+1–50% of pixels, reads neither `arid` nor `wet`) all passed first time —
+`it.each(SUBSTRATE_IDS)` picked water up automatically — and the tone census
+looked healthy (17/46/34/3%). **Rendered, it read as corrugated metal**: the
+tone was driven by a sine alone, a sine is arcsine-distributed, and every tile
+split into bold light/dark stripes. The contracts cannot see that, which is
+the reason to look. Fixed by making fBm the body and the sine only a
+modulation (`1.25 + (body−0.5)·1.2 + ripple·0.38`), which keeps the dominant
+dominant and breaks the wavelets into irregular dashes. Measured on a rendered
+lake: **3.6 / 82.8 / 11.2 / 2.4%** across the four steps, i.e. the house
+~85/12/3.5 split. Wavelets carry direction, so their phase rides on
+`structureSeed` — sand's lesson — and a lake reads as one surface across
+variants. Glints (step 3) are gated on the crest; an ungated sparkle reads as
+snow on water.
+
+*Pinned by pixels, and confirmed to fail without the thing it pins.* New in
+`terrain.test.ts`: the counterpart of the cliff-foot test. A cliff foot is a
+level boundary and must be straight; a shoreline is a material boundary and
+must wander. Same geometry (rows 0–2 land, 3–5 water), residual `y − x/2` of
+the topmost water pixel below land per column: **sd 1.21–1.62 px, spread
+5.5–6 px over four seeds**, against the clipped cliff foot's 0.25. The test
+requires sd > 0.8 and spread ≤ 10, and **fails with `SPILL_AMP = 0`** — so it
+measures the mask spill, not something incidental. Three new compose cases
+(lakebed under the whole cell, water outranks every substrate, a bank mat does
+not claim the water corner); the first two **fail with water moved to the
+bottom of the stack**.
+
+*Real maps (64×64, 4 seeds, `buildFieldAtlas` at 2048).* Water is 1.0–1.5% of
+tiles. Cost against the same maps with water ignored: **+2.8–3.6% sprites,
++3.6–4.3% sprite pixels, one extra material instance, still one page.** Zero
+unresolved lookups over 30,363 cell sprites. Water sprites use **14 of the 15**
+non-empty corner codes, so real shorelines exercise the whole partial-mask set
+rather than just full cells. **Every water tile on every seed sat at floor
+level 0**, so the one awkward consequence of water being a tile's substrate —
+its cliff wall would take the water ramp's colour — does not arise on
+generated maps; it is noted rather than special-cased.
+
+*What it does not do.* The shoreline's *macro* shape still steps with the tile
+grid; only its edge is organic. That is the dual grid's nature — every boundary
+is a corner-subset shape plus spill — and matches every other material
+boundary, which is what the milestone promised; a smoother coast would need a
+lake shape that is not tile-quantised in the first place, which is tilegen's
+business. Frozen water still renders open (see Open questions). The Pixi path
+remains unseen in a browser; W removed code from it and added none, so it
+narrows G's unverified surface rather than widening it.
+
 ## Open questions
 
 - Variant count per material: A ships 8 full-cell shapes × 3 tone-bias levels
@@ -1181,15 +1258,10 @@ floor would only obscure it.
   bias dropdowns, while `TerrainPreview` always builds with
   `DEFAULT_ATLAS_CONFIG`. Lifting those two knobs to shared `App` state is a
   prerequisite for answering this at all.
-- Water: still has no atlas entry and no place in the material stack —
-  `DesignInput.water` / `StyleParams.water` are booleans nothing in `compose.ts`
-  or `atlas.ts` reads. G gave it a stand-in (a flat blue diamond drawn over the
-  floor in `isoTerrain.ts`) so the map stays readable, which makes it the last
-  v1-shaped thing left in the renderer. It should join the stack as a
-  top-priority material so shorelines get the same rounding every other boundary
-  gets. A, D, T and now G have each logged this; **it is the obvious next
-  milestone** — every other open item is a tuning judgment, this one is missing
-  machinery.
+- ~~Water~~ — **done at W (2026-09-21)**, see the log. What it left open:
+  frozen lakes still draw as open water (`water` is a boolean with no
+  temperature), and no shoreline material (sand/mud margin) is derived from
+  proximity to water — both are content questions, not missing machinery.
 - Does the drainage range defect also constrain biome *diversity*?
   `stage6_selectBiomes` feeds drainage into the cascade's `drainageLowerBound`,
   so the pre-fix compressed range plausibly narrowed biome selection too. Flagged

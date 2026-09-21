@@ -41,12 +41,16 @@ import type { FloorAtlas } from "./floorField.ts";
 //
 //   1. cliff walls + rims of tiles at depth d              (TILE_DEPTH)
 //   2. floor sprites of dual cells at c + r = d − 1         (CELL_DEPTH)
-//   3. water overlay for tiles at depth d − 1               (between the two)
-//   4. features + vegetation of tiles at depth d − 1        (FEATURE_DEPTH)
+//   3. features + vegetation of tiles at depth d − 1        (FEATURE_DEPTH)
 //
-// Steps 3 and 4 belong to the *previous* diagonal because a tile's own diamond
-// is covered by dual cells up to depth d+1 — the same reasoning terrain.ts's
+// Step 3 belongs to the *previous* diagonal because a tile's own diamond is
+// covered by dual cells up to depth d+1 — the same reasoning terrain.ts's
 // header gives for emitting features at tileDepth + 1.5.
+//
+// Water used to need a fourth slot here, a flat blue diamond drawn between the
+// floor and the features. Milestone W made it a substrate, so it arrives as
+// ordinary floor sprites in step 2 with a dual-grid-rounded shoreline, and this
+// renderer no longer knows that water exists.
 //
 // The offsets come from terrain.ts rather than being written out again here:
 // the two renderers must agree on the interleave or the designer stops
@@ -63,12 +67,6 @@ export type IsoTerrain = {
   cull(bounds: { x: number; y: number; width: number; height: number }): void;
   rows: number;
 };
-
-// Flat blue stand-in for water, which has no place in the material stack yet
-// (PLAN.md, open questions — it is still the one gap A, D and T all logged).
-// Drawn over the floor rather than instead of it, so the tile's substrate still
-// shows at the shoreline where neighbouring cells spill into it.
-const WATER_COLOR = 0x2e6db4;
 
 function wallsAndRims(
   field: TileField,
@@ -184,8 +182,8 @@ export function createIsoTerrain({
     }
   }
 
-  // 3 + 4. Water, scatter features and vegetation, one diagonal later than the
-  //        tile they belong to (see the header).
+  // 3. Scatter features and vegetation, one diagonal later than the tile they
+  //    belong to (see the header).
   const featureAtlas = buildFeatureAtlas(fieldFeatureInstances(field), seed);
   const featureTexture = featureTextures(featureAtlas);
   for (let row = 0; row < field.height; row++) {
@@ -197,19 +195,6 @@ export function createIsoTerrain({
       if (depth >= rowCount) continue;
       const surface = field.at(col, row);
       const tile = tileMap[col]![row]!;
-      const [x, y] = tileOrigin(col, row, surface.level);
-
-      if (tile.water) {
-        const g = new Graphics();
-        g.poly([
-          offsetX + x + TILE_W / 2, offsetY + y,
-          offsetX + x + TILE_W, offsetY + y + TILE_H / 2,
-          offsetX + x + TILE_W / 2, offsetY + y + TILE_H,
-          offsetX + x, offsetY + y + TILE_H / 2,
-        ]);
-        g.fill({ color: WATER_COLOR });
-        rows[depth]!.addChild(g);
-      }
 
       for (const f of featuresForTile(surface, col, row, seed)) {
         const ref = featureAtlas.lookup(f.key, f.shape);

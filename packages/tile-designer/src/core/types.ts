@@ -33,6 +33,12 @@ export const SUBSTRATE_IDS = [
   "peat",
   "frozenGround",
   "snow",
+  // Open water. Not scored like the others — `resolve.ts` asserts it straight
+  // from tilegen's boolean — but a substrate in every other sense: a tile has
+  // exactly one, it is opaque, and it must leave no gap. Being one is what
+  // earns the shoreline the dual grid's rounding instead of the flat diamond
+  // overlay it had until milestone W.
+  "water",
 ] as const;
 export type SubstrateId = (typeof SUBSTRATE_IDS)[number];
 
@@ -98,6 +104,14 @@ export const MATERIAL_STACK = [
   "peat",
   "frozenGround",
   "snow",
+  // Top of the substrate block: water lies over whatever the lakebed is, so
+  // every other substrate around a shore cell draws underneath it. It is not
+  // pushed above the mats even though water physically covers vegetation —
+  // compose.ts draws all substrates before any mat regardless of stack index,
+  // so a position up there would claim a precedence it never gets. Mats
+  // therefore spill their few px of overhang onto the water, which is the
+  // right read anyway: bank growth leans out over the edge.
+  "water",
   // mats
   "lichen",
   "moss",
@@ -184,7 +198,6 @@ export type Ramp = [number, number, number, number];
 // Everything the bake stages need, fully resolved — no further property
 // lookups happen past this point.
 export type StyleParams = {
-  water: boolean;
   surface: SurfaceSpec;
   substrateRamps: Partial<Record<SubstrateId, Ramp>>;
   matRamps: Partial<Record<MatId, Ramp>>;

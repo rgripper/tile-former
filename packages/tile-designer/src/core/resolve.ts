@@ -117,6 +117,12 @@ export function scoreSubstrates(i: DesignInput): Record<SubstrateId, number> {
       (0.55 + 0.45 * rise(i.altitude, 0.3, 0.65)) *
       (1 - 0.7 * aeolian),
 
+    // Water is never *scored*: tilegen decides where the lakes are and
+    // `resolveSurface` asserts it before any of this runs. The entry exists
+    // because the return type covers every substrate, and zero is the honest
+    // value — no climate makes open water, and none can flood a dry tile.
+    water: 0,
+
     // Default earth — scales with fertility, retreats when frozen and thins out
     // under a hot aeolian regime (no vegetation to build a soil horizon there).
     // Keyed on `aeolian`, not raw moisture, so cold/temperate steppes that share
@@ -198,6 +204,19 @@ const MAT_COVERAGE_MIN = 0.08;
 const MAX_MATS = 3;
 
 export function resolveSurface(i: DesignInput): SurfaceSpec {
+  // Water is asserted, not scored (milestone W). It is a substrate so that the
+  // shoreline is an ordinary material boundary — water outranks every other
+  // substrate in MATERIAL_STACK, so a cell with one water corner draws the
+  // lakebed across the whole cell and then water over that one corner, and the
+  // shore gets the same dual-grid rounding as a grass/sand edge instead of the
+  // flat diamond the v1 overlay drew.
+  //
+  // No mats, and no blend with the ground underneath: nothing grows on open
+  // water, and a tile is either submerged or it is not. The lakebed is not
+  // lost by this — it is whatever the *neighbouring* tiles resolve to, which
+  // is what the nesting rule draws underneath.
+  if (i.water) return { substrates: [{ id: "water", weight: 1 }], mats: [] };
+
   const scores = scoreSubstrates(i);
   const ranked = (Object.entries(scores) as Array<[SubstrateId, number]>).sort(
     (a, b) => b[1] - a[1],
@@ -262,7 +281,6 @@ export function resolveStyle(i: DesignInput): StyleParams {
   }
 
   return {
-    water: i.water,
     surface,
     substrateRamps,
     matRamps,

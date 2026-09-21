@@ -238,6 +238,39 @@ export const SUBSTRATE_GENS: Record<SubstrateId, MaterialGen> = {
     return resolveLatticeTone(base, u, v, c.ramp, c.seed, c.blocks);
   },
 
+  water(u, v, c) {
+    // Open water: a calm body with soft, broken wavelets and the occasional
+    // glint where light catches a crest.
+    //
+    // The body is fBm and the ripple only modulates it. The first version drove
+    // the tone from the sine alone, and a sine is arcsine-distributed — it
+    // spends most of its time at the extremes — so every tile split into bold
+    // light/dark stripes that read as corrugated metal, not water. fBm
+    // concentrates around its mean, which keeps the dominant step dominant and
+    // breaks the wavelets into irregular dashes.
+    //
+    // Wavelets carry long-range direction, so the wavevector and phase ride on
+    // `structureSeed` for the reason sand's ripples do: a whole lake reads as
+    // one surface however its variants are shuffled (MaterialCtx.structureSeed).
+    const drift = periodicFbm(u, v, c.structureSeed ^ 0x5bd1e995, 2) * 1.2;
+    const ripple = Math.sin(2 * Math.PI * (2 * u + 3 * v + drift));
+    const body = periodicFbm(u, v, c.seed ^ 0x3f1a7c29, 4);
+    // The glint is gated on the crest, not scattered freely: an ungated sparkle
+    // reads as snow on the water. Not biased, for the same reason clay's and
+    // mud's sheen is not — it is a specular hit, not part of the tonal mix.
+    if (ripple > 0.8 && periodicBlockHash(u, v, c.seed ^ 0x9e3779b1, c.blocks) > 0.88) {
+      return resolveLatticeTone(3.4, u, v, c.ramp, c.seed, c.blocks);
+    }
+    return resolveLatticeTone(
+      1.25 + (body - 0.5) * 1.2 + ripple * 0.38 + c.bias,
+      u,
+      v,
+      c.ramp,
+      c.seed,
+      c.blocks,
+    );
+  },
+
   snow(u, v, c) {
     if (periodicBlockHash(u, v, c.seed ^ 0xcc9e2d51, c.blocks) > 0.985) {
       return resolveLatticeTone(3.6, u, v, c.ramp, c.seed, c.blocks);

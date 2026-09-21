@@ -16,7 +16,7 @@ import {
 import { materialInstance } from "./materials/index.ts";
 import { buildAtlas } from "./atlas.ts";
 import { getPalette } from "./palette/index.ts";
-import { CLIFF_UNIT, TILE_H, TILE_W, type Density } from "./types.ts";
+import { CLIFF_UNIT, SUBSTRATE_IDS, TILE_H, TILE_W, type Density } from "./types.ts";
 import { CODE_FULL } from "./masks.ts";
 import { insideDiamond, rowSpan } from "./pixels.ts";
 
@@ -25,7 +25,7 @@ const PALETTE = getPalette(null);
 // A synthetic tile: real biomes always carry a substrate, so tests only vary
 // what's needed to exercise one rule at a time.
 function surface(
-  substrateId: "sand" | "clay" | "soil" | "scree" | "snow",
+  substrateId: "sand" | "clay" | "soil" | "scree" | "snow" | "water",
   mats: Array<{ id: "grass" | "moss"; density: Density }> = [],
   level = 0,
 ): TileSurface {
@@ -85,6 +85,56 @@ describe("substrate nesting", () => {
     const soil = sprites.find((s) => s.id === "soil")!;
     expect(sand.code).toBe(CODE_FULL);
     expect(soil.code).toBe(0b1100); // corners 2,3
+  });
+});
+
+// --- Water: the shoreline is an ordinary material boundary (milestone W) ---------
+//
+// Water is a substrate, so it needs no rule of its own — these assert that the
+// nesting rule already in place produces a shoreline, which is the entire claim
+// the milestone makes. Before W, water was a flat blue diamond the game drew
+// over the floor, so a shore followed the tile edge exactly.
+
+describe("water shorelines", () => {
+  it("draws the lakebed under the whole cell and water over its own corners", () => {
+    // Corners 2,3 are water, corners 0,1 are soil: the same shape as the
+    // sand/soil case above, which is the point — a shore composes by the rule
+    // every other substrate boundary composes by.
+    const field = makeField(2, 2, (_c, r) => surface(r === 0 ? "soil" : "water"));
+    const sprites = composeCell(field, atlasFor(field), 0, 0, { seed: 1 });
+    const soil = sprites.find((s) => s.id === "soil")!;
+    const water = sprites.find((s) => s.id === "water")!;
+    // Nothing may peek through under the water: the lakebed covers the cell.
+    expect(soil.code).toBe(CODE_FULL);
+    expect(water.code).toBe(0b1100);
+    // ...and the lakebed is painted first, so water's spilled mask edge is what
+    // the shoreline actually is.
+    expect(sprites.indexOf(soil)).toBeLessThan(sprites.indexOf(water));
+  });
+
+  // Water outranking every other substrate is what makes the line above hold
+  // for any lakebed, not just soil. Asserted over the whole list rather than a
+  // sample, so adding a substrate above water later cannot pass quietly.
+  it("outranks every other substrate", () => {
+    const water = materialInstance("water", PALETTE.water, 0, 0);
+    for (const id of SUBSTRATE_IDS) {
+      if (id === "water") continue;
+      expect(compareInstances(materialInstance(id, PALETTE[id], 0, 0), water)).toBeLessThan(0);
+    }
+  });
+
+  // Mats are additive, so a bank mat's code covers its own corners only — it
+  // does not claim the water corner. Its mask still overhangs a few px past
+  // them, which is the intended read (bank growth leaning over the edge) and
+  // is why water is not pushed above the mats in the stack.
+  it("does not let a bank mat claim the water corner", () => {
+    const field = makeField(2, 2, (_c, r) =>
+      r === 0 ? surface("soil", [{ id: "grass", density: "full" }]) : surface("water"),
+    );
+    const sprites = composeCell(field, atlasFor(field), 0, 0, { seed: 1 });
+    const grass = sprites.filter((s) => s.id === "grass");
+    expect(grass).toHaveLength(1);
+    expect(grass[0]!.code).toBe(0b0011); // corners 0,1 — the land ones
   });
 });
 

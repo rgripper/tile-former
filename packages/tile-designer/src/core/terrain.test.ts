@@ -29,7 +29,7 @@ import {
 
 const PALETTE = getPalette(null);
 
-function surface(substrateId: "sand" | "clay" | "soil" | "scree", level = 0): TileSurface {
+function surface(substrateId: "sand" | "clay" | "soil" | "scree" | "water", level = 0): TileSurface {
   return { substrate: materialInstance(substrateId, PALETTE[substrateId], 0, 0), mats: [], scatter: [], level };
 }
 
@@ -235,6 +235,60 @@ describe("renderTerrain", () => {
       }
     }
     expect(gaps).toBe(0);
+  });
+
+  // --- Water shorelines (milestone W) --------------------------------------
+  //
+  // The counterpart of the cliff-foot test below, asserting the opposite thing
+  // for the opposite reason. A cliff foot is a *level* boundary and must be
+  // dead straight, because a wall stands behind it. A shoreline is a *material*
+  // boundary with nothing behind it, so it must wander — that is the whole
+  // claim milestone W makes, and what the flat blue diamond the game used to
+  // draw over the floor could not do at any seed.
+  //
+  // Same geometry as the cliff test: rows 0–2 land, rows 3–5 water, so the
+  // shore lies on one straight iso line's worth of `y − x/2` constant. A column
+  // counts as shore only where water appears *below* land in it, which excludes
+  // the map's own outer edges (they are not shores, and their topmost water
+  // pixel sits on a different line entirely).
+  it("gives a shoreline the dual grid's rounding instead of the tile edge", () => {
+    const shoreResiduals = (seed: number) => {
+      const field = makeField(6, 6, (_c, r) => surface(r <= 2 ? "soil" : "water"));
+      const { buffer } = renderTerrain(field, atlasFor(field), { seed });
+      // The `water` ramp is the one ramp no other material draws from
+      // (palette/materials.ts), so colour identifies the material outright.
+      const water = new Set<number>(PALETTE.water);
+      const soil = new Set<number>(PALETTE.soil);
+      const out: number[] = [];
+      for (let x = 0; x < buffer.width; x++) {
+        let sawSoil = false;
+        for (let y = 0; y < buffer.height; y++) {
+          const o = (y * buffer.width + x) * 4;
+          if (buffer.data[o + 3] !== 255) continue;
+          const col = (buffer.data[o]! << 16) | (buffer.data[o + 1]! << 8) | buffer.data[o + 2]!;
+          if (soil.has(col)) sawSoil = true;
+          else if (water.has(col) && sawSoil) {
+            out.push(y - x / 2);
+            break;
+          }
+        }
+      }
+      return out;
+    };
+
+    for (const seed of [1, 2, 7, 42]) {
+      const res = shoreResiduals(seed);
+      expect(res.length).toBeGreaterThan(TILE_W * 2); // the shore is actually there
+      const mean = res.reduce((a, b) => a + b, 0) / res.length;
+      const sd = Math.sqrt(res.reduce((a, b) => a + (b - mean) ** 2, 0) / res.length);
+      // Wanders. Measured 1.21–1.62 px over these seeds, against the 0.25 px a
+      // hard-clipped straight edge shows in the cliff-foot test below — so this
+      // fails outright if water ever goes back to being a flat diamond.
+      expect(sd).toBeGreaterThan(0.8);
+      // ...but bounded by the mask's own spill (SPILL_AMP = 0.2, i.e. ±~3 px),
+      // not free to wander anywhere. Measured spread 5.5–6 px.
+      expect(Math.max(...res) - Math.min(...res)).toBeLessThanOrEqual(10);
+    }
   });
 
   // --- The level clip (compose.ts, "Spill runs downhill") ------------------
