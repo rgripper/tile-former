@@ -99,9 +99,14 @@ body {
   margin: 0 4px 4px 0;
 }
 
+/* Columns are sized to hold a patch at NATIVE scale (see BiomeGallery's PATCH:
+   a 2x2 field bakes to 192x96, plus the canvas border). Pixel art downscaled by
+   a non-integer factor goes mushy, which would defeat the point of a panel that
+   exists to compare materials. `1fr` lets the columns share the slack; the cell
+   centres its canvas. */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
 }
 
@@ -109,11 +114,6 @@ body {
   text-align: center;
   font-size: 10px;
   color: #9aa0ae;
-}
-
-.gallery canvas {
-  width: 100%;
-  image-rendering: pixelated;
 }
 
 .gallery .cell .name {

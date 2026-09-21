@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { cellOrigin, featuresForTile, fieldMaterials, makeField, type TileSurface } from "./compose.ts";
+import {
+  buildFieldAtlas,
+  cellOrigin,
+  featuresForTile,
+  fieldClipVariants,
+  fieldMaterials,
+  makeField,
+  type TileSurface,
+} from "./compose.ts";
 import { CORNER_TILE_OFFSETS } from "./masks.ts";
 import { materialInstance } from "./materials/index.ts";
 import { buildFeatureAtlas, featureInstance } from "./features/index.ts";
-import { buildAtlas } from "./atlas.ts";
+import { atlasCounts, buildAtlas } from "./atlas.ts";
 import { getPalette } from "./palette/index.ts";
 import { drawLine, fillPolygon, insideDiamond, makeBuffer, rowSpan, type PixelBuffer } from "./pixels.ts";
 import { CLIFF_UNIT, MAX_FLOORS, TILE_H, TILE_W } from "./types.ts";
@@ -277,6 +285,51 @@ describe("renderTerrain", () => {
     const heights = [...base].map(([x, y]) => y - top.get(x)! + 1);
     const mean = heights.reduce((a, h) => a + h, 0) / heights.length;
     expect(mean).toBeGreaterThan(CLIFF_UNIT * 0.7);
+  });
+
+  // --- The GPU path's clip (milestone G) -----------------------------------
+  //
+  // A GPU sprite is a quad, so the level clip cannot be applied per pixel at
+  // draw time the way `blitSprite` does it; it has to be baked into a sprite of
+  // its own. `buildFieldAtlas` cuts exactly the clipped variants a field asks
+  // for, and `renderTerrain` prefers them when they exist — so this asserts the
+  // two forms are the *same picture*, not merely similar. If they ever diverge,
+  // the designer preview stops predicting what the game draws.
+  it("draws a field identically from pre-baked clipped sprites and from the per-pixel clip", () => {
+    const field = makeField(8, 8, (c, r) => surface(c < 4 ? "soil" : "sand", (c + r) % 5 === 0 ? 2 : 1));
+    const cfg = { fullShapes: 2, biasLevels: 1, partialShapes: 2 };
+    const perPixel = renderTerrain(field, buildAtlas(fieldMaterials(field), { seed: 5, ...cfg }), { seed: 5 });
+    const preBaked = renderTerrain(field, buildFieldAtlas(field, { seed: 5 }, cfg), { seed: 5 });
+
+    expect(preBaked.buffer.width).toBe(perPixel.buffer.width);
+    expect(preBaked.buffer.height).toBe(perPixel.buffer.height);
+    let differing = 0;
+    for (let i = 0; i < perPixel.buffer.data.length; i++) {
+      if (perPixel.buffer.data[i] !== preBaked.buffer.data[i]) differing++;
+    }
+    expect(differing).toBe(0);
+  });
+
+  // The whole reason the clipped variants are *requested* rather than
+  // enumerated: `code ⊆ clip ⊊ 15` is 50 non-empty pairs against 15 unclipped
+  // codes, so building the product would roughly triple every atlas — for
+  // entries a field with no cliffs never draws.
+  it("adds clipped variants only for the straddles a field actually has", () => {
+    const flat = makeField(8, 8, (c) => surface(c < 4 ? "soil" : "sand", 1));
+    const stepped = makeField(8, 8, (c, r) => surface(c < 4 ? "soil" : "sand", (c + r) % 5 === 0 ? 2 : 1));
+    const cfg = { fullShapes: 2, biasLevels: 1, partialShapes: 2 };
+
+    expect(fieldClipVariants(flat, atlasCounts(), { seed: 5 })).toHaveLength(0);
+    expect(fieldClipVariants(stepped, atlasCounts(), { seed: 5 }).length).toBeGreaterThan(0);
+
+    const plain = buildAtlas(fieldMaterials(stepped), { seed: 5, ...cfg });
+    expect(buildFieldAtlas(flat, { seed: 5 }, cfg).stats.sprites).toBe(
+      buildAtlas(fieldMaterials(flat), { seed: 5, ...cfg }).stats.sprites,
+    );
+    const withClips = buildFieldAtlas(stepped, { seed: 5 }, cfg).stats.sprites;
+    expect(withClips).toBeGreaterThan(plain.stats.sprites);
+    // Far short of the ~3× the full product would cost.
+    expect(withClips).toBeLessThan(plain.stats.sprites * 2);
   });
 
   it("sizes the buffer to actually contain everything drawn (no silent clipping)", () => {

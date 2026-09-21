@@ -83,10 +83,20 @@ import {
 } from "./types.ts";
 import { hash2D } from "./rng.ts";
 import { fbm } from "./noise.ts";
-import { CORNER_TILE_OFFSETS } from "./masks.ts";
+import { CODE_FULL, CORNER_TILE_OFFSETS } from "./masks.ts";
 import { FEATURE_SHAPES, hasHost } from "./features/index.ts";
 import { materialInstance, type MaterialInstance } from "./materials/index.ts";
-import { mergeMaterials, type Atlas, type MaterialRequest } from "./atlas.ts";
+import {
+  atlasCounts,
+  buildAtlas,
+  DEFAULT_ATLAS_CONFIG,
+  mergeMaterials,
+  type Atlas,
+  type AtlasConfig,
+  type MaterialRequest,
+  type SpriteCounts,
+  type SpriteVariant,
+} from "./atlas.ts";
 import { quantiseCoverage } from "./resolve.ts";
 import { featureInstance, quantiseScatter, type FeatureInstance } from "./features/index.ts";
 
@@ -286,9 +296,13 @@ export function cellBounds(field: TileField): { c0: number; r0: number; c1: numb
   return { c0: -1, r0: -1, c1: field.width - 1, r1: field.height - 1 };
 }
 
+// `counts` is only consulted for how many shape/bias variants a code carries —
+// `Atlas` satisfies it, and so does `atlasCounts(config)` on its own, which is
+// what lets the GPU path decide what the atlas must *contain* by composing
+// first (see `buildFieldAtlas`).
 export function composeCell(
   field: TileField,
-  atlas: Atlas,
+  counts: SpriteCounts,
   c: number,
   r: number,
   opts: ComposeOptions,
@@ -311,8 +325,8 @@ export function composeCell(
       density,
       code,
       clip,
-      shape: shapeIndex(c, r, opts.seed, inst.key, atlas.shapeCount(code)),
-      bias: biasIndex(c, r, opts.seed, atlas.biasCount(code)),
+      shape: shapeIndex(c, r, opts.seed, inst.key, counts.shapeCount(code)),
+      bias: biasIndex(c, r, opts.seed, counts.biasCount(code)),
       level,
       x,
       y,
@@ -391,7 +405,7 @@ export function composeCell(
 // cell by level then by stack position. Cliff faces belong between two levels of
 // the same cell and are the renderer's job (an existing `Graphics` in
 // isoRenderer.ts), not the atlas's.
-export function composeField(field: TileField, atlas: Atlas, opts: ComposeOptions): CellSprite[] {
+export function composeField(field: TileField, counts: SpriteCounts, opts: ComposeOptions): CellSprite[] {
   const { c0, r0, c1, r1 } = cellBounds(field);
   const cells: Array<[number, number]> = [];
   for (let c = c0; c <= c1; c++) {
@@ -399,17 +413,66 @@ export function composeField(field: TileField, atlas: Atlas, opts: ComposeOption
   }
   cells.sort((a, b) => cellDepth(a[0], a[1]) - cellDepth(b[0], b[1]) || a[0] - b[0]);
   const out: CellSprite[] = [];
-  for (const [c, r] of cells) out.push(...composeCell(field, atlas, c, r, opts));
+  for (const [c, r] of cells) out.push(...composeCell(field, counts, c, r, opts));
   return out;
+}
+
+// --- The atlas a field needs (milestone G) ---------------------------------------
+
+// Every clipped sprite variant a field asks for, deduped. Only cells that
+// straddle a floor level produce any (~10% of sprites on a real 64×64 map), and
+// the CPU renderer needs none of them — `renderTerrain` applies the clip per
+// pixel at blit time. This exists for the GPU path, where a sprite is a quad and
+// the clip has to be baked into the texture.
+export function fieldClipVariants(
+  field: TileField,
+  counts: SpriteCounts,
+  opts: ComposeOptions,
+): SpriteVariant[] {
+  const seen = new Set<string>();
+  const out: SpriteVariant[] = [];
+  const { c0, r0, c1, r1 } = cellBounds(field);
+  for (let c = c0; c <= c1; c++) {
+    for (let r = r0; r <= r1; r++) {
+      for (const s of composeCell(field, counts, c, r, opts)) {
+        if (s.clip === CODE_FULL) continue;
+        const k = `${s.key}|${s.density}|${s.code}|${s.shape}|${s.bias}|${s.clip}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push({ key: s.key, density: s.density, code: s.code, clip: s.clip, shape: s.shape, bias: s.bias });
+      }
+    }
+  }
+  return out;
+}
+
+// The atlas for a whole field: its material instances (`fieldMaterials`) plus
+// exactly the clipped variants its straddling cells ask for. This is the entry
+// point a GPU renderer wants — build this, then `composeField` against it, and
+// every sprite resolves to one quad with no per-pixel work anywhere.
+//
+// Composing twice (once to collect the clips, once to draw) is deliberate:
+// composition is pure and cheap next to the atlas build it feeds, and the
+// alternative — threading a partially-built atlas through compose — would make
+// the dependency circular for the sake of a few milliseconds.
+export function buildFieldAtlas(
+  field: TileField,
+  opts: ComposeOptions,
+  overrides: Partial<AtlasConfig> = {},
+): Atlas {
+  // The atlas seed is pinned to the compose seed: `shapeIndex`/`biasIndex` pick
+  // from counts this config decides, so the two have to be built as one thing.
+  const config: AtlasConfig = { ...DEFAULT_ATLAS_CONFIG, ...overrides, seed: opts.seed };
+  return buildAtlas(fieldMaterials(field), config, fieldClipVariants(field, atlasCounts(config), opts));
 }
 
 // --- Feature placement (milestone F) --------------------------------------------
 
 // Top-left of tile (col, row)'s TILE_W×TILE_H cell rect at a given floor level,
 // in native world pixels — the dual grid's `cellOrigin` shifted back up by the
-// half-tile offset that defines it. Mirrors terrain.ts's copy (that one stays
-// the canonical definition; this is the compositor-side placement origin for
-// milestone F features, which belong to their host tile, not a dual cell).
+// half-tile offset that defines it. terrain.ts re-exports this and explains the
+// geometry; it lives here because `cellOrigin` does, and because the compositor
+// needs it to place features on their host tile rather than on a dual cell.
 export function tileOrigin(col: number, row: number, level = 0): [x: number, y: number] {
   const [x, y] = cellOrigin(col, row, level);
   return [x, y - TILE_H / 2];

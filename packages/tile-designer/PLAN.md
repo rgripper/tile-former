@@ -207,12 +207,12 @@ src/core/
     biomeOverrides.ts ← ramp/shade picks per biome
   lattice.ts          ← iso ↔ lattice transform, periodic sampling domain
   noise.ts            ← periodic valueNoise / fbm / cellEdge
-  materials/          ← per-material periodic variant generators (from v1
-                        substrate/ + mats/)
+  materials/          ← per-material periodic variant generators
   masks.ts            ← procedural 16-entry corner mask set, overhang-only
   atlas.ts            ← build variant + masked-variant atlas pages
   compose.ts          ← dual cell → sprite list (level gate ∧ material gate)
-  features/           ← overhang decoration sprites (from v1 scatter/)
+  features/           ← overhang decoration sprites
+  terrain.ts          ← whole-field CPU render: floor + cliffs + rims + scatter
 src/app/              ← designer UI
 ```
 
@@ -237,26 +237,33 @@ src/app/              ← designer UI
   being the meaningful unit).
 - [x] **F — Feature overhang layer.** Decoration sprites allowed past the
   diamond, host-material compatibility, depth sorted.
-- [ ] **G — Game hookup + teardown.** Point `isoRenderer.ts`'s floor layer at
-  the atlas composition, add viewport culling, delete `floorTextureCache.ts`,
-  the IndexedDB persistence, and the world-coordinate `bakeTile` path.
+- [x] **G — Game hookup + teardown.** `isoRenderer.ts`'s floor layer draws the
+  dual-grid composition out of one atlas; per-diagonal culling; the v1 bake
+  path, its IndexedDB cache and the `RenderStyle` knobs are gone. **Wired and
+  building, but not yet seen in a browser** — see the log entry.
 
-## What survives from v1
+## What survived from v1 (settled at G)
 
 `resolve.ts`'s scoring taxonomy (the hard-won part — substrate/mat selection
-from raw properties) carries over almost unchanged; it emits *material +
-variant index* instead of noise params. The v1 generators in `substrate/` and
-`mats/` survive as atlas-fill functions, now running ~8 times each instead of a
-million. `stamps.ts` becomes placement logic returning `(cell, slot,
-variantId)` instead of pixels. `rng.ts`, the HSL helpers, `pixels.ts`, the UI
-shell, `PropertyPanel`, and `BiomeGallery` all carry over.
+from raw properties) carried over almost unchanged; it emits *material +
+variant index* instead of noise params. The v1 generators were rewritten rather
+than moved: `materials/index.ts` holds their periodic lattice-space successors,
+running ~8 times each instead of a million, and `features/index.ts` replaced
+`stamps.ts` + `scatter/` with placement returning `(cell, slot, variantId)`.
+`rng.ts`, the HSL helpers, `pixels.ts`, the UI shell, `PropertyPanel` and
+`BiomeGallery` all carry over — the last two lighter, having lost the
+`RenderStyle` knobs and the per-tile bake respectively.
 
-## What is deleted
+## What was deleted (done at G)
 
-`bake.ts`'s world-coordinate per-tile bake; `floorTextureCache.ts` and its
-IndexedDB store (an atlas that builds in milliseconds needs no persistence);
-`RenderStyle.grain` / `isolatedPatches` / `crispEdges` (superseded — chunkiness
-comes from authoring at a coarse lattice, edges from masks); `grainCoord`.
+`bake.ts`'s world-coordinate per-tile bake and the `substrate/`, `mats/`,
+`scatter/`, `stamps.ts` generators it drove; `floorTextureCache.ts` and its
+IndexedDB store (an atlas that builds in ~750 ms for a whole map needs no
+persistence); `RenderStyle` entire — `grain` / `isolatedPatches` / `crispEdges`
+were all ways of quantising a per-pixel bake after the fact, and chunkiness now
+comes from authoring at a coarse lattice and edges from masks; `grainCoord`;
+`isolateEdgeGate` and `edgeInset`, which existed only to serve
+`isolatedPatches`; and `MixedBiomePreview`, absorbed by the terrain preview.
 
 ## Testing
 
@@ -972,18 +979,223 @@ main pages — three kinds × 4 small sprites don't justify packer machinery unt
 the real renderer wires both atlases together. Animated scatter (ferns/reeds/
 flowers) remains out of scope, as PLAN.md's open question always scoped it.
 
+**Designer memory + rebuild cost (2026-09-20, commits `58f5210` / `03b794d`).**
+Not a milestone — the designer tab was running out of memory after a handful of
+preview-option changes, which made T and F's own surface unusable for judging
+anything. Five separate causes, worth logging because four of them are
+properties of the v2 design rather than of this UI.
+
+*The dominant one was React's dev build reading our pixels.* Its performance
+track serialises each component's props (`logComponentRender` →
+`addObjectToProperties`), walking objects with `for...in` to depth 3. A typed
+array's indices are enumerable own properties, so **one `PixelBuffer` reaching a
+prop costs one `[string, string]` pair per pixel byte**. Measured with Chrome's
+sampling heap profiler on a single 32×32 terrain-preview rebuild: **954 MB
+allocated, of which 953 MB was React's serialiser and ~1 MB this package's own
+code.** A production build of the same interaction stays flat at 4–5 MB, so it
+is purely a dev-mode tax — but dev is where the designer lives. `pixels.ts`
+gained `hidePixelData`, which marks the payload non-enumerable; `for...in` skips
+it while `buf.data[i]` is unaffected. Every object in the package that carries a
+big typed array now goes through it, which in practice means all of them —
+`PixelBuffer`, `MaskBitmap` and `FeatureSpriteRef` all end up inside an `Atlas`,
+and `AtlasPanel` takes an `Atlas`.
+
+*Its one real consequence is a trap, so it is guarded rather than documented.*
+`{ ...buf }` now silently drops the pixels, because spread copies enumerable own
+properties only. `aliasBuffer` exists for the one case that legitimately needs a
+fresh object identity over the same pixels (`MixedBiomePreview` republishing a
+buffer it is still progressively baking into, so React sees a changed prop), and
+`TileCanvas` throws a named error rather than letting it surface as
+"ImageData: input data has zero elements".
+
+*The other four.* `TileCanvas` caches the decoded `ImageBitmap` by buffer
+identity, so a zoom-only change redraws instead of re-copying and re-decoding
+tens of MB, and a stale effect run closes its bitmap the moment the decode
+resolves — never more than one in-flight decode plus one cached bitmap.
+`atlas.ts` memoises variant textures on the exact ctx fields that define them
+(`cachedVariant`), which turns the repeat builds the panels do on load, on a
+grid switch and on a re-bake into cut-and-pack only; it is bounded at
+`VARIANT_CACHE_MAX = 2048` 32 KB entries and drops the whole cache at the cap
+rather than evicting per entry, because builds always request a coherent batch.
+`TerrainPreview` debounces its inputs by 150 ms, since the field → atlas → render
+chain is synchronous and costs ~0.5–1 s at the larger grids — undebounced, a
+slider drag queues a rebuild storm and piles up the multi-MB buffers each
+rebuild produces. And `App` mounts the biome-mix and gallery panels only after
+first idle, keeping their bakes (~400 ms) off the initial-load critical path.
+
+**Preview coherence + the level clip (2026-09-20, commit `03b794d`).** Two
+defects found on one Cold Desert / seed 1232 terrain preview. Both are dual-grid
+properties, not tuning.
+
+*Single-tile enclaves: the preview's property jitter was the wrong model.*
+`previewUtils.ts`'s `jitterInput` perturbed each tile's climate properties with
+`hash2D(tx, ty, …)` — independent white noise per tile. Several biomes sit right
+on a substrate threshold in `scoreSubstrates` (Cold Desert on sand/soil, the
+montane and tropical-forest ones on two or three at once), so a per-tile coin
+flip decided the winner and the dual grid rendered that faithfully: a chessboard
+of one-tile enclaves, each a lone diamond — the one shape this whole design
+exists to stop the eye finding. Measured over **44 biomes × 5 seeds at 16×16:
+4.9% of all tiles were lone one-tile islands of their substrate** (11.6% in the
+worst biome), mean patch 10.3 tiles. Low-frequency fBm at `JITTER_CELLS = 5`
+with the usual contrast stretch (`JITTER_CONTRAST = 2.2` — fBm concentrates near
+0.5, the same trap logged in A) gives **0.7% / 2.6% worst, mean patch 30.0**.
+This is also the faithful model: tilegen's properties come from gradient axes,
+cluster fields and a CA smoothing pass, so a real substrate patch is many tiles
+across. Two knock-ons — the `seed` is now threaded in (a re-roll never used to
+re-roll the speckle), and the "origin tile is exactly `input`" exemption is gone
+— against a coherent field, pinning one tile back to the base value is precisely
+how you manufacture a one-tile enclave, dead centre of the preview.
+
+*Spill runs downhill, never uphill.* The reported symptom was "cliff colours look
+slightly off-centre". The cause: **mask spill was crossing floor-level
+boundaries in both directions.** Two levels of one dual cell are drawn
+`CLIFF_UNIT` = 12 px apart with the upper tile's cliff face standing between
+them, and `SPILL_AMP = 0.2` is ±0.2·TILE_H/2 ≈ 3 px vertically — so the *lower*
+level's overhang, drawn at the lower offset, painted ground a few pixels **up**
+the wall, in chunks that wandered along its length, while the upper lip ate
+another ~3 px from above. 7.2 px of a 12 px face survived, with a foot that
+moved. The fix is one rule: a mask may spill onto levels *below* it (the lip
+overhanging a face is the intended read, per "the overhang-only mask rule") and
+never onto levels above it. `CellSprite` gained `clip`, the hard nominal
+footprint of "corners at or below my level" — `CODE_FULL`, i.e. no clip, for a
+non-straddling cell and for the top level of a straddling one, so ~83% of cells
+take the unchanged path. Applied in `blitSprite` against `masks.ts`'s new
+`nominalMask`, **not** baked into new sprite codes: doing it in the atlas would
+take the code space from 16 to 81 (`code ⊆ clip ⊆ 15`) and multiply sprites by
+five for no visual gain. Measured on a one-level plateau step: **foot-of-cliff
+wander sd 1.83 → 0.25 px** (0.25 is the iso line's own rasterisation — identical
+to a spill-off reference), **mean visible face 7.2 → 9.5 px** of 12.
+
+*The generalisation worth keeping.* The dual grid's organic overhang assumes
+there is nothing behind the boundary it spills across. That holds for a material
+boundary and fails for anything drawn *between* two passes of one cell. A cliff
+face is the only such thing today; whatever G adds between passes will need the
+same clip.
+
+Verified: 152/152 tests pass, up from 140 — 12 new across `masks.test.ts`
+(`nominalMask` covers exactly the nominal region, partitions the diamond with
+its complement so clipping can never open a hole the face doesn't fill, and is
+strictly tighter than the drawn mask), `compose.test.ts` (clip codes for
+two-level, non-straddling and three-level cells), `terrain.test.ts` (the
+foot-of-cliff wander, as a straightness assertion on rendered pixels) and a new
+`app/previewUtils.test.ts` (the enclave census above, plus jitter coherence,
+seed dependence and amplitude bounds). **Each new test was confirmed to fail on
+the pre-fix code** — foot wander 6.5 px, singleton share 4.1% — rather than
+passing vacuously. `tsc --noEmit` clean.
+
+*Noted, not fixed.* A 2-pixel interior pinhole shows up in a Temperate Wetland /
+seed 99 render. It predates both fixes (present with the clip disabled; the clip
+in fact closed a third one elsewhere), so it is a separate defect and was left
+alone.
+
+**G done (2026-09-21).** New `src/floorField.ts` and `src/isoTerrain.ts` in the
+game; `core/atlas.ts` gained the clipped-sprite axis, `core/compose.ts` gained
+`buildFieldAtlas`. Deleted: `src/floorTextureCache.ts` and its IndexedDB store,
+`src/floorTextures.ts`, `core/bake.ts`, `core/stamps.ts`, `core/substrate/`,
+`core/mats/`, `core/scatter/`, `RenderStyle` + `DEFAULT_RENDER`, `grainCoord`,
+`isolateEdgeGate` + `edgeInset`, and `MixedBiomePreview.tsx`. 154 tests (up
+from 152); both apps build; `tsc --noEmit` clean at the root and in-package.
+
+*The fork G actually turned on: how the level clip reaches a GPU.* `renderTerrain`
+applies it per pixel at blit time, which costs the CPU path nothing. A GPU
+sprite is a quad, so there it has to be baked into a texture — and the full
+product is `code ⊆ clip ⊊ 15`, 50 non-empty pairs against 15 unclipped codes,
+which would roughly triple every atlas. Measured on real 64×64 maps
+(`generateTileMap` + `dressTileMap`, 4 seeds) before committing to it: a map
+touches **44 of the 65 possible pairs**, but only a fraction of them *per
+material*. So the atlas takes the pairs the compositor asks for rather than
+enumerating them — `buildFieldAtlas` composes the field once to collect them,
+then builds. Actual cost, not estimate: **+46–51% sprites but only +21–23%
+sprite pixels** (a clipped sprite is a subset, so it crops tighter), and **still
+one 2048 page either way — 16.8 MB, unchanged**. Zero unresolved lookups over
+every cell sprite on the map.
+
+*That also un-circularised composition.* `composeCell` used to take an `Atlas`
+purely to read `shapeCount`/`biasCount` off it — but on the GPU path what the
+atlas must *contain* is decided by what composition asks for, so it cannot
+depend on a built one. Those two counts are now `atlasCounts(config)`, a pure
+function of the config, and `Atlas` satisfies the same `SpriteCounts` shape
+structurally, so no call site changed. Composition no longer depends on the
+atlas at all, which is the right shape for the Bevy port as well.
+
+*Equivalence is asserted, not assumed.* `renderTerrain` prefers a pre-baked
+clipped sprite when the atlas holds one and falls back to the per-pixel clip
+otherwise, and a test renders the same field both ways and requires **0
+differing bytes**. That is deliberate beyond the test: it means the designer's
+own preview draws the exact sprites the game will, so the two renderers cannot
+drift apart unnoticed.
+
+*The interleaving problem T deferred here, solved by bucketing rather than
+sorting.* T's prototype pushes every item into one array with a fractional depth
+key and sorts. The Pixi equivalent — `sortableChildren` + `zIndex` — means a
+sort over ~35k children for a 64×64 map and leaves culling as a per-child test.
+But every depth is (integer tile depth) + a small constant, so they bucket
+exactly: one `Container` per diagonal `d = col + row`, added in ascending `d`,
+reproduces the sort with no sorting at all. Culling becomes ~128 bounds tests
+instead of 35k, cheap enough to run on every viewport move. The three offsets
+are exported from `terrain.ts` (`TILE_DEPTH`, `CELL_DEPTH`, `FEATURE_DEPTH`) and
+both renderers derive from them — writing the rule out twice is exactly how the
+two pictures would quietly diverge. `tileOrigin`, which D had knowingly
+duplicated across compose.ts and terrain.ts, was folded together for the same
+reason, as were `CLIFF_UNIT` / `MAX_FLOORS`, which `isoRenderer.ts` and
+`types.ts` had each declared.
+
+*What the teardown cost the designer.* Three panels ran on `bakeTile`. The 8×
+single-tile preview became a 3×3 @ 4× close-up — T already established that a
+lone diamond is not a meaningful unit, since every material boundary lives
+*inside* a dual cell. `BiomeGallery` became 3×3 patches drawn from **one atlas
+shared across all 44 biomes**, which is the claim v2 makes and a gallery of 44
+separate atlases would have quietly disproved. `MixedBiomePreview` was deleted
+outright: its own header said its whole reason for existing was v1's per-tile
+cost, and `TerrainPreview` had already absorbed its cluster placement. The
+`RenderStyle` section of `PropertyPanel` went with it — `grain`, `crispEdges`
+and `isolatedPatches` were knobs for quantising a per-pixel bake after the
+fact, and v2 authors at a coarse lattice and cuts edges with masks.
+
+*Verified, and what is not.* Both apps build; the full 64×64 map renders through
+the game's own field and atlas (`buildFieldAtlas` at `pageSize: 2048`) with the
+CPU renderer — 755 ms atlas, 389 ms render, one page, no holes — and reads
+correctly at native scale: organic material boundaries, clean cliff steps,
+scatter in place. **The Pixi wiring itself has not been seen in a browser**:
+there is no Chrome on this machine, so `isoTerrain.ts`'s display list, the
+per-diagonal culling and the hit-area change are type-checked and reasoned
+about but not looked at. That is the first thing to do next session.
+
+*Deliberately still open.* Water is a flat blue diamond drawn over the floor —
+a stand-in, not the top-priority material in the stack that the open question
+asks for; it is now the last v1-shaped thing in the renderer. The feature atlas
+is still not packed into the main pages (F deferred that "to G"): three kinds ×
+4 shapes of at most 32 KB does not pay for the packer, so it is twelve small
+textures cut once per build. The debug overlays keep their flat per-tile fill,
+which is correct — they exist to read a scalar field off the map, and a composed
+floor would only obscure it.
+
 ## Open questions
 
 - Variant count per material: A ships 8 full-cell shapes × 3 tone-bias levels
-  + 2 per partial mask, and the designer exposes both as dropdowns. Still to be
-  judged against the terrain preview once T lands, along with whether partial
-  codes need their own bias levels.
-- Water: currently a flat noise fill in `bake.ts`. It should join the material
-  stack as a top-priority material so shorelines get the same rounding, but
-  animation is out of scope until F.
-- **Where to fix the drainage range defect** — see the measurement note below.
-  Blocks nothing in L/A, but every substrate-selection judgment is wrong until
-  it is resolved.
+  + 2 per partial mask, along with the question of whether partial codes need
+  their own bias levels (A deferred that at a cost of 14 × (levels − 1) sprites
+  per material, "revisit at T"). **T and F have both landed and neither
+  revisited it.** Note the plan as written — "judge it against the terrain
+  preview" — is not currently possible: only `AtlasPanel` exposes the shape and
+  bias dropdowns, while `TerrainPreview` always builds with
+  `DEFAULT_ATLAS_CONFIG`. Lifting those two knobs to shared `App` state is a
+  prerequisite for answering this at all.
+- Water: still has no atlas entry and no place in the material stack —
+  `DesignInput.water` / `StyleParams.water` are booleans nothing in `compose.ts`
+  or `atlas.ts` reads. G gave it a stand-in (a flat blue diamond drawn over the
+  floor in `isoTerrain.ts`) so the map stays readable, which makes it the last
+  v1-shaped thing left in the renderer. It should join the stack as a
+  top-priority material so shorelines get the same rounding every other boundary
+  gets. A, D, T and now G have each logged this; **it is the obvious next
+  milestone** — every other open item is a tuning judgment, this one is missing
+  machinery.
+- Does the drainage range defect also constrain biome *diversity*?
+  `stage6_selectBiomes` feeds drainage into the cascade's `drainageLowerBound`,
+  so the pre-fix compressed range plausibly narrowed biome selection too. Flagged
+  when the defect was found and **still not confirmed** either way. (The defect
+  itself is fixed — see "Drainage fix + resolver rebalance done (2026-08-17)" in
+  the log. This is the one thread of it left open.)
 
 ## Decided (2026-08-17)
 

@@ -60,7 +60,7 @@ import { DENSITIES, TILE_H, TILE_W } from "./types.ts";
 import { DEFAULT_BLOCKS, latticeAt } from "./lattice.ts";
 import { makeBuffer, rowSpan, type PixelBuffer } from "./pixels.ts";
 
-import { buildMaskSet, CODE_EMPTY, CODE_FULL, MASK_CODES, type MaskBitmap } from "./masks.ts";
+import { buildMaskSet, CODE_EMPTY, CODE_FULL, MASK_CODES, nominalMask, type MaskBitmap } from "./masks.ts";
 import {
   MATERIAL_GENS,
   materialInstance,
@@ -124,6 +124,41 @@ export const DEFAULT_ATLAS_CONFIG: AtlasConfig = {
   pageSize: 1024,
 };
 
+// How many shape and tone-bias variants a code carries. Pure policy over the
+// config, and exported separately from `Atlas` because the compositor needs it
+// *before* an atlas exists: on the GPU path, what the atlas must contain is
+// decided by what the compositor asks for (see `SpriteVariant` and
+// `buildFieldAtlas`), so compose cannot depend on a built atlas to reduce its
+// own indices. `Atlas` satisfies this structurally, so call sites that already
+// have one keep passing it.
+export type SpriteCounts = {
+  shapeCount(code: number): number;
+  biasCount(code: number): number;
+};
+
+export function atlasCounts(config: AtlasConfig = DEFAULT_ATLAS_CONFIG): SpriteCounts {
+  return {
+    // Partial codes have fewer shapes than full ones: a boundary cell's shape is
+    // mostly hidden by the mask anyway, and the sprite count is per code.
+    shapeCount: (code) =>
+      code === CODE_FULL ? config.fullShapes : code === CODE_EMPTY ? 0 : config.partialShapes,
+    // Only full cells carry the tone-bias axis — see the deferral logged in A.
+    biasCount: (code) => (code === CODE_FULL ? config.biasLevels : 1),
+  };
+}
+
+// One entry the atlas must hold, as the compositor asks for it. `clip` is the
+// level clip (compose.ts, "Spill runs downhill") and is `CODE_FULL` — no clip —
+// for everything outside a floor-level straddle.
+export type SpriteVariant = {
+  key: string;
+  density: Density;
+  code: number;
+  clip: number;
+  shape: number;
+  bias: number;
+};
+
 // Where a sprite lives, plus where its cropped box sits inside the nominal
 // 64×32 cell rect so the renderer can place it without storing the crop.
 export type SpriteRef = {
@@ -154,20 +189,20 @@ export type Atlas = {
   pages: PixelBuffer[];
   masks: MaskBitmap[][];
   stats: AtlasStats;
-  // Variant counts for a code, so the compositor can reduce its own indices
-  // without duplicating the policy above.
-  shapeCount(code: number): number;
-  biasCount(code: number): number;
   // Keyed by `MaterialInstance.key`, not by material id: one map can hold two
-  // instances of `grass` under different biome ramps.
+  // instances of `grass` under different biome ramps. `clip` defaults to
+  // CODE_FULL (the unclipped entry every atlas carries); a clipped one is only
+  // present if it was requested through `buildAtlas`'s `extraClips`, so a miss
+  // returns null rather than silently drawing the unclipped sprite over a cliff.
   lookup(
     key: string,
     density: Density,
     code: number,
     shape: number,
     bias: number,
+    clip?: number,
   ): SpriteRef | null;
-};
+} & SpriteCounts;
 
 // Copies one sprite's non-transparent pixels into `dst` at (dx, dy) — the
 // sprite's own crop offset (`ref.offsetX/Y`) is applied on top, matching the
@@ -309,12 +344,28 @@ const spriteKey = (
   code: number,
   shape: number,
   bias: number,
-): string => `${key}|${density}|${code}|${shape}|${bias}`;
+  clip: number,
+): string =>
+  // Unclipped entries keep their old key exactly, so the clip axis costs
+  // nothing for the ~90% of sprites that never straddle a level.
+  clip === CODE_FULL
+    ? `${key}|${density}|${code}|${shape}|${bias}`
+    : `${key}|${density}|${code}|${shape}|${bias}|c${clip}`;
 
 // Cuts a variant texture with a mask and crops to the result's bounding box.
 // Returns null when nothing survives (only possible for a very sparse mat under
-// a single-corner mask).
-function cut(texture: VariantTexture, mask: MaskBitmap): Omit<PendingSprite, "key"> | null {
+// a single-corner mask, or for a clip that shares no area with the mask).
+//
+// `clip`, when given, is intersected with the mask before cutting — this is the
+// GPU path's version of the level clip that `renderTerrain` applies per pixel at
+// blit time. A GPU sprite is a quad, so the clip has to be *in* the texture;
+// masks are closed under intersection, so baking it in costs nothing but the
+// extra entry.
+function cut(
+  texture: VariantTexture,
+  mask: MaskBitmap,
+  clip?: Uint8Array,
+): Omit<PendingSprite, "key"> | null {
   let minX = TILE_W;
   let minY = TILE_H;
   let maxX = -1;
@@ -324,6 +375,7 @@ function cut(texture: VariantTexture, mask: MaskBitmap): Omit<PendingSprite, "ke
     for (let x = x0; x <= x1; x++) {
       const o = y * TILE_W + x;
       if (texture[o] === 0 || mask.data[o] === 0) continue;
+      if (clip !== undefined && clip[o] === 0) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -339,6 +391,7 @@ function cut(texture: VariantTexture, mask: MaskBitmap): Omit<PendingSprite, "ke
       const o = (y + minY) * TILE_W + (x + minX);
       const px = texture[o]!;
       if (px === 0 || mask.data[o] === 0) continue;
+      if (clip !== undefined && clip[o] === 0) continue;
       const d = (y * w + x) * 4;
       data[d] = (px >> 16) & 0xff;
       data[d + 1] = (px >> 8) & 0xff;
@@ -349,17 +402,38 @@ function cut(texture: VariantTexture, mask: MaskBitmap): Omit<PendingSprite, "ke
   return { w, h, offsetX: minX, offsetY: minY, data };
 }
 
+// `extraClips` is the GPU path's addition (milestone G): the *clipped* variants
+// a particular field's straddling cells ask for, on top of the unclipped set
+// every atlas carries. They are requested rather than enumerated because the
+// full product is `code ⊆ clip ⊊ 15` — 50 non-empty pairs against 15 unclipped
+// codes, so building them all would roughly triple the atlas. Measured on real
+// 64×64 maps (4 seeds): a map touches 44 of the 65 possible pairs, but only a
+// fraction of them *per material*, so requesting exactly what the compositor
+// asked for costs +46–51% sprites rather than +200%. `buildFieldAtlas`
+// (compose.ts) is the entry point that collects them.
+//
+// The CPU renderer does not need any of this — `renderTerrain` clips per pixel
+// at blit time for free. This exists because a GPU sprite is a quad.
 export function buildAtlas(
   materials: MaterialRequest[],
   overrides: Partial<AtlasConfig> = {},
+  extraClips: readonly SpriteVariant[] = [],
 ): Atlas {
   const config: AtlasConfig = { ...DEFAULT_ATLAS_CONFIG, ...overrides };
   const t0 = Date.now();
   const masks = buildMaskSet(config.seed ^ 0x4d4b5347, config.partialShapes, config.blocks);
 
-  const shapeCount = (code: number) =>
-    code === CODE_FULL ? config.fullShapes : code === CODE_EMPTY ? 0 : config.partialShapes;
-  const biasCount = (code: number) => (code === CODE_FULL ? config.biasLevels : 1);
+  const { shapeCount, biasCount } = atlasCounts(config);
+
+  // Requested clips, grouped by the material-density whose textures they cut.
+  const clipsFor = new Map<string, SpriteVariant[]>();
+  for (const v of extraClips) {
+    if (v.clip === CODE_FULL || v.code === CODE_EMPTY) continue;
+    const k = `${v.key}|${v.density}`;
+    const list = clipsFor.get(k);
+    if (list === undefined) clipsFor.set(k, [v]);
+    else list.push(v);
+  }
 
   const pending: PendingSprite[] = [];
   const perMaterial: AtlasStats["perMaterial"] = [];
@@ -399,11 +473,29 @@ export function buildAtlas(
             const mask = masks[code]![shape % masks[code]!.length]!;
             const cutSprite = cut(tex, mask);
             if (cutSprite === null) continue;
-            pending.push({ key: spriteKey(req.key, density, code, shape, bias), ...cutSprite });
+            pending.push({ key: spriteKey(req.key, density, code, shape, bias, CODE_FULL), ...cutSprite });
             sprites++;
             pixels += cutSprite.w * cutSprite.h;
           }
         }
+      }
+
+      // The requested clipped variants, deduped — a field asks for the same
+      // (code, clip, shape) in thousands of cells.
+      const seen = new Set<string>();
+      for (const v of clipsFor.get(`${req.key}|${density}`) ?? []) {
+        const shape = v.shape % shapeCount(v.code);
+        const bias = v.bias % biasCount(v.code);
+        const key = spriteKey(req.key, density, v.code, shape, bias, v.clip);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const tex = textures[shape % config.fullShapes]![v.code === CODE_FULL ? bias : 0]!;
+        const mask = masks[v.code]![shape % masks[v.code]!.length]!;
+        const cutSprite = cut(tex, mask, nominalMask(v.clip));
+        if (cutSprite === null) continue;
+        pending.push({ key, ...cutSprite });
+        sprites++;
+        pixels += cutSprite.w * cutSprite.h;
       }
       perMaterial.push({ key: req.key, id: req.id, density, sprites, pixels });
     }
@@ -478,12 +570,12 @@ export function buildAtlas(
     stats,
     shapeCount,
     biasCount,
-    lookup(key, density, code, shape, bias) {
+    lookup(key, density, code, shape, bias, clip = CODE_FULL) {
       if (code === CODE_EMPTY) return null;
       const shapes = shapeCount(code);
       const biases = biasCount(code);
       if (shapes === 0) return null;
-      return refs.get(spriteKey(key, density, code, shape % shapes, bias % biases)) ?? null;
+      return refs.get(spriteKey(key, density, code, shape % shapes, bias % biases, clip)) ?? null;
     },
   };
 }

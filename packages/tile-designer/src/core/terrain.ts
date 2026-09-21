@@ -33,7 +33,7 @@
 import type { Atlas } from "./atlas.ts";
 import { blitSprite } from "./atlas.ts";
 import { blitFeature, buildFeatureAtlas, type FeatureAtlas } from "./features/index.ts";
-import { cellBounds, cellDepth, cellOrigin, composeCell, featuresForTile, fieldFeatureInstances, type ComposeOptions, type TileField, type TileSurface } from "./compose.ts";
+import { cellBounds, cellDepth, cellOrigin, composeCell, tileOrigin, featuresForTile, fieldFeatureInstances, type ComposeOptions, type TileField, type TileSurface } from "./compose.ts";
 import { CODE_FULL, CORNER_TILE_OFFSETS, nominalMask } from "./masks.ts";
 import { fbm } from "./noise.ts";
 import { drawLine, fillPolygon, makeBuffer, type PixelBuffer } from "./pixels.ts";
@@ -44,10 +44,11 @@ import { CLIFF_UNIT, MAX_FLOORS, TILE_H, TILE_W } from "./types.ts";
 // Top-left of tile (col, row)'s TILE_W×TILE_H cell rect at a given floor level,
 // in native world pixels — the dual grid's `cellOrigin` shifted back up by the
 // half-tile offset that defines it (masks.ts, "Dual-grid geometry").
-export function tileOrigin(col: number, row: number, level = 0): [x: number, y: number] {
-  const [x, y] = cellOrigin(col, row, level);
-  return [x, y - TILE_H / 2];
-}
+//
+// Defined in compose.ts (the compositor needs it to place features) and
+// re-exported here, where the geometry is explained. It used to be written out
+// twice; milestone G folded the copies together.
+export { tileOrigin } from "./compose.ts";
 
 // --- Cliff faces + rims ----------------------------------------------------------
 
@@ -169,6 +170,24 @@ function fieldMaxLevel(field: TileField): number {
 
 // --- Render --------------------------------------------------------------------
 
+// --- Depth offsets ---------------------------------------------------------
+//
+// The three slots the interleave is built from, relative to a tile's own
+// `col + row`. Exported because the GPU renderer buckets by them instead of
+// sorting (src/isoTerrain.ts) and re-deriving the rule in both places is how
+// the two pictures would quietly drift apart.
+//
+//  - A tile's walls and rims sit at its own depth.
+//  - A dual cell sits half a cell nearer the viewer in each axis than the tile
+//    at the same index, so its apparent depth is `c + r + 1` (see the file
+//    header).
+//  - A feature sits above every floor sprite that can touch its host tile. The
+//    deepest such cell is at tileDepth + 1, so +1.5 clears them all and lands
+//    below nothing else — scatter is the topmost floor layer by definition.
+export const TILE_DEPTH = 0;
+export const CELL_DEPTH = 1;
+export const FEATURE_DEPTH = 1.5;
+
 export type TerrainRender = {
   buffer: PixelBuffer;
   // Offset from field-local (native bake pixel) coordinates to buffer pixels —
@@ -212,14 +231,14 @@ export function renderTerrain(
     for (let col = 0; col < field.width; col++) {
       const surface = field.at(col, row);
       items.push({
-        depth: col + row,
+        depth: col + row + TILE_DEPTH,
         draw: () => drawTileWalls(buffer, field, col, row, surface, originX, originY),
       });
       // Features at their own depth slot, above all floor (comment above).
       const placements = featuresForTile(surface, col, row, opts.seed);
       if (placements.length > 0) {
         items.push({
-          depth: col + row + 1.5,
+          depth: col + row + FEATURE_DEPTH,
           draw: () => {
             for (const f of placements) {
               const ref = featureAtlas.lookup(f.key, f.shape);
@@ -237,14 +256,32 @@ export function renderTerrain(
       const sprites = composeCell(field, atlas, c, r, opts);
       if (sprites.length === 0) continue;
       items.push({
-        depth: cellDepth(c, r) + 1,
+        depth: cellDepth(c, r) + CELL_DEPTH,
         draw: () => {
           for (const sprite of sprites) {
-            const ref = atlas.lookup(sprite.key, sprite.density, sprite.code, sprite.shape, sprite.bias);
+            const { key, density, code, shape, bias } = sprite;
+            // Two ways to honour the level clip, and the renderer takes
+            // whichever the atlas can serve (compose.ts, "Spill runs downhill").
+            //
+            // If the atlas was built for this field (`buildFieldAtlas`) it
+            // already holds the clip baked into a sprite of its own — the form a
+            // GPU needs, since there a sprite is a quad and nothing can be
+            // masked per pixel. Taking that path here is not an optimisation:
+            // it means the designer's own preview draws the exact sprites the
+            // game will, so the two renderers cannot drift apart unnoticed.
+            //
+            // Otherwise the clip is applied per pixel at blit time, which costs
+            // the CPU path nothing and keeps a plain `buildAtlas` working.
+            // `clip` is CODE_FULL outside a straddle, so this is the common path.
+            const baked = sprite.clip === CODE_FULL
+              ? null
+              : atlas.lookup(key, density, code, shape, bias, sprite.clip);
+            if (baked !== null) {
+              blitSprite(buffer, atlas, baked, originX + sprite.x, originY + sprite.y);
+              continue;
+            }
+            const ref = atlas.lookup(key, density, code, shape, bias);
             if (ref === null) continue;
-            // `clip` is CODE_FULL for every sprite outside a level straddle, so
-            // the common path stays a plain blit (compose.ts, "Spill runs
-            // downhill").
             const clip = sprite.clip === CODE_FULL ? undefined : nominalMask(sprite.clip);
             blitSprite(buffer, atlas, ref, originX + sprite.x, originY + sprite.y, clip);
           }

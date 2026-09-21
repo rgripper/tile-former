@@ -33,9 +33,10 @@ export function makeBuffer(width = TILE_W, height = TILE_H): PixelBuffer {
 //
 // The one real consequence: `{ ...buf }` now silently drops the pixels, because
 // spread copies enumerable own properties only. Use `aliasBuffer` when you need
-// a fresh object identity for the same pixels — that is the only reason this
-// package ever spread a buffer (MixedBiomePreview republishing a buffer it is
-// still progressively baking into). `TileCanvas` guards against the mistake.
+// a fresh object identity for the same pixels — what a caller mutating a buffer
+// in place needs so React sees a changed prop. Nothing does that today (the
+// progressive per-tile bake that did is gone with v1), but the failure is
+// silent, so `TileCanvas` guards against it.
 export function hidePixelData<T extends { data: ArrayBufferView }>(obj: T): T {
   Object.defineProperty(obj, "data", {
     value: obj.data,
@@ -58,17 +59,6 @@ export function insideDiamond(x: number, y: number): boolean {
   const dx = (x + 0.5) / (TILE_W / 2) - 1;
   const dy = (y + 0.5) / (TILE_H / 2) - 1;
   return Math.abs(dx) + Math.abs(dy) <= 1;
-}
-
-// Normalized inset from the diamond edge: 0 exactly on the border, 1 at the
-// tile center. Same |dx|+|dy| space as insideDiamond, so it is 1 - (|dx|+|dy|).
-// Unlike the noise generators this is a per-tile *local* quantity — the price of
-// holding non-primary patches off the rim is that those patches no longer cross
-// tile borders, which is the intended trade for clean biome seams.
-export function edgeInset(x: number, y: number): number {
-  const dx = (x + 0.5) / (TILE_W / 2) - 1;
-  const dy = (y + 0.5) / (TILE_H / 2) - 1;
-  return 1 - (Math.abs(dx) + Math.abs(dy));
 }
 
 // Inclusive [x0, x1] span of diamond pixels on row y — closed-form version of
@@ -153,41 +143,4 @@ export function drawLine(buf: PixelBuffer, x0: number, y0: number, x1: number, y
       cy += sy;
     }
   }
-}
-
-// --- Isolate edge gate -------------------------------------------------------
-// Shared by the substrate and mat stages (both previously carried an identical
-// private copy of these constants and the smoothstep below).
-//
-// `isolatedPatches` mode suppresses non-primary materials near the tile rim so
-// the border stays pure primary and biome seams read clean. The naive form,
-// smoothstep(MARGIN, MARGIN+FEATHER, edgeInset(x,y)), gates on the raw inset —
-// and since a constant inset is by definition a diamond contour concentric with
-// the tile, that draws a hard-edged diamond a few pixels in from the border. It
-// is highly visible: whatever the non-primary materials contribute (a speckle
-// of dryGrass, a patch of a second substrate) stops dead along a perfectly
-// straight line that traces the tile shape, which reads as a rectangular
-// cut-off rather than as ground.
-//
-// Perturbing the inset by low-frequency noise before the smoothstep breaks that
-// contour into an irregular wandering boundary at essentially no cost. The
-// noise is keyed on WORLD coordinates, so two adjacent tiles perturb their
-// shared border identically and the gate stays seam-consistent.
-export const EDGE_MARGIN = 0.16;
-export const EDGE_FEATHER = 0.14;
-// How far the gate contour may wander, in edge-inset units. Large enough to
-// destroy the diamond read, bounded so non-primary material still cannot reach
-// the actual rim (which is what keeps biome seams clean).
-export const EDGE_INSET_JITTER = 0.16;
-const EDGE_JITTER_FREQ = 0.05;
-
-export function isolateEdgeGate(
-  x: number,
-  y: number,
-  wx: number,
-  wy: number,
-  seed: number,
-): number {
-  const jitter = (fbm(wx, wy * 2, seed ^ 0x39c1f2b7, EDGE_JITTER_FREQ) - 0.5) * 2 * EDGE_INSET_JITTER;
-  return smoothstep(EDGE_MARGIN, EDGE_MARGIN + EDGE_FEATHER, edgeInset(x, y) + jitter);
 }

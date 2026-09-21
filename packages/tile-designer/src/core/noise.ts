@@ -2,11 +2,15 @@
 //
 // Two families live here during the v2 transition:
 //
-//  1. **World-coordinate** (`valueNoise`, `fbm`, `cellEdge`, `grainCoord`) —
-//     v1's primitives, pure functions of (world position, seed). Adjacent tiles
-//     sampling the same world pixels agree, which is how v1 got seamlessness at
-//     the cost of every tile being unique. Still used by the live `bake.ts`
-//     path; removed once milestone A ports the generators over.
+//  1. **World-coordinate** (`valueNoise`, `fbm`, `cellEdge`) — v1's primitives,
+//     pure functions of (world position, seed). The per-pixel bake they were
+//     written for is gone (milestone G), but they survive as the package's
+//     general-purpose noise: anything sampled over *tile* coordinates rather
+//     than inside a tile still wants them — the terrain preview's altitude
+//     field, the tone-bias field, the previews' property jitter. `grainCoord`
+//     went with the bake; chunkiness is a property of the authoring lattice
+//     now (lattice.ts, `quantizeLattice`), not something applied to world
+//     pixels after the fact.
 //
 //  2. **Lattice-periodic** (`periodic*`) — v2's primitives, pure functions of a
 //     lattice coordinate in [0, 1) with **period 1 in both axes**. Because the
@@ -33,16 +37,6 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // Hermite step: 0 at/below a, 1 at/above b, smooth in between.
 export function smoothstep(a: number, b: number, x: number): number {
   return smooth(Math.min(1, Math.max(0, (x - a) / (b - a))));
-}
-
-// Snaps a world coordinate down to its enclosing grain-sized block. This is
-// the whole "chunky brush": callers quantize wx/wy once before handing them
-// to any generator below, so every noise primitive — hash lookups, fBm
-// fields, cellEdge cracks — automatically reads as grain×grain blocks
-// instead of native per-pixel detail, with no per-generator special-casing.
-// Pure function of world coords, so block boundaries agree across tile seams.
-export function grainCoord(v: number, grain: number): number {
-  return grain > 1 ? Math.floor(v / grain) * grain : v;
 }
 
 // Smoothed value noise on an integer lattice, output [0,1).

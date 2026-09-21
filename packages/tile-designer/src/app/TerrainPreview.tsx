@@ -9,8 +9,8 @@ import { TileCanvas } from "./TileCanvas.tsx";
 import { clusterAt, jitterInput, pickClusters } from "./previewUtils.ts";
 
 // Compositing (unlike v1's per-pixel bake) is cheap enough to run synchronously
-// at every size below — no chunked/progress-bar bake loop needed, unlike
-// MixedBiomePreview, whose whole reason for existing was v1's per-tile cost.
+// at every size below — no chunked/progress-bar bake loop, which is what the
+// separate mixed-biome panel existed for until v1's per-tile cost went away.
 const GRID_OPTIONS = [12, 16, 24, 32] as const;
 type GridSize = (typeof GRID_OPTIONS)[number];
 

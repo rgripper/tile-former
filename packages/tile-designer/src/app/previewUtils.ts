@@ -1,11 +1,13 @@
-// Shared helpers for the multi-tile preview panels: world-coordinate jitter
-// so seam checks exercise the realistic near-identical-neighbor case (not the
-// trivial identical-tile one), an alpha-aware blit for compositing baked tiles
-// into one big canvas buffer, and minority-biome cluster placement so a
+// Shared helpers for the multi-tile preview panels: coherent property jitter so
+// seam checks exercise the realistic near-identical-neighbour case (not the
+// trivial identical-tile one), flat single-input fields for the panels that
+// show what an input resolves to, and minority-biome cluster placement so a
 // preview field reads as a mix rather than one flat biome.
 
 import { biomes, type Biome } from "@tile-former/tilegen";
 import type { DesignInput } from "../core/types.ts";
+import { resolveStyle } from "../core/resolve.ts";
+import { makeField, tileSurface, type TileField } from "../core/compose.ts";
 import { fbm } from "../core/noise.ts";
 import type { PixelBuffer } from "../core/pixels.ts";
 import { makeRng } from "../core/rng.ts";
@@ -62,30 +64,28 @@ export function jitterInput(input: DesignInput, tx: number, ty: number, seed: nu
   };
 }
 
-// Copies non-transparent pixels of `src` into `dst` at (dx, dy).
-export function blit(dst: PixelBuffer, src: PixelBuffer, dx: number, dy: number): void {
-  for (let y = 0; y < src.height; y++) {
-    const py = dy + y;
-    if (py < 0 || py >= dst.height) continue;
-    for (let x = 0; x < src.width; x++) {
-      const so = (y * src.width + x) * 4;
-      if (src.data[so + 3] === 0) continue;
-      const px = dx + x;
-      if (px < 0 || px >= dst.width) continue;
-      const dof = (py * dst.width + px) * 4;
-      dst.data[dof] = src.data[so]!;
-      dst.data[dof + 1] = src.data[so + 1]!;
-      dst.data[dof + 2] = src.data[so + 2]!;
-      dst.data[dof + 3] = 255;
-    }
-  }
+// --- Uniform fields -------------------------------------------------------------
+
+// A flat `size`×`size` field of one input, for the panels that want to show
+// what a single set of properties *looks like* rather than how a landscape
+// reads. There is no single-tile answer to that question any more: a tile's
+// appearance is decided by the four dual cells around it, so the smallest
+// honest unit is a patch (PLAN.md, milestone T — "a single zoomed tile stops
+// being the meaningful unit").
+//
+// Level 0 throughout, so nothing straddles and no cliffs are drawn — which also
+// means no clipped atlas variants are needed and a plain `buildAtlas` serves.
+export function uniformField(input: DesignInput, size: number): TileField {
+  const surface = tileSurface(resolveStyle({ ...input, altitude: 0 }), 0);
+  return makeField(size, size, () => surface);
 }
 
 // --- Minority-biome clusters ---------------------------------------------------
 // Wobbly-circle blobs of a different biome cut into an otherwise uniform field,
 // placed on opposite sides so the base biome keeps the majority of the area.
-// Originally milestone L's `MixedBiomePreview`; generalized to width×height (not
-// just a square grid) so the terrain preview can reuse it.
+// Originally milestone L's mixed-biome preview panel; generalised to
+// width×height (not just a square grid) when the terrain preview took it over,
+// and the only part of that panel that outlived it.
 
 type Harmonic = { amp: number; freq: number; phase: number };
 export type Cluster = {

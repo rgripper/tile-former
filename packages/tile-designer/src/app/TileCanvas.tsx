@@ -43,9 +43,8 @@ export function TileCanvas({ buffer, zoom }: { buffer: PixelBuffer; zoom: number
     }
 
     let stale = false;
-    // Copy: ImageData aliases the array it is given, and some callers
-    // (MixedBiomePreview's progressive bake) keep mutating their buffer after
-    // publishing it — the copy keeps the in-flight decode from tearing.
+    // Copy: ImageData aliases the array it is given, so a caller that keeps
+    // mutating a buffer after publishing it would tear the in-flight decode.
     const image = new ImageData(new Uint8ClampedArray(buffer.data), buffer.width, buffer.height);
     createImageBitmap(image).then((bmp) => {
       if (stale) {
